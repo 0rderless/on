@@ -1,0 +1,12 @@
+{
+  "name": "maverick-persistence",
+  "version": "1.0.0",
+  "description": "24/7 Discord Online",
+  "main": "bot.js",
+  "dependencies": {
+    "ws": "^8.13.0"
+  },
+  "scripts": {
+    "start": "node bot.js"
+  }
+}
