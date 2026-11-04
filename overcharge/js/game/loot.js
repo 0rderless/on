@@ -54,14 +54,12 @@ export class Loot {
     const free = s => world.col.isFree(s.x, s.y + 0.05, s.z, 0.45, 1.2);
     for (const s of world.lootSpots) {
       if (rng() > density || !free(s)) continue;
+      // No guns on the floor: everyone drops in with a full loadout. Guns (and upgrades) come from chests.
       const k = rng();
-      if (k < 0.72) {
-        const id = rollWeapon(rng);
-        this.spawn(makeGun(id, rollRarity(FLOOR_RARITY, rng)), s, false);
-        this.spawn(this.ammoFor(id), { x: s.x + 0.7, y: s.y, z: s.z + 0.3 }, false);
-      } else if (k < 0.82) this.spawn(makeGrenade(rng() < 0.4 ? 'shockwave' : 'overdrive', 1 + Math.floor(rng() * 2)), s, false);
-      else if (k < 0.9) this.spawn(makeHeal('medkit', 1), s, false);
-      else this.spawn(this.randomAmmo(rng), s, false);
+      if (k < 0.45) continue;
+      else if (k < 0.7) this.spawn(this.randomAmmo(rng), s, false);
+      else if (k < 0.87) this.spawn(makeGrenade(rng() < 0.4 ? 'shockwave' : 'overdrive', 1 + Math.floor(rng() * 2)), s, false);
+      else this.spawn(makeHeal('medkit', 1), s, false);
     }
     for (const s of world.chestSpots) {
       if (rng() > Math.min(1, density + 0.15) || !free(s)) continue;
@@ -167,7 +165,8 @@ export class Loot {
     Audio.play('chest', { pos: c.pos, vol: 0.9, range: 50 });
     const id = rollWeapon();
     const r = Math.random();
-    const extra = r < 0.15 ? { kind: 'jetpack', id: 'jetpack' } : r < 0.45 ? makeGrenade(Math.random() < 0.4 ? 'shockwave' : 'overdrive', 1 + Math.floor(Math.random() * 2)) : r < 0.7 ? makeHeal('medkit', 1) : this.randomAmmo();
+    const jetLoot = this.g.opts && this.g.opts.profile && this.g.opts.profile.jetpackStart === false;
+    const extra = r < 0.15 && jetLoot ? { kind: 'jetpack', id: 'jetpack' } : r < 0.45 ? makeGrenade(Math.random() < 0.4 ? 'shockwave' : 'overdrive', 1 + Math.floor(Math.random() * 2)) : r < 0.7 ? makeHeal('medkit', 1) : this.randomAmmo();
     const items = [makeGun(id, rollRarity(CHEST_RARITY)), this.ammoFor(id), extra];
     this.drop(items, c.pos, 0.9);
     this.g.noise(f, c.pos, 25);
