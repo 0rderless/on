@@ -1,11 +1,25 @@
 // Local player controller + third-person camera rig.
 import * as THREE from 'three';
 import { WEAPONS } from '../data/items.js';
+import { vfovFromH, FORTNITE_FOV } from '../config.js';
 import { Audio } from '../core/audio.js';
 
 const _v = new THREE.Vector3(), _dir = new THREE.Vector3(), _o = new THREE.Vector3(), _t = new THREE.Vector3();
 const TAU = Math.PI * 2;
 function angDiff(a, b) { let d = (b - a) % TAU; if (d > Math.PI) d -= TAU; if (d < -Math.PI) d += TAU; return d; }
+
+// Over-the-shoulder camera rig (metres): distance behind, offset to the right, extra height.
+export const CAMERA_RIG = { hip: { dist: 4.6, right: 0.85, up: 0.42 }, ads: { dist: 2.2, right: 0.62, up: 0.22 } };
+
+/** Where the third-person camera sits for a character (no wall collision). Used by the game and the FOV preview. */
+export function rigPose(pos, yaw, pitch, crouch, rig, outPos, outTarget) {
+  const pivotY = pos.y + (crouch ? 1.18 : 1.56);
+  const sy = Math.sin(yaw), cy = Math.cos(yaw), sp = Math.sin(pitch), cp = Math.cos(pitch);
+  const fwd = new THREE.Vector3(sy * cp, sp, cy * cp), rgt = new THREE.Vector3(-cy, 0, sy);
+  outPos.set(pos.x, pivotY, pos.z).addScaledVector(rgt, rig.right).addScaledVector(fwd, -rig.dist);
+  outPos.y += rig.up;
+  outTarget.copy(outPos).addScaledVector(fwd, 10);
+}
 
 export class PlayerController {
   constructor(game, camera, settings) {
@@ -16,7 +30,7 @@ export class PlayerController {
     this.camPos = new THREE.Vector3();
     this.camDist = 3.2;
     this.shake = 0;
-    this.fovBase = 78;
+    this.fovBase = vfovFromH(settings.fov || FORTNITE_FOV);
     this.zoom = 1;
     this.interactTarget = null;
     this.autoScanT = 0; this.autoTarget = null; this.autoUntil = 0; this.autoStart = 0; this.autoFiring = false;
@@ -223,6 +237,7 @@ export class PlayerController {
     }
     if (!f.alive && this.spectating && this.spectating.alive) f = this.spectating;
     const cam = this.cam;
+    this.fovBase = vfovFromH(this.settings.fov || FORTNITE_FOV);
     let target, dist, right, up, fov = this.fovBase;
     const ads = f === g.player && f.ads && f.weapon;
     if (f.mode === 'bus') {
@@ -236,12 +251,12 @@ export class PlayerController {
       return;
     }
     const yaw = f === g.player ? this.yaw : f.yaw, pitch = f === g.player ? this.pitch : f.pitch * 0.5;
-    if (f.mode === 'skydive' || f.mode === 'glide') { dist = 6.5; right = 0; up = 1.2; fov = 84; }
+    if (f.mode === 'skydive' || f.mode === 'glide') { dist = 6.5; right = 0; up = 1.2; fov = this.fovBase * 1.12; }
     else if (ads) {
       const w = f.weapon;
       if (w.scope) { dist = -0.2; right = 0.0; up = 0; fov = this.fovBase / w.zoom; }
-      else { dist = 1.7; right = 0.58; up = 0.12; fov = this.fovBase / w.zoom; }
-    } else { dist = 3.1; right = 0.7; up = 0.22; }
+      else { ({ dist, right, up } = CAMERA_RIG.ads); fov = this.fovBase / w.zoom; }
+    } else ({ dist, right, up } = CAMERA_RIG.hip);
     if (!f.alive) { dist = 5; right = 0; }
     const pivotY = f.pos.y + (f.crouch && f.mode === 'ground' ? 1.18 : 1.56) + (f.mode !== 'ground' ? 0.8 : 0);
     const sy = Math.sin(yaw), cy = Math.cos(yaw), sp = Math.sin(pitch), cp = Math.cos(pitch);

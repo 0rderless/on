@@ -32,3 +32,10 @@ export const QUALITY = {
   medium: { pixelRatio: 1.5, shadows: true,  shadowSize: 1024, drawDist: 125, antialias: true },
   high:   { pixelRatio: 2.0, shadows: true,  shadowSize: 2048, drawDist: 155, antialias: true },
 };
+
+// Field of view is set the Fortnite way: horizontal degrees measured on a 16:9 screen (Fortnite = 80).
+// Wider phones then see a little more to the sides (Hor+), exactly like Fortnite on mobile.
+export const FORTNITE_FOV = 80;
+export function vfovFromH(hfov) {
+  return 2 * Math.atan(Math.tan((hfov * Math.PI / 180) / 2) / (16 / 9)) * 180 / Math.PI;
+}

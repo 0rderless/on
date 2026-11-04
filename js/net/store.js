@@ -54,7 +54,7 @@ function makeUid() {
 
 export function defaultSettings() {
   return {
-    sens: 1.0, adsSens: 0.75, invertY: false,
+    sens: 1.0, adsSens: 0.75, invertY: false, fov: 80,
     autoFire: true, aimAssist: true, autoPickup: true, autoSprint: true,
     quality: 'medium', showFps: false,
     master: 0.8, sfx: 1.0, music: 0.5,

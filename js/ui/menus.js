@@ -182,6 +182,11 @@ export function renderSettings(app, container, inGame = false) {
     <div class="set-sec"><h3>CONTROLS</h3>
       ${slider('sens', 'Look Sensitivity', 0.3, 2.5, 0.05, 'How fast swiping turns the camera', v => (+v).toFixed(2))}
       ${slider('adsSens', 'Aim (ADS) Sensitivity', 0.3, 1.5, 0.05, 'Multiplier while aiming down sights', v => (+v).toFixed(2))}
+      ${slider('fov', 'Field of View', 60, 120, 1, 'How wide your camera sees. Fortnite mobile uses 80°', v => v + '°')}
+      <div class="fov-preview">
+        <div class="fov-view"><canvas class="fov-canvas"></canvas><div class="fov-cross"></div><div class="fov-tag">PREVIEW · <b class="fov-val">${S.fov}°</b>${S.fov === 80 ? ' · FORTNITE DEFAULT' : ''}</div></div>
+        <button class="btn ghost sm fov-reset"><span>RESET TO 80° (FORTNITE)</span></button>
+      </div>
       ${toggle('autoFire', 'Auto Shoot', 'Shoots for you the moment your crosshair is on an enemy — no fire button needed. Also toggled by the AUTO button in a match')}
       ${toggle('aimAssist', 'Aim Assist', 'Slows and gently pulls your crosshair onto nearby enemies (works with or without Auto Shoot)')}
       ${toggle('autoSprint', 'Auto Sprint', 'Sprint when the joystick is pushed all the way')}
@@ -212,9 +217,28 @@ export function renderSettings(app, container, inGame = false) {
   container.querySelectorAll('input[type=range]').forEach(r => r.addEventListener('input', () => {
     const k = r.dataset.k; S[k] = +r.value;
     const v = container.querySelector(`[data-v="${k}"]`);
-    v.textContent = k === 'sens' || k === 'adsSens' ? (+r.value).toFixed(2) : Math.round(r.value * 100) + '%';
+    v.textContent = k === 'sens' || k === 'adsSens' ? (+r.value).toFixed(2) : k === 'fov' ? r.value + '°' : Math.round(r.value * 100) + '%';
+    if (k === 'fov') fovPreview();
     app.applySettings(); Store.save();
   }));
+  // live FOV preview
+  const fovCanvas = container.querySelector('.fov-canvas');
+  let fovQueued = false;
+  const fovPreview = () => {
+    if (fovQueued) return; fovQueued = true;
+    requestAnimationFrame(() => {
+      fovQueued = false;
+      try { app.renderFovPreview(fovCanvas, S.fov); } catch (e) { console.warn('fov preview', e); }
+      container.querySelector('.fov-tag').innerHTML = `PREVIEW · <b class="fov-val">${S.fov}°</b>${S.fov === 80 ? ' · FORTNITE DEFAULT' : ''}`;
+    });
+  };
+  container.querySelector('.fov-reset').addEventListener('click', () => {
+    click(); S.fov = 80;
+    const r = container.querySelector('[data-k="fov"]'); r.value = 80;
+    container.querySelector('[data-v="fov"]').textContent = '80°';
+    fovPreview(); app.applySettings(); Store.save();
+  });
+  setTimeout(fovPreview, 60);
   container.querySelectorAll('[data-t]').forEach(t => t.addEventListener('click', () => {
     click(); const k = t.dataset.t; S[k] = !S[k]; t.classList.toggle('on', S[k]); app.applySettings(); Store.save();
   }));
