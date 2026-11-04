@@ -3,6 +3,7 @@
 // and syncs again next time the cloud is reachable.
 import { firebaseConfig, DB_ROOT } from '../config.js';
 import { newRank } from '../data/ranks.js';
+import { DEFAULT_LOADOUT, normalizeLoadout } from '../data/items.js';
 
 const LS_UID = 'oc_uid';
 const LS_PROFILE = 'oc_profile';
@@ -71,6 +72,7 @@ export function defaultProfile(uid, username) {
     locker: { skin: 'default', pickaxe: 'standard' },
     settings: defaultSettings(),
     hud: {},
+    loadout: [...DEFAULT_LOADOUT],
     lastMode: { mode: 'br', ranked: false },
   };
 }
@@ -84,6 +86,7 @@ function normalize(p) {
   out.locker = { ...d.locker, ...(p.locker || {}) };
   out.settings = { ...d.settings, ...(p.settings || {}) };
   out.hud = p.hud || {};
+  out.loadout = normalizeLoadout(p.loadout);
   out.lastMode = { ...d.lastMode, ...(p.lastMode || {}) };
   return out;
 }

@@ -6,6 +6,7 @@ import { HUD_DEFAULTS, HUD_NAMES, applyLayout } from './controls.js';
 import { Audio } from '../core/audio.js';
 import { esc } from './hud.js';
 import { xpForLevel } from '../data/ranks.js';
+import { LOADOUT_ITEMS, DEFAULT_LOADOUT, normalizeLoadout, itemColor, HEALS, GRENADES, WEAPONS } from '../data/items.js';
 
 const $ = id => document.getElementById(id);
 const click = () => Audio.play('click', { vol: 0.5 });
@@ -98,6 +99,7 @@ export function refreshModeCard(app) {
   $('lobby-loadout').innerHTML = `
     <div class="lo-row"><span>OUTFIT</span><b style="color:${RARITY_COLORS[sk.rarity]}">${sk.name}</b></div>
     <div class="lo-row"><span>PICKAXE</span><b style="color:${RARITY_COLORS[pk.rarity]}">${pk.name}</b></div>
+    <div class="lo-row"><span>LOADOUT</span><span class="lo-icons">${normalizeLoadout(p.loadout).map(id => `<img src="${loadoutIcon(app, id)}" alt="">`).join('')}</span></div>
     <div class="lo-row"><span>BR RANK</span><b style="color:${divInfo(p.ranked.br.div).tier.color}">${divInfo(p.ranked.br.div).name}</b></div>
     <div class="lo-row"><span>RELOAD RANK</span><b style="color:${divInfo(p.ranked.reload.div).tier.color}">${divInfo(p.ranked.reload.div).name}</b></div>`;
 }
@@ -362,4 +364,77 @@ export function showResults(app, r, rewards) {
     }, 700);
   }
   $('res-continue').onclick = () => { click(); $('results').classList.remove('show'); app.enterLobby(); };
+}
+
+// ------------------------------------------------------------------ loadout editor
+function loadoutIcon(app, id) {
+  const it = LOADOUT_ITEMS[id].make();
+  return app.icons[it.kind === 'gun' ? 'gun_' + it.id : it.kind === 'heal' ? 'heal_' + it.id : 'nade_' + it.id] || '';
+}
+
+export function renderLoadout(app) {
+  const p = app.profile;
+  p.loadout = normalizeLoadout(p.loadout);
+  const box = $('le-slots');
+  box.innerHTML = p.loadout.map((id, i) => {
+    const it = LOADOUT_ITEMS[id].make();
+    return `<div class="le-card ${app.lePicked === i ? 'picked' : ''}" data-i="${i}">
+      <div class="le-rar" style="background:linear-gradient(0deg, ${itemColor(it)}, transparent)"></div>
+      <span class="le-num">${i + 2}</span><img src="${loadoutIcon(app, id)}" alt=""><span class="le-name">${LOADOUT_ITEMS[id].label.toUpperCase()}</span></div>`;
+  }).join('');
+}
+
+function commitLoadout(app, order) {
+  app.profile.loadout = normalizeLoadout(order);
+  Store.save();
+  renderLoadout(app); refreshModeCard(app);
+  Audio.play('equip', { vol: 0.7 });
+}
+
+export function initLoadout(app) {
+  const box = $('le-slots');
+  let drag = null;
+  const cardAt = (x, y) => { const el = document.elementFromPoint(x, y); return el && el.closest ? el.closest('.le-card') : null; };
+  box.addEventListener('pointerdown', e => {
+    const card = e.target.closest('.le-card'); if (!card) return;
+    e.preventDefault();
+    drag = { i: +card.dataset.i, x: e.clientX, y: e.clientY, moved: false, ghost: null, card };
+  });
+  window.addEventListener('pointermove', e => {
+    if (!drag) return;
+    if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 10) return;
+    if (!drag.moved) {
+      drag.moved = true;
+      drag.ghost = drag.card.cloneNode(true); drag.ghost.classList.add('le-ghost'); drag.ghost.classList.remove('picked');
+      drag.ghost.style.width = drag.card.offsetWidth + 'px';
+      document.body.appendChild(drag.ghost);
+      drag.card.classList.add('dragging');
+    }
+    drag.ghost.style.left = e.clientX + 'px'; drag.ghost.style.top = e.clientY + 'px';
+    box.querySelectorAll('.le-card').forEach(c => c.classList.remove('target'));
+    const over = cardAt(e.clientX, e.clientY);
+    if (over && over !== drag.card) over.classList.add('target');
+  });
+  window.addEventListener('pointerup', e => {
+    if (!drag) return;
+    const d = drag; drag = null;
+    if (d.ghost) d.ghost.remove();
+    box.querySelectorAll('.le-card').forEach(c => c.classList.remove('target', 'dragging'));
+    const order = [...normalizeLoadout(app.profile.loadout)];
+    if (d.moved) {
+      const over = cardAt(e.clientX, e.clientY);
+      if (over) {
+        const to = +over.dataset.i;
+        if (to !== d.i) { const [it] = order.splice(d.i, 1); order.splice(to, 0, it); app.lePicked = null; commitLoadout(app, order); return; }
+      }
+      renderLoadout(app); return;
+    }
+    // tap: pick one, tap another to swap
+    if (app.lePicked === null || app.lePicked === undefined) { app.lePicked = d.i; click(); renderLoadout(app); return; }
+    if (app.lePicked === d.i) { app.lePicked = null; renderLoadout(app); return; }
+    const a = app.lePicked; app.lePicked = null;
+    [order[a], order[d.i]] = [order[d.i], order[a]];
+    commitLoadout(app, order);
+  });
+  $('le-reset').addEventListener('click', () => { app.lePicked = null; commitLoadout(app, [...DEFAULT_LOADOUT]); });
 }

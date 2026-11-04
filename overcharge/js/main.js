@@ -15,7 +15,7 @@ import { Controls, applyLayout } from './ui/controls.js';
 import { Hud } from './ui/hud.js';
 import { LobbyScene } from './ui/lobbyScene.js';
 import { renderIcons, renderMapImage } from './ui/icons.js';
-import { initAuth, initLobby, refreshModeCard, refreshMe, renderLocker, renderCareer, renderSettings, HudEditor, showResults } from './ui/menus.js';
+import { initAuth, initLobby, initLoadout, renderLoadout, refreshModeCard, refreshMe, renderLocker, renderCareer, renderSettings, HudEditor, showResults } from './ui/menus.js';
 import { rankedDelta, applyRanked, botSkillFor, xpForLevel } from './data/ranks.js';
 
 const $ = id => document.getElementById(id);
@@ -98,7 +98,7 @@ class App {
     const profile = await profileP;
     progress(1, 'Ready');
     clearInterval(this.tipTimer);
-    initAuth(this); initLobby(this);
+    initAuth(this); initLobby(this); initLoadout(this);
     this.bindGlobal();
     this.resize();
     window.addEventListener('resize', () => this.resize());
@@ -189,7 +189,13 @@ class App {
       Audio.unlock();
       if (this.state === 'lobby') Audio.loop('music', 0.8, true);
     };
-    window.addEventListener('pointerdown', unlock, { passive: true });
+    // iOS only unlocks Web Audio inside certain gestures, so listen to all of them
+    for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) window.addEventListener(ev, unlock, { passive: true });
+    // block pinch-zoom and double-tap zoom (iOS ignores user-scalable=no)
+    for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(ev, e => e.preventDefault(), { passive: false });
+    let lastTouch = 0;
+    document.addEventListener('touchend', e => { const now = Date.now(); if (now - lastTouch < 300 && !e.target.closest('input')) e.preventDefault(); lastTouch = now; }, { passive: false });
+    this.setupInstall();
     document.addEventListener('visibilitychange', () => {
       if (!Audio.ctx) return;
       if (document.hidden) { Audio.ctx.suspend(); if (this.state === 'match' && !this.paused) this.pause(true); }
@@ -205,6 +211,25 @@ class App {
     $('p-settings').addEventListener('click', () => { renderSettings(this, $('settings2'), true); $('settings-modal').classList.add('show'); });
     $('p-hud').addEventListener('click', () => { $('pause').classList.remove('show'); this.openHudEditor(true); });
     $('mm-cancel').addEventListener('click', () => { clearInterval(this.mmTimer); clearTimeout(this.mmDone); $('mm').classList.remove('show'); this.state = 'lobby'; });
+  }
+
+  setupInstall() {
+    const box = $('install'), msg = $('install-msg'), go = $('install-go');
+    let dismissed = false; try { dismissed = localStorage.getItem('oc_install_x') === '1'; } catch { /* storage blocked */ }
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: fullscreen)').matches || navigator.standalone;
+    const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (standalone || dismissed || window.OC_PREVIEW) return;
+    if (ios) {
+      msg.innerHTML = 'In Safari tap <i class="share"></i> <b style="display:inline;color:#fff;font-family:inherit">Share</b>, then <b style="display:inline;color:#fff;font-family:inherit">Add to Home Screen</b> for full screen.';
+      box.classList.add('show');
+    }
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault(); this.installEvt = e;
+      msg.textContent = 'Install OVERCHARGE to launch it full screen from your home screen.';
+      go.style.display = ''; box.classList.add('show');
+    });
+    go.addEventListener('click', async () => { if (!this.installEvt) return; this.installEvt.prompt(); await this.installEvt.userChoice.catch(() => {}); this.installEvt = null; box.classList.remove('show'); });
+    $('install-x').addEventListener('click', () => { box.classList.remove('show'); try { localStorage.setItem('oc_install_x', '1'); } catch { /* storage blocked */ } });
   }
 
   resize() {
@@ -253,6 +278,7 @@ class App {
     this.lobbyScene.layout(tab);
     if (tab === 'locker') { this.lockerSel = null; renderLocker(this); }
     else { this.lobbyScene.setSkin(this.profile.locker.skin); this.lobbyScene.showGun(); }
+    if (tab === 'loadout') { this.lePicked = null; renderLoadout(this); }
     if (tab === 'career') renderCareer(this);
     if (tab === 'settings') renderSettings(this, $('settings'));
     if (tab === 'play') refreshModeCard(this);
@@ -393,3 +419,8 @@ function frame() { return new Promise(r => requestAnimationFrame(() => r())); }
 const app = new App();
 window.__oc = app;
 app.boot();
+
+// Offline support + app-like launching (not inside the hosted preview, which can't use service workers)
+if ('serviceWorker' in navigator && !window.OC_PREVIEW && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(e => console.warn('service worker:', e.message)));
+}

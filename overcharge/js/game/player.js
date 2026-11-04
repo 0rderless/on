@@ -83,6 +83,7 @@ export class PlayerController {
       if (f.select(input.slot)) Audio.play('equip', { vol: 0.6 });
       input.slot = null;
     }
+    if (input.swap) { const [a, b] = input.swap; input.swap = null; if (f.swapSlots(a, b)) Audio.play('equip', { vol: 0.6 }); }
     if (input.reload) { input.reload = false; if (f.startReload()) Audio.play(f.weapon.id === 'shotgun' ? 'pump' : 'reload', { vol: 0.55 }); }
     // ADS toggle
     if (input.adsToggle) { input.adsToggle = false; f.ads = !!f.weapon && !f.ads && f.mode === 'ground'; }
@@ -114,6 +115,11 @@ export class PlayerController {
     if (f.mode === 'ground') {
       if (!it) {
         if (input.firePressed || input.fire) this.g.combat.melee(f, _dir.set(Math.sin(this.yaw), 0, Math.cos(this.yaw)));
+      } else if (it.kind === 'heal') {
+        if ((input.firePressed || input.fire) && !f.healing) {
+          if (f.startHeal()) Audio.play('uiopen', { vol: 0.5, rate: 0.8 });
+          else if (input.firePressed && f.health >= 100) this.g.hud.toast('Health is already full');
+        }
       } else if (it.kind === 'grenade') {
         if (input.firePressed) { this.cam.getWorldDirection(_dir); g.combat.throwGrenade(f, _dir.clone()); }
       } else if (it.kind === 'gun') {

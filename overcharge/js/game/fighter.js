@@ -1,6 +1,6 @@
 // A combatant (the player or a bot): health, shield, inventory, weapon state and movement physics.
 import * as THREE from 'three';
-import { WEAPONS, GRENADES, AMMO_TYPES } from '../data/items.js';
+import { WEAPONS, GRENADES, AMMO_TYPES, HEALS, LOADOUT_ITEMS, LOADOUT_AMMO, normalizeLoadout } from '../data/items.js';
 import {
   GRAVITY, PLAYER_RADIUS, PLAYER_HEIGHT, CROUCH_HEIGHT, STEP_HEIGHT,
   MAX_HEALTH, MAX_SHIELD, SHIELD_REGEN_DELAY, SHIELD_REGEN_RATE,
@@ -35,6 +35,7 @@ export class Fighter {
     this.move = new THREE.Vector2();   // desired world-space move (x, z), magnitude 0..1
     this.wantJump = false;
     this.overdriveT = 0;
+    this.healT = 0; this.healDur = 0;
     this.noFallDamage = false;
     this.airTime = 0; this.peakFallSpeed = 0;
     this.kills = 0; this.damageDealt = 0; this.placement = 0;
@@ -51,6 +52,7 @@ export class Fighter {
   get item() { return this.selected === 0 ? null : this.slots[this.selected - 1]; }
   get weapon() { const it = this.item; return it && it.kind === 'gun' ? WEAPONS[it.id] : null; }
   get reloading() { return this.reloadT > 0; }
+  get healing() { return this.healT > 0; }
   get eyeY() { return this.pos.y + (this.crouch && this.mode === 'ground' ? 1.15 : 1.58); }
 
   resetForMatch() {
@@ -59,8 +61,25 @@ export class Fighter {
     this.slots = [null, null, null, null, null]; this.selected = 0;
     this.ammo = { light: 0, medium: 0, heavy: 0, shells: 0 };
     this.kills = 0; this.damageDealt = 0; this.placement = 0; this.eliminatedBy = null;
-    this.overdriveT = 0; this.reloadT = 0; this.fireCd = 0; this.respawnT = -1;
+    this.overdriveT = 0; this.reloadT = 0; this.fireCd = 0; this.respawnT = -1; this.healT = 0;
     this.vel.set(0, 0, 0);
+  }
+
+  /** Give the starting loadout in the given slot order. */
+  giveLoadout(order) {
+    const ids = normalizeLoadout(order);
+    this.slots = ids.map(id => LOADOUT_ITEMS[id].make());
+    for (const k in LOADOUT_AMMO) this.ammo[k] = Math.max(this.ammo[k] || 0, LOADOUT_AMMO[k]);
+    const firstGun = this.slots.findIndex(s => s && s.kind === 'gun');
+    this.selected = firstGun >= 0 ? firstGun + 1 : 0;
+  }
+
+  swapSlots(a, b) {
+    if (a < 1 || b < 1 || a > 5 || b > 5 || a === b) return false;
+    const t = this.slots[a - 1]; this.slots[a - 1] = this.slots[b - 1]; this.slots[b - 1] = t;
+    if (this.selected === a) this.selected = b; else if (this.selected === b) this.selected = a;
+    this.cancelReload(); this.healT = 0;
+    return true;
   }
 
   // ------------------------------------------------------------ inventory
@@ -70,11 +89,12 @@ export class Fighter {
   addItem(item, allowSwap = true) {
     const dropped = [];
     if (item.kind === 'ammo') { this.ammo[item.id] = Math.min(AMMO_TYPES[item.id].max, this.ammo[item.id] + item.count); return { ok: true, dropped }; }
-    if (item.kind === 'grenade') {
+    if (item.kind === 'grenade' || item.kind === 'heal') {
+      const stackOf = it => (it.kind === 'grenade' ? GRENADES : HEALS)[it.id].stack;
       let left = item.count;
       for (const s of this.slots) {
-        if (s && s.kind === 'grenade' && s.id === item.id && s.count < GRENADES[s.id].stack) {
-          const add = Math.min(left, GRENADES[s.id].stack - s.count); s.count += add; left -= add;
+        if (s && s.kind === item.kind && s.id === item.id && s.count < stackOf(s)) {
+          const add = Math.min(left, stackOf(s) - s.count); s.count += add; left -= add;
           if (!left) return { ok: true, dropped };
         }
       }
@@ -95,6 +115,7 @@ export class Fighter {
     if (i > 0 && !this.slots[i - 1]) return false;
     this.selected = i;
     this.cancelReload();
+    this.healT = 0;
     this.equipT = 0.3;
     this.ads = false;
     return true;
@@ -132,6 +153,27 @@ export class Fighter {
     }
   }
 
+  canHeal() { const it = this.item; return it && it.kind === 'heal' && !this.healing && this.health < 100 && this.alive; }
+
+  startHeal() {
+    if (!this.canHeal()) return false;
+    this.healDur = this.healT = HEALS[this.item.id].useTime;
+    this.ads = false; this.cancelReload();
+    return true;
+  }
+
+  finishHeal() {
+    const it = this.item;
+    if (!it || it.kind !== 'heal') return;
+    this.health = Math.min(100, this.health + HEALS[it.id].heal);
+    it.count--;
+    if (it.count <= 0) {
+      this.slots[this.selected - 1] = null;
+      const gun = this.slotOf(s => s.kind === 'gun');
+      this.selected = gun > 0 ? gun : 0;
+    }
+  }
+
   // ------------------------------------------------------------ damage
   /** Returns {shieldDmg, healthDmg, killed} */
   takeDamage(amount, now) {
@@ -164,6 +206,11 @@ export class Fighter {
     if (this.equipT > 0) this.equipT -= dt;
     const w = this.weapon;
     if (w) this.bloom = Math.max(0, this.bloom - dt * (w.bloomMax * 4 + 0.02));
+    if (this.healT > 0) {
+      const it = this.item;
+      if (!it || it.kind !== 'heal') this.healT = 0;
+      else { this.healT -= dt; if (this.healT <= 0) { this.healT = 0; this.finishHeal(); this.justHealed = true; } }
+    }
     if (this.reloadT > 0) {
       this.reloadT -= dt;
       if (this.reloadT <= 0) { this.reloadT = 0; this.finishReload(); }
@@ -200,6 +247,7 @@ export class Fighter {
     else if (this.ads) speed = SPEED.ads;
     else if (this.sprint) speed = SPEED.sprint;
     speed *= od;
+    if (this.healing) speed *= 0.45;
     const mag = Math.min(1, Math.hypot(this.move.x, this.move.y));
     const tx = this.move.x * speed, tz = this.move.y * speed;
     const grounded = this.phys.grounded;

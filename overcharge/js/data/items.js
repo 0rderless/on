@@ -67,6 +67,31 @@ export const GRENADES = {
   },
 };
 
+export const HEALS = {
+  medkit: { id: 'medkit', name: 'Medkit', short: 'MEDKIT', stack: 3, useTime: 5, heal: 100, color: 0x5ff4c8,
+    desc: 'Restores health to full after 5 seconds. You can walk slowly while healing.' },
+};
+
+// Starting loadout every fighter drops in with. The player can reorder it in the lobby.
+export const LOADOUT_ITEMS = {
+  smg:       { label: 'Volt SMG',          make: () => makeGun('smg', 2) },
+  shotgun:   { label: 'Pump Shotgun',      make: () => makeGun('shotgun', 2) },
+  ar:        { label: 'Assault Rifle',     make: () => makeGun('ar', 2) },
+  shockwave: { label: 'Shockwave Grenade', make: () => makeGrenade('shockwave', 2) },
+  medkit:    { label: 'Medkit',            make: () => makeHeal('medkit', 1) },
+};
+export const DEFAULT_LOADOUT = ['smg', 'shotgun', 'ar', 'shockwave', 'medkit'];
+export const LOADOUT_AMMO = { light: 120, medium: 120, heavy: 0, shells: 20 };
+
+/** Validate a saved loadout order (must contain each loadout item exactly once). */
+export function normalizeLoadout(order) {
+  if (!Array.isArray(order)) return [...DEFAULT_LOADOUT];
+  const seen = new Set(), out = [];
+  for (const id of order) if (LOADOUT_ITEMS[id] && !seen.has(id)) { seen.add(id); out.push(id); }
+  for (const id of DEFAULT_LOADOUT) if (!seen.has(id)) out.push(id);
+  return out.slice(0, 5);
+}
+
 // Weighted rarity tables
 export const FLOOR_RARITY = [40, 30, 18, 9, 3];
 export const CHEST_RARITY = [10, 30, 32, 20, 8];
@@ -93,10 +118,15 @@ export function makeGrenade(id, count) {
   return { kind: 'grenade', id, count: Math.min(count, GRENADES[id].stack) };
 }
 
+export function makeHeal(id, count) {
+  return { kind: 'heal', id, count: Math.min(count, HEALS[id].stack) };
+}
+
 export function itemName(item) {
   if (!item) return '';
   if (item.kind === 'gun') return `${RARITIES[item.rarity].name} ${WEAPONS[item.id].name}`;
   if (item.kind === 'grenade') return GRENADES[item.id].name;
+  if (item.kind === 'heal') return HEALS[item.id].name;
   if (item.kind === 'ammo') return AMMO_TYPES[item.id].name;
   return '';
 }
@@ -104,6 +134,7 @@ export function itemColor(item) {
   if (!item) return '#fff';
   if (item.kind === 'gun') return RARITIES[item.rarity].color;
   if (item.kind === 'grenade') return item.id === 'shockwave' ? '#4fb6ff' : '#ffe14d';
+  if (item.kind === 'heal') return '#5ff4c8';
   if (item.kind === 'ammo') return AMMO_TYPES[item.id].color;
   return '#fff';
 }

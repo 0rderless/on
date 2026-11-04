@@ -282,6 +282,28 @@ export class CharacterFactory {
     return grp;
   }
 
+  medkitModel() {
+    if (!this._med) {
+      const plus = new THREE.MeshBasicMaterial({ color: 0x5ff4c8, toneMapped: false });
+      this._med = {
+        body: new RoundedBoxGeometry(0.3, 0.2, 0.11, 2, 0.025), handle: new THREE.TorusGeometry(0.045, 0.012, 6, 14, Math.PI),
+        bar: new THREE.BoxGeometry(0.11, 0.032, 0.012), latch: new THREE.BoxGeometry(0.3, 0.02, 0.115),
+        bodyMat: new THREE.MeshStandardMaterial({ color: 0xeef2f6, roughness: 0.35, metalness: 0.1 }),
+        latchMat: new THREE.MeshStandardMaterial({ color: 0x24303c, roughness: 0.5, metalness: 0.5 }), plus,
+      };
+    }
+    const M = this._med, g = new THREE.Group();
+    g.add(new THREE.Mesh(M.body, M.bodyMat));
+    const latch = new THREE.Mesh(M.latch, M.latchMat); latch.position.y = 0.04; g.add(latch);
+    const handle = new THREE.Mesh(M.handle, M.latchMat); handle.position.y = 0.1; g.add(handle);
+    for (const z of [0.058, -0.058]) {
+      const h = new THREE.Mesh(M.bar, M.plus); h.position.set(0, -0.02, z);
+      const v = new THREE.Mesh(M.bar, M.plus); v.position.set(0, -0.02, z); v.rotation.z = Math.PI / 2;
+      g.add(h, v);
+    }
+    return g;
+  }
+
   pickaxeModel(id) {
     const g = new THREE.Group();
     const std = (c, mt = 0.2, r = 0.6, e = 0) => new THREE.MeshStandardMaterial({ color: c, metalness: mt, roughness: r, emissive: e ? new THREE.Color(e) : new THREE.Color(0), emissiveIntensity: e ? 1.6 : 0 });
@@ -463,6 +485,7 @@ export class Character {
     let obj, local = this.f.gunLocal;
     if (kind === 'gun') { obj = this.f.gunModel(id, rarity); this.muzzleLocal.copy(obj.userData.muzzle); }
     else if (kind === 'pickaxe') { obj = this.f.pickaxeModel(id); local = this.f.pickLocal; this.muzzleLocal.set(0, 0.7, 0); }
+    else if (kind === 'heal') { obj = this.f.medkitModel(); this.muzzleLocal.set(0, 0, 0); obj.position.set(0, -0.04, 0.12); obj.rotation.y = Math.PI / 2; }
     else { obj = this.f.grenadeModel(id); this.muzzleLocal.set(0, 0, 0); obj.position.set(0, 0, 0.05); }
     obj.traverse(o => { if (o.isMesh) o.castShadow = true; });
     this.held = this.attachToBone('RightHand', obj, local);

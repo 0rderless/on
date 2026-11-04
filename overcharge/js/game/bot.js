@@ -145,7 +145,7 @@ export class BotBrain {
   wantsItem(item) {
     const f = this.f;
     if (item.kind === 'ammo') return true;
-    if (item.kind === 'grenade') return f.hasEmptySlot() || f.slots.some(s => s && s.kind === 'grenade' && s.id === item.id && s.count < 4);
+    if (item.kind === 'grenade' || item.kind === 'heal') return f.hasEmptySlot() || f.slots.some(s => s && s.kind === item.kind && s.id === item.id && s.count < 3);
     if (f.hasEmptySlot()) return true;
     // swap only for an upgrade of a same-type or worse gun
     return f.slots.some(s => s && s.kind === 'gun' && (s.id === item.id ? item.rarity > s.rarity : item.rarity >= s.rarity + 2));
@@ -179,6 +179,17 @@ export class BotBrain {
     }
     const tgt = this.target && this.target.alive ? this.target : null;
     const seen = tgt && g.time - this.targetSeenAt < 0.35;
+
+    // ---- healing: hunker down, bail out if someone pushes us
+    if (f.healing) {
+      f.crouch = true;
+      if (seen && tgt.pos.distanceTo(f.pos) < 20) { f.healT = 0; this.switchCd = 0; this.equipBest(tgt.pos.distanceTo(f.pos)); }
+      else { this.lookYaw += Math.sin(g.time * 0.9 + f.id) * dt * 0.6; return this.applyLook(dt); }
+    } else if (this.wantHeal()) {
+      f.select(f.slotOf(s => s.kind === 'heal')); f.equipT = 0;
+      f.startHeal();
+      return this.applyLook(dt);
+    } else if (f.item && f.item.kind === 'heal' && this.gunCount() > 0) { this.switchCd = 0; this.equipBest(30); }
 
     if (this.state === 'fight' && tgt) {
       this.fight(dt, tgt, seen);
@@ -264,7 +275,8 @@ export class BotBrain {
   decide() {
     const f = this.f, g = this.g, s = g.storm;
     // inventory housekeeping
-    if (!f.weapon && this.gunCount() > 0 && this.state !== 'fight') this.equipBest(30);
+    if (f.healing) return;
+    if (!f.weapon && this.gunCount() > 0 && this.state !== 'fight' && !this.wantHeal()) this.equipBest(30);
     // storm first
     const distNext = Math.hypot(f.pos.x - s.nx, f.pos.z - s.nz);
     const timeToShrink = s.timeLeft;
@@ -314,6 +326,13 @@ export class BotBrain {
       const p = this.pickRoamPoint();
       this.state = 'roam'; this.setGoal(p.x, p.z, 'roam');
     } else this.state = 'roam';
+  }
+
+  wantHeal() {
+    const f = this.f, g = this.g;
+    if (f.health >= 65 || f.slotOf(s => s.kind === 'heal') < 0) return false;
+    if (g.time - this.targetSeenAt < 2.5 && this.target && this.target.alive) return false;
+    return !this.inStorm(f.pos.x, f.pos.z, 3);
   }
 
   lowAmmo() {

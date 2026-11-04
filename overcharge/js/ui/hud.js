@@ -1,6 +1,6 @@
 // In-game HUD: all DOM overlays driven by the match.
 import * as THREE from 'three';
-import { WEAPONS, GRENADES, RARITIES, itemName, itemColor } from '../data/items.js';
+import { WEAPONS, GRENADES, HEALS, RARITIES, itemName, itemColor } from '../data/items.js';
 import { MAP_HALF, MAX_HEALTH, MAX_SHIELD } from '../config.js';
 
 const $ = id => document.getElementById(id);
@@ -67,7 +67,12 @@ export class Hud {
       $('ammo-mag').textContent = f.reloading ? 'RELOADING' : it.mag;
       $('ammo-res').textContent = f.reloading ? '' : '/ ' + f.ammo[w.ammo];
     } else if (it && it.kind === 'grenade') { $('ammo-mag').textContent = '×' + it.count; $('ammo-res').textContent = GRENADES[it.id].short; }
+    else if (it && it.kind === 'heal') { $('ammo-mag').textContent = '×' + it.count; $('ammo-res').textContent = f.healing ? 'HEALING…' : f.health >= 100 ? 'HEALTH FULL' : 'TAP FIRE TO HEAL'; }
     else { $('ammo-mag').textContent = ''; $('ammo-res').textContent = ''; }
+    // healing progress
+    const hb = $('healbar');
+    if (f.healing) { hb.classList.add('show'); $('heal-fill').style.width = ((1 - f.healT / f.healDur) * 100) + '%'; $('heal-t').textContent = f.healT.toFixed(1) + 's'; }
+    else hb.classList.remove('show');
     // crosshair
     const ch = $('crosshair');
     const scoped = m.ctrl.scoped;
@@ -137,7 +142,7 @@ export class Hud {
   }
 
   updateSlots(f) {
-    const key = f.selected + '|' + f.slots.map(s => s ? `${s.kind}${s.id}${s.rarity ?? ''}${s.count ?? ''}` : '-').join(',') + '|' + (f.reloading ? 1 : 0) + f.pickaxe;
+    const key = f.selected + '|' + f.slots.map(s => s ? `${s.kind}${s.id}${s.rarity ?? ''}${s.count ?? ''}` : '-').join(',') + '|' + (f.reloading ? 1 : 0) + (f.healing ? 1 : 0) + f.pickaxe;
     if (key === this.slotKey) {
       if (f.reloading) { const r = this.slotsEl?.querySelector('.slot.sel .s-rel'); if (r) r.style.width = ((1 - f.reloadT / f.reloadDur) * 100) + '%'; }
       return;
@@ -150,11 +155,13 @@ export class Hud {
     f.slots.forEach((s, i) => {
       let inner = '';
       if (s) {
-        const col = s.kind === 'gun' ? RARITIES[s.rarity].color : s.id === 'shockwave' ? '#4fb6ff' : '#ffe14d';
-        inner = `<div class="s-rar" style="background:linear-gradient(0deg, ${col}, transparent 75%)"></div><img src="${icons[s.kind === 'gun' ? 'gun_' + s.id : 'nade_' + s.id] || ''}">` +
-          (s.kind === 'grenade' ? `<span class="s-cnt">${s.count}</span>` : '') + (f.selected === i + 1 && f.reloading ? '<div class="s-rel"></div>' : '');
+        const col = itemColor(s);
+        const icon = icons[s.kind === 'gun' ? 'gun_' + s.id : s.kind === 'heal' ? 'heal_' + s.id : 'nade_' + s.id] || '';
+        inner = `<div class="s-rar" style="background:linear-gradient(0deg, ${col}, transparent 75%)"></div><img src="${icon}">` +
+          (s.kind === 'grenade' || s.kind === 'heal' ? `<span class="s-cnt">${s.count}</span>` : '') + (f.selected === i + 1 && f.reloading ? '<div class="s-rel"></div>' : '');
       }
-      html += `<div class="slot ${f.selected === i + 1 ? 'sel' : ''}" data-i="${i + 1}">${inner}<span class="s-key">${i + 2}</span></div>`;
+      const swapping = this.app.controls && this.app.controls.swapFrom === i + 1 ? ' swapping' : '';
+      html += `<div class="slot ${f.selected === i + 1 ? 'sel' : ''}${swapping}" data-i="${i + 1}">${inner}<span class="s-key">${i + 2}</span></div>`;
     });
     el.innerHTML = html;
   }

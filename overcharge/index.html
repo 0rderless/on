@@ -7,6 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="OVERCHARGE">
+<meta name="format-detection" content="telephone=no">
 <meta name="description" content="OVERCHARGE — a mobile zero-build battle royale.">
 <title>OVERCHARGE</title>
 <link rel="manifest" href="manifest.json">
@@ -67,6 +69,7 @@
     <div class="logo small"><span class="logo-o">OVER</span><span class="logo-c">CHARGE</span></div>
     <nav class="tabs">
       <button class="navtab active" data-tab="play">PLAY</button>
+      <button class="navtab" data-tab="loadout">LOADOUT</button>
       <button class="navtab" data-tab="locker">LOCKER</button>
       <button class="navtab" data-tab="career">CAREER</button>
       <button class="navtab" data-tab="settings">SETTINGS</button>
@@ -77,6 +80,12 @@
       <div class="net" id="net-dot" title="Cloud status"></div>
     </div>
   </header>
+
+  <div id="install" class="panel">
+    <div class="in-txt"><b>Play it like an app</b><span id="install-msg"></span></div>
+    <button class="btn primary sm" id="install-go" style="display:none"><span>INSTALL</span></button>
+    <button class="in-x" id="install-x" aria-label="Dismiss">✕</button>
+  </div>
 
   <div class="tabpane show" data-pane="play">
     <div class="play-left">
@@ -101,6 +110,14 @@
         <div class="mode-map">MAP · <b>REVERSAL COMPOUND</b></div>
       </div>
       <button class="btn play" id="btn-play"><span>PLAY</span></button>
+    </div>
+  </div>
+
+  <div class="tabpane" data-pane="loadout">
+    <div class="loadout-ed panel">
+      <div class="le-head"><h3>STARTING LOADOUT</h3><span>Everyone drops in with this kit. Drag an item to a new slot, or tap two items to swap them.</span></div>
+      <div class="le-slots" id="le-slots"></div>
+      <div class="le-foot"><span id="le-info">Slot 1 is always your pickaxe. In a match you can also press and hold a slot to move it.</span><button class="btn ghost sm" id="le-reset"><span>RESET ORDER</span></button></div>
     </div>
   </div>
 
@@ -205,6 +222,7 @@
   <div id="spec-tag"></div>
   <div id="victory" class="overlay"><div class="v-num">#1</div><div class="v-txt">OVERCHARGED!</div><div class="v-sub">LAST ONE STANDING</div></div>
   <div id="respawn"></div>
+  <div id="healbar"><span>HEALING <b id="heal-t"></b></span><div class="hb-track"><div id="heal-fill"></div></div></div>
 
   <div id="pause" class="overlay">
     <div class="pause-card panel">

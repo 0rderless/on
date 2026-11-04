@@ -6,7 +6,7 @@ import { Combat } from './combat.js';
 import { Loot } from './loot.js';
 import { Effects, StormWall } from './effects.js';
 import { PlayerController } from './player.js';
-import { makeGun, makeGrenade, WEAPONS, AMMO_TYPES } from '../data/items.js';
+import { makeGun, makeGrenade, WEAPONS, AMMO_TYPES, DEFAULT_LOADOUT } from '../data/items.js';
 import { SKINS, PICKAXES } from '../data/cosmetics.js';
 import { Audio } from '../core/audio.js';
 import { MAP_HALF, MAX_SHIELD } from '../config.js';
@@ -92,6 +92,8 @@ export class Match {
       f.char.root.position.set(0, -50, 0);
       this.scene.add(f.char.root);
       if (!isPlayer) f.bot = new BotBrain(f, this, this.opts.skill);
+      f.loadoutOrder = isPlayer ? P.loadout : DEFAULT_LOADOUT;
+      f.giveLoadout(f.loadoutOrder);
       this.fighters.push(f);
     }
     this.player = this.fighters[0];
@@ -350,9 +352,9 @@ export class Match {
     else p = this.nav.randomWalkableNear(S.nx, S.nz, Math.max(10, S.nr * 0.5));
     f.alive = true; f.respawnT = -1;
     f.health = 100; f.shield = MAX_SHIELD; f.eliminatedBy = null;
-    f.slots = [makeGun('ar', 0), makeGun('shotgun', 0), null, null, null];
-    f.ammo = { light: 0, medium: 90, heavy: 0, shells: 15 };
-    f.selected = 1; f.overdriveT = 0;
+    f.ammo = { light: 0, medium: 0, heavy: 0, shells: 0 };
+    f.giveLoadout(f.loadoutOrder || DEFAULT_LOADOUT);
+    f.overdriveT = 0; f.healT = 0;
     f.mode = 'skydive';
     f.pos.set(p.x, 95, p.z); f.vel.set(0, -10, 0);
     f.char.revive(); f.char.root.visible = true; f.char.setHeld(null);
@@ -437,6 +439,12 @@ export class Match {
         }
       }
       if (f.overdriveT > 0 && Math.random() < 0.6) this.effects.overdriveAura(f.pos);
+      if (f.justHealed) {
+        f.justHealed = false;
+        this.effects.burst(f.pos.x, f.pos.y + 1, f.pos.z, 24, 0x5ff4c8, 3, 0.14, 0.8, -2, 0.6);
+        if (f.isPlayer) { Audio.play('chest', { vol: 0.6, rate: 1.3 }); this.hud.toast('+ HEALTH RESTORED', 'cyan'); }
+      }
+      if (f.healing && Math.random() < 0.3) this.effects.emit(f.pos.x + (Math.random() - 0.5) * 0.6, f.pos.y + 0.4 + Math.random(), f.pos.z + (Math.random() - 0.5) * 0.6, 0, 1, 0, 0x5ff4c8, 0.1, 0.5, 0);
     }
     this.combat.updateProjectiles(dt);
     // ---- storm
@@ -461,6 +469,7 @@ export class Match {
       if (f.mode === 'ground') {
         if (!it) ch.setHeld('pickaxe', f.pickaxe);
         else if (it.kind === 'gun') ch.setHeld('gun', it.id, it.rarity);
+        else if (it.kind === 'heal') ch.setHeld('heal', it.id);
         else ch.setHeld('grenade', it.id);
       } else ch.setHeld(null);
       if (!ch.root.visible) continue;

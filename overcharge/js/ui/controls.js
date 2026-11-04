@@ -31,8 +31,8 @@ export function applyLayout(layout) {
     const el = document.querySelector(`[data-hud="${id}"]`);
     if (!el) continue;
     const L = { ...HUD_DEFAULTS[id], ...(layout[id] || {}) };
-    el.style.left = (L.x * 100) + 'vw';
-    el.style.top = (L.y * 100) + 'vh';
+    el.style.left = Math.round(L.x * innerWidth) + 'px';
+    el.style.top = Math.round(L.y * innerHeight) + 'px';
     el.style.transform = `translate(-50%, -50%) scale(${L.s * k})`;
     el.style.opacity = L.o;
   }
@@ -44,8 +44,9 @@ export class Controls {
     this.state = {
       move: { x: 0, y: 0 }, look: { dx: 0, dy: 0 },
       fire: false, firePressed: false, adsToggle: false, adsHeld: null,
-      jump: false, crouch: false, reload: false, interact: false, slot: null, sprintKey: false,
+      jump: false, crouch: false, reload: false, interact: false, slot: null, sprintKey: false, swap: null,
     };
+    this.swapFrom = null; this.holdTimer = 0;
     this.enabled = false;
     this.pointers = new Map();  // pointerId → {role, x, y, el}
     this.keys = new Set();
@@ -59,7 +60,8 @@ export class Controls {
     const s = this.state;
     s.move.x = s.move.y = 0; s.look.dx = s.look.dy = 0;
     s.fire = false; s.firePressed = false; s.adsToggle = false; s.adsHeld = null;
-    s.jump = s.crouch = s.reload = s.interact = false; s.slot = null; s.sprintKey = false;
+    s.jump = s.crouch = s.reload = s.interact = false; s.slot = null; s.sprintKey = false; s.swap = null;
+    this.endSwap();
     this.pointers.clear();
     this.knob.style.transform = '';
     document.querySelectorAll('.pressed').forEach(e => e.classList.remove('pressed'));
@@ -133,7 +135,19 @@ export class Controls {
       case 'interact': s.interact = true; break;
       case 'map': this.onMap && this.onMap(); break;
       case 'pause': this.onPause && this.onPause(); break;
-      case 'slot': s.slot = +r.el.dataset.i; break;
+      case 'slot': {
+        const i = +r.el.dataset.i;
+        if (this.swapFrom !== null) {
+          if (i > 0 && i !== this.swapFrom) s.swap = [this.swapFrom, i];
+          this.endSwap();
+          break;
+        }
+        s.slot = i;
+        // press and hold a slot to move it
+        clearTimeout(this.holdTimer);
+        if (i > 0) this.holdTimer = setTimeout(() => { if (this.pointers.get(p.id)) this.beginSwap(i); }, 450);
+        break;
+      }
     }
   }
 
@@ -156,12 +170,28 @@ export class Controls {
     if (!p) return;
     this.pointers.delete(e.pointerId);
     if (p.el) p.el.classList.remove('pressed');
+    if (p.role === 'slot') clearTimeout(this.holdTimer);
     if (p.role === 'joy') { this.state.move.x = 0; this.state.move.y = 0; this.knob.style.transform = ''; }
     if (p.role === 'fire') {
       // stop firing only when no other fire button is held
       let other = false; for (const q of this.pointers.values()) if (q.role === 'fire') other = true;
       if (!other) this.state.fire = false;
     }
+  }
+
+  beginSwap(i) {
+    this.swapFrom = i;
+    const el = document.querySelector(`.slot[data-i="${i}"]`);
+    if (el) el.classList.add('swapping');
+    document.getElementById('hotbar').classList.add('swap-mode');
+    if (navigator.vibrate) try { navigator.vibrate(15); } catch { /* unsupported */ }
+  }
+
+  endSwap() {
+    this.swapFrom = null;
+    clearTimeout(this.holdTimer);
+    document.querySelectorAll('.slot.swapping').forEach(e => e.classList.remove('swapping'));
+    const hb = document.getElementById('hotbar'); if (hb) hb.classList.remove('swap-mode');
   }
 
   joyUpdate(p, x, y) {

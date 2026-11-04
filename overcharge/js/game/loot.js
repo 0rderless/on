@@ -1,6 +1,6 @@
 // Floor loot, chests, ammo boxes and dropped items.
 import * as THREE from 'three';
-import { RARITIES, AMMO_TYPES, FLOOR_RARITY, CHEST_RARITY, rollRarity, rollWeapon, makeGun, makeGrenade, WEAPONS } from '../data/items.js';
+import { RARITIES, AMMO_TYPES, FLOOR_RARITY, CHEST_RARITY, rollRarity, rollWeapon, makeGun, makeGrenade, makeHeal, WEAPONS } from '../data/items.js';
 import { Audio } from '../core/audio.js';
 
 const SHOW_DIST = 40;
@@ -59,7 +59,8 @@ export class Loot {
         const id = rollWeapon(rng);
         this.spawn(makeGun(id, rollRarity(FLOOR_RARITY, rng)), s, false);
         this.spawn(this.ammoFor(id), { x: s.x + 0.7, y: s.y, z: s.z + 0.3 }, false);
-      } else if (k < 0.88) this.spawn(makeGrenade(rng() < 0.55 ? 'shockwave' : 'overdrive', 1 + Math.floor(rng() * 2)), s, false);
+      } else if (k < 0.82) this.spawn(makeGrenade(rng() < 0.4 ? 'shockwave' : 'overdrive', 1 + Math.floor(rng() * 2)), s, false);
+      else if (k < 0.9) this.spawn(makeHeal('medkit', 1), s, false);
       else this.spawn(this.randomAmmo(rng), s, false);
     }
     for (const s of world.chestSpots) {
@@ -80,10 +81,11 @@ export class Loot {
     let model;
     if (item.kind === 'gun') { model = this.g.factory.gunModel(item.id, item.rarity); model.rotation.y = Math.PI / 2; model.position.y = 0.42; }
     else if (item.kind === 'grenade') { model = this.g.factory.grenadeModel(item.id); model.scale.setScalar(1.8); model.position.y = 0.35; }
+    else if (item.kind === 'heal') { model = this.g.factory.medkitModel(); model.scale.setScalar(1.5); model.position.y = 0.3; }
     else { model = new THREE.Mesh(this.ammoGeo, this.ammoMats[item.id]); model.position.y = 0.2; }
     g.add(model);
     g.userData.model = model;
-    const rar = item.kind === 'gun' ? item.rarity : item.kind === 'grenade' ? 2 : 1;
+    const rar = item.kind === 'gun' ? item.rarity : item.kind === 'grenade' || item.kind === 'heal' ? 2 : 1;
     const ring = new THREE.Mesh(this.ringGeo, this.ringMats[rar]); ring.position.y = 0.03; ring.renderOrder = 4;
     g.add(ring);
     if (item.kind === 'gun' && item.rarity >= 2) { const b = new THREE.Mesh(this.beamGeo, this.beamMats[item.rarity]); b.renderOrder = 5; g.add(b); }
@@ -147,7 +149,9 @@ export class Loot {
     c.glow.visible = false;
     Audio.play('chest', { pos: c.pos, vol: 0.9, range: 50 });
     const id = rollWeapon();
-    const items = [makeGun(id, rollRarity(CHEST_RARITY)), this.ammoFor(id), Math.random() < 0.6 ? makeGrenade(Math.random() < 0.5 ? 'shockwave' : 'overdrive', 1 + Math.floor(Math.random() * 2)) : this.randomAmmo()];
+    const r = Math.random();
+    const extra = r < 0.4 ? makeGrenade(Math.random() < 0.4 ? 'shockwave' : 'overdrive', 1 + Math.floor(Math.random() * 2)) : r < 0.7 ? makeHeal('medkit', 1) : this.randomAmmo();
+    const items = [makeGun(id, rollRarity(CHEST_RARITY)), this.ammoFor(id), extra];
     this.drop(items, c.pos, 0.9);
     this.g.noise(f, c.pos, 25);
   }
