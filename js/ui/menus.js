@@ -174,7 +174,7 @@ export function renderLocker(app) {
   }).join('');
   grid.querySelectorAll('.card').forEach(c => c.addEventListener('click', () => {
     click(); app.lockerSel = c.dataset.id; renderLocker(app);
-    if (cat === 'skins') { app.lobbyScene.setSkin(c.dataset.id); app.lobbyScene.showGun(); }
+    if (cat === 'skins') { app.lobbyScene.setSkin(c.dataset.id); app.lobbyScene.showIdle(); }
     else if (cat === 'pickaxes') app.lobbyScene.showPickaxe(c.dataset.id);
   }));
   const it = list.find(x => x.id === app.lockerSel);

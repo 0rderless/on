@@ -610,3 +610,8 @@ input { font-family: inherit; }
 .lobby-emote .ic { font-size: 23px; color: #d9b8ff; }
 .lobby-emote:active { transform: translateX(-50%) scale(0.95); }
 .lobby-emote.on { background: rgba(196, 139, 255, 0.4); border-color: #d9b8ff; box-shadow: 0 0 22px rgba(196, 139, 255, 0.75); }
+#update-bar { position: absolute; left: 50%; top: calc(62px + var(--st)); transform: translateX(-50%); z-index: 25; display: none; align-items: center; gap: 12px; padding: 8px 10px 8px 16px; border-color: var(--y); box-shadow: 0 0 24px rgba(255, 210, 50, 0.35); }
+#update-bar.show { display: flex; }
+#update-bar b { font-family: var(--head); color: var(--y); letter-spacing: 0.05em; }
+#update-bar span { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.lobby-ver { position: absolute; right: calc(10px + var(--sr)); bottom: calc(2px + var(--sb)); font-size: 10px; color: rgba(255, 255, 255, 0.35); pointer-events: none; z-index: 5; }

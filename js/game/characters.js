@@ -550,6 +550,7 @@ export class Character {
   setSkin(id) {
     this.skin = id;
     const female = (SKINS.find(s => s.id === id) || {}).body === 'female';
+    this.female = female;
     for (const m of this.meshes) {
       const base = this.f.baseMats[m.userData.baseName || m.material.name] || m.material;
       m.userData.baseName = m.userData.baseName || m.material.name;

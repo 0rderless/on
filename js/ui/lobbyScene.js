@@ -56,20 +56,27 @@ export class LobbyScene {
     const rim2 = new THREE.DirectionalLight(0xb06bff, 2.4); rim2.position.set(3, 1.5, -2); this.scene.add(rim2);
     this.char = factory.create({ skin: 'default', shadows: false });
     this.scene.add(this.char.root);
-    this.char.setHeld('gun', 'ar', 4);
+    this.showIdle();
     this.layout('play');
   }
 
-  setSkin(id) { this.char.setSkin(id); }
-  showPickaxe(id) { this.char.setHeld('pickaxe', id); }
-  showGun() { if (!this.emoteId) this.char.setHeld('gun', 'ar', 4); }
-  /** Lobby emote: the character dances (gun put away) until stopped. */
+  setSkin(id) { this.char.setSkin(id); if (this.idling) this.showIdle(); }
+  /** Pickaxe preview (locker): hold it in the normal stance. */
+  showPickaxe(id) { this.idling = false; if (!this.emoteId) this.char.stopEmote(); this.char.setHeld('pickaxe', id); }
+  /** The lobby stance, like Fortnite's: weapon away, facing the camera (hand on hip for the female line). */
+  showIdle() {
+    this.idling = true;
+    if (this.emoteId) return;
+    const id = this.char.female ? 'idlef' : 'idle';
+    if (!this.char.emote || this.char.emote.id !== id) this.char.playEmote(id);
+  }
+  /** Lobby emote: the character dances until stopped, then goes back to the lobby stance. */
   playEmote(id) { this.showGlider(null); this.emoteId = id; this.char.playEmote(id); }
-  stopEmote() { if (!this.emoteId) return; this.emoteId = null; this.char.stopEmote(); this.showGun(); }
+  stopEmote() { if (!this.emoteId) return; this.emoteId = null; this.char.stopEmote(); this.showIdle(); }
   /** Locker glider preview: the character glides in place under the chosen glider (null = back to normal). */
   showGlider(id) {
     this.glidePreview = id || null;
-    if (id) { this.char.gliderId = id; this.char.setHeld(null); this.char.setGlider(true); this.layout('glider'); }
+    if (id) { this.idling = false; this.char.stopEmote(); this.char.gliderId = id; this.char.setHeld(null); this.char.setGlider(true); this.layout('glider'); }
     else if (this.char.glider) { this.char.setGlider(false); if (this.mode === 'glider') this.layout('locker'); }
   }
 
