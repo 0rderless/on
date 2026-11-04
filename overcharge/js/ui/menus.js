@@ -1,7 +1,7 @@
 // Menus: auth, lobby tabs, locker, career, settings, HUD editor, results.
 import { Store, validateUsername } from '../net/store.js';
 import { SKINS, PICKAXES, GLIDERS, RARITY_COLORS, RARITY_NAMES } from '../data/cosmetics.js';
-import { divInfo, MAX_DIV, TIERS } from '../data/ranks.js';
+import { divInfo, MAX_DIV, TIERS, tierTop } from '../data/ranks.js';
 import { HUD_DEFAULTS, HUD_NAMES, applyLayout } from './controls.js';
 import { Audio } from '../core/audio.js';
 import { esc } from './hud.js';
@@ -15,14 +15,28 @@ const click = () => Audio.play('click', { vol: 0.5 });
 // ------------------------------------------------------------------ rank badge
 export function rankBadge(div, size = 54) {
   const d = divInfo(div);
-  const t = d.tier;
+  const t = d.tier, ti = d.tierIndex, trim = t.trim || 'rgba(255,255,255,0.8)';
   const gid = 'g' + Math.random().toString(36).slice(2, 8);
-  return `<div class="rank-badge" style="width:${size}px;height:${size}px"><svg viewBox="0 0 100 100">
-    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t.light}"/><stop offset="0.55" stop-color="${t.color}"/><stop offset="1" stop-color="${t.dark}"/></linearGradient></defs>
-    <path d="M50 3 L92 22 L92 62 Q92 84 50 97 Q8 84 8 62 L8 22 Z" fill="url(#${gid})" stroke="rgba(255,255,255,0.75)" stroke-width="3"/>
-    <path d="M50 14 L82 28 L82 60 Q82 77 50 87 Q18 77 18 60 L18 28 Z" fill="none" stroke="rgba(0,0,0,0.25)" stroke-width="3"/>
-    ${d.tierIndex === 2 ? '<path d="M30 20 L40 30 L50 14 L60 30 L70 20 L68 36 L32 36 Z" fill="#fff6c0" stroke="#8a5a00" stroke-width="2"/>' : ''}
-  </svg><b>${['I', 'II', 'III'][d.div % 3]}</b></div>`;
+  const grad = `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t.light}"/><stop offset="0.55" stop-color="${t.color}"/><stop offset="1" stop-color="${t.dark}"/></linearGradient></defs>`;
+  const shield = `<path d="M50 3 L92 22 L92 62 Q92 84 50 97 Q8 84 8 62 L8 22 Z" fill="url(#${gid})" stroke="${trim}" stroke-width="3"/>
+    <path d="M50 14 L82 28 L82 60 Q82 77 50 87 Q18 77 18 60 L18 28 Z" fill="none" stroke="rgba(0,0,0,0.25)" stroke-width="3"/>`;
+  const crown = (c, s) => `<path d="M30 20 L40 30 L50 14 L60 30 L70 20 L68 36 L32 36 Z" fill="${c}" stroke="${s}" stroke-width="2"/>`;
+  let art;
+  if (ti <= 2) art = shield + (ti === 2 ? crown('#fff6c0', '#8a5a00') : '');
+  else if (ti === 3) art = `<path d="M8 40 Q2 26 14 18 Q12 32 22 36 Z M92 40 Q98 26 86 18 Q88 32 78 36 Z" fill="${t.light}" stroke="${t.dark}" stroke-width="2"/>` + shield;
+  else if (ti === 4) art = `<path d="M50 3 L90 38 L50 97 L10 38 Z" fill="url(#${gid})" stroke="${trim}" stroke-width="3"/>
+    <path d="M10 38 L90 38 M50 3 L32 38 L50 97 L68 38 Z" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="2"/>`;
+  else if (ti === 5) art = `<path d="M50 0 Q60 12 56 20 Q66 10 70 2 Q78 18 70 28 Q82 22 88 12 Q94 34 82 44 L82 62 Q82 84 50 97 Q18 84 18 62 L18 44 Q6 34 12 12 Q18 22 30 28 Q22 18 30 2 Q34 10 44 20 Q40 12 50 0 Z" fill="url(#${gid})" stroke="${trim}" stroke-width="3"/>
+    <path d="M50 30 L58 46 L76 48 L62 60 L66 78 L50 69 L34 78 L38 60 L24 48 L42 46 Z" fill="rgba(255,255,255,0.85)"/>`;
+  else {
+    // Unreal and up: a faceted star emblem; Legend adds wings, Supreme a crown and flames
+    const star = `<path d="M50 4 L61 34 L94 36 L68 56 L78 92 L50 72 L22 92 L32 56 L6 36 L39 34 Z" fill="url(#${gid})" stroke="${trim}" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M50 22 L56 40 L74 41 L60 52 L65 72 L50 61 L35 72 L40 52 L26 41 L44 40 Z" fill="rgba(255,255,255,0.35)"/>`;
+    const wings = `<path d="M30 54 Q4 50 0 30 Q14 40 26 40 Q10 30 8 16 Q24 32 34 38 Z M70 54 Q96 50 100 30 Q86 40 74 40 Q90 30 92 16 Q76 32 66 38 Z" fill="${t.light}" stroke="${trim}" stroke-width="2"/>`;
+    const flames = `<path d="M20 96 Q14 80 24 70 Q24 82 32 86 Q28 74 38 64 Q40 80 50 84 Q60 80 62 64 Q72 74 68 86 Q76 82 76 70 Q86 80 80 96 Z" fill="#ff8a1a" opacity="0.9"/>`;
+    art = (ti >= 7 ? wings : '') + (ti === 8 ? flames : '') + star + (ti === 8 ? crown('#ffd24a', '#7a4a00').replace('M30 20', 'M30 12').replace('L40 30', 'L40 22').replace('L50 14', 'L50 4').replace('L60 30', 'L60 22').replace('L70 20', 'L70 12').replace('L68 36', 'L68 28').replace('L32 36', 'L32 28') : '');
+  }
+  return `<div class="rank-badge tier-${ti}" style="width:${size}px;height:${size}px"><svg viewBox="0 0 100 100">${grad}${art}</svg><b>${d.numeral}</b></div>`;
 }
 
 export function rankBlock(rank, label) {
@@ -182,7 +196,7 @@ export async function renderCareer(app) {
   $('career-ranks').innerHTML = `
     <div class="panel"><h3>BATTLE ROYALE <small>Ranked</small></h3>${rankBlock(p.ranked.br)}<div class="rank-sub" style="margin-top:8px">${p.ranked.br.matches} ranked matches · ${p.ranked.br.wins} wins</div></div>
     <div class="panel"><h3>RELOAD <small>Ranked</small></h3>${rankBlock(p.ranked.reload)}<div class="rank-sub" style="margin-top:8px">${p.ranked.reload.matches} ranked matches · ${p.ranked.reload.wins} wins</div></div>
-    <div class="panel"><h3>LADDER</h3><div style="display:flex;gap:6px;flex-wrap:wrap">${TIERS.map((t, i) => rankBadge(i * 3 + 2, 40)).join('')}</div><div class="rank-sub" style="margin-top:6px">Bronze → Silver → Gold. Gold is the top tier — climb by placing high and getting eliminations.</div></div>`;
+    <div class="panel"><h3>LADDER</h3><div style="display:flex;gap:6px;flex-wrap:wrap">${TIERS.map((t, i) => `<div class="ladder-step">${rankBadge(tierTop(i), 40)}<span style="color:${t.color}">${t.name}</span></div>`).join('')}</div><div class="rank-sub" style="margin-top:6px">Bronze → Silver → Gold → Platinum → Diamond → Champion → Unreal → Unreal Legend → Supreme. Climb by placing high and getting eliminations.</div></div>`;
   const kd = (s.kills / Math.max(1, s.deaths)).toFixed(2);
   const wr = s.matches ? ((s.wins / s.matches) * 100).toFixed(1) : '0.0';
   $('career-stats').innerHTML = `<h3>CAREER <small style="color:var(--muted);font-family:var(--ui);font-size:12px">Level ${p.level}</small></h3><div class="stat-grid">

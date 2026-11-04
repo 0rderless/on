@@ -6,6 +6,8 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { RARITIES } from '../data/items.js';
 import { makeJetpack } from './jetpack.js';
 import { makeGlider } from './gliders.js';
+import { buildFemaleGeometries } from './femaleBody.js';
+import { SKINS } from '../data/cosmetics.js';
 
 const _q = new THREE.Quaternion(), _qp = new THREE.Quaternion(), _qi = new THREE.Quaternion();
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _m = new THREE.Matrix4();
@@ -29,6 +31,16 @@ const GUN_MODELS = {
 };
 
 // Material settings for the shader-based skins (body + visor).
+// Palette skins (the female line): base/mid/dark armour, accent (the texture's red straps), glow seams, hair.
+const v3 = (c) => { const k = new THREE.Color(c); return `vec3(${k.r.toFixed(4)}, ${k.g.toFixed(4)}, ${k.b.toFixed(4)})`; };
+export const PALETTE_LOOKS = {
+  nova:      { light: 0xf4f6fb, mid: 0xb9c2d4, dark: 0x1a1d26, accent: 0xff3d97, glow: 0x4fe8ff, glowI: 0.55, accentI: 0.8, rough: 0.32, metal: 0.25, env: 0.8, visor: 0x05121a, visorGlow: 0x5ff4ff, visorI: 2.2, hair: 0xff4fa8, hairTip: 0xffb3dc, hairStyle: 'ponytail' },
+  viper:     { light: 0x2b3230, mid: 0x111514, dark: 0x050606, accent: 0x39ff7a, glow: 0x39ff7a, glowI: 0.75, accentI: 1.2, rough: 0.2, metal: 0.55, env: 1.0, visor: 0x021006, visorGlow: 0x39ff7a, visorI: 2.4, hair: 0x101214, hairTip: 0x39ff7a, hairStyle: 'ponytail' },
+  valkyrie:  { light: 0xc0262f, mid: 0x6a0c12, dark: 0x1c0306, accent: 0xffc24a, glow: 0xfff0c8, glowI: 0.3, accentI: 0.35, rough: 0.28, metal: 0.6, env: 1.0, visor: 0x1a0c00, visorGlow: 0xffd45a, visorI: 1.8, hair: 0xf0c75a, hairTip: 0xfff0b0, hairStyle: 'braid', goldMetal: true },
+  arcticfox: { light: 0xf2f5f8, mid: 0x9aa6b4, dark: 0x2a313b, accent: 0xff7a1c, glow: 0xffa040, glowI: 0.25, accentI: 0.7, rough: 0.55, metal: 0.1, env: 0.5, visor: 0x1a0a00, visorGlow: 0xff8a2a, visorI: 2.0, hair: 0xb5501e, hairTip: 0xe08a4a, hairStyle: 'bun', camo: true },
+  rose:      { light: 0x6b3fa8, mid: 0x2e1650, dark: 0x0d0618, accent: 0xf2a68a, glow: 0xff5cc8, glowI: 0.6, accentI: 0.5, rough: 0.3, metal: 0.45, env: 0.9, visor: 0x12041a, visorGlow: 0xff5cc8, visorI: 2.2, hair: 0x2a1240, hairTip: 0xc25cff, hairStyle: 'ponytail', goldMetal: true },
+};
+
 const SKIN_LOOKS = {
   cursed: { rough: 0.55, metal: 0.35, env: 0.5, visor: 0x0a0010, visorGlow: 0xb24dff, visorI: 2.4 },
   zombie: { rough: 0.85, metal: 0.05, env: 0.25, visor: 0x050a02, visorGlow: 0x7dff3c, visorI: 2.2 },
@@ -183,6 +195,11 @@ export class CharacterFactory {
       mat = new THREE.MeshStandardMaterial({ map: baseMat.map, normalMap: baseMat.normalMap || null, roughness: 0.2, metalness: 1.0, envMapIntensity: 1.35 });
       if (isVisor) { mat.map = null; mat.color.set(0xffc44d); mat.metalness = 1; mat.roughness = 0.12; mat.emissive.set(0x5a3a00); }
       else this.patchShader(mat, 'platinum');
+    } else if (PALETTE_LOOKS[skinId]) {
+      const L = PALETTE_LOOKS[skinId];
+      mat = new THREE.MeshStandardMaterial({ map: baseMat.map, normalMap: baseMat.normalMap || null, roughness: L.rough, metalness: L.metal, envMapIntensity: L.env });
+      if (isVisor) { mat.map = null; mat.color.set(L.visor); mat.emissive.set(L.visorGlow); mat.emissiveIntensity = L.visorI; mat.roughness = 0.12; }
+      else this.patchShader(mat, 'pal:' + skinId);
     } else if (SKIN_LOOKS[skinId]) {
       const L = SKIN_LOOKS[skinId];
       mat = new THREE.MeshStandardMaterial({ map: baseMat.map, normalMap: baseMat.normalMap || null, roughness: L.rough, metalness: L.metal, envMapIntensity: L.env });
@@ -218,7 +235,27 @@ export class CharacterFactory {
           float oc_ly = oc_l(texture2D(map, vMapUv + vec2(0.0, oc_px.y)).rgb);
           float edge = smoothstep(0.05, 0.16, abs(oc_lx - lum) + abs(oc_ly - lum));
       `;
-      if (kind === 'shock') {
+      if (kind.startsWith('pal:')) {
+        const L = PALETTE_LOOKS[kind.slice(4)];
+        const camo = L.camo ? `float camo = smoothstep(0.52, 0.58, oc_noise(vMapUv * 26.0)) * 0.55 + smoothstep(0.6, 0.66, oc_noise(vMapUv * 61.0 + 3.0)) * 0.3; pal = mix(pal, ${v3(L.mid)}, camo);` : '';
+        sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', common + `
+          vec3 pal = mix(${v3(L.mid)}, ${v3(L.light)}, smoothstep(0.18, 0.78, lum));
+          ${camo}
+          pal = mix(pal, ${v3(L.dark)}, darkness);
+          float oc_acc = max(redness, edge * 0.35 * (1.0 - darkness));
+          diffuseColor.rgb = mix(pal, ${v3(L.accent)}, oc_acc);
+        `);
+        if (L.goldMetal) sh.fragmentShader = sh.fragmentShader.replace('#include <metalnessmap_fragment>', `
+          #include <metalnessmap_fragment>
+          metalnessFactor = mix(metalnessFactor, 1.0, oc_acc);
+        `);
+        sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', `
+          #include <emissivemap_fragment>
+          float oc_p = 0.75 + 0.25 * sin(uTime * 2.6 + vMapUv.y * 18.0);
+          totalEmissiveRadiance += ${v3(L.glow)} * edge * (1.0 - darkness) * ${L.glowI.toFixed(3)} * oc_p;
+          totalEmissiveRadiance += ${v3(L.accent)} * redness * ${L.accentI.toFixed(3)} * 0.6;
+        `);
+      } else if (kind === 'shock') {
         sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', common + `
           vec3 armor = mix(vec3(0.012, 0.016, 0.035), vec3(0.045, 0.06, 0.12), smoothstep(0.15, 0.75, lum));
           armor = mix(armor, vec3(0.015, 0.015, 0.02), darkness);
@@ -452,6 +489,12 @@ export class CharacterFactory {
 
   gliderModel(id = 'volt') { return makeGlider(id, this); }
 
+  /** The female-body geometry matching one of the character's skinned meshes (built once). */
+  femaleGeometry(mesh) {
+    if (!this._female) this._female = buildFemaleGeometries(this.template);
+    return this._female[mesh.name] || mesh.userData.baseGeo || mesh.geometry;
+  }
+
   create(opts) { return new Character(this, opts); }
 }
 
@@ -505,11 +548,15 @@ export class Character {
 
   setSkin(id) {
     this.skin = id;
+    const female = (SKINS.find(s => s.id === id) || {}).body === 'female';
     for (const m of this.meshes) {
       const base = this.f.baseMats[m.userData.baseName || m.material.name] || m.material;
       m.userData.baseName = m.userData.baseName || m.material.name;
       m.material = this.f.skinMaterial(id, this.f.baseMats[m.userData.baseName] || base);
+      m.userData.baseGeo = m.userData.baseGeo || m.geometry;
+      m.geometry = female ? this.f.femaleGeometry(m) : m.userData.baseGeo;
     }
+    this.hair = null;
     for (const a of this.attachments) a.parent && a.parent.remove(a);
     this.attachments = [];
     this.orbit = null; this.wings = null;
@@ -518,7 +565,55 @@ export class Character {
     if (id === 'cursed') this.addCursedGear();
     if (id === 'dragon') this.addDragonGear();
     if (id === 'frost') this.addFrostGear();
+    if (PALETTE_LOOKS[id]) this.addHair(PALETTE_LOOKS[id], id);
     for (const a of this.attachments) a.visible = !this.jetpackObj || !!a.userData.keep;
+  }
+
+  /** Hair out of the back of the helmet: ponytail, braid or bun. Segments chain so they can swing. */
+  addHair(L, id) {
+    const F = this.f;
+    if (!F._hairGeo) F._hairGeo = {
+      seg: new THREE.CylinderGeometry(1, 0.82, 1, 10, 1, true), ball: new THREE.SphereGeometry(1, 12, 10), tie: new THREE.TorusGeometry(0.034, 0.011, 6, 14),
+    };
+    F._hairMats = F._hairMats || {};
+    const mk = (c) => F._hairMats[c] || (F._hairMats[c] = new THREE.MeshStandardMaterial({ color: c, roughness: 0.55, metalness: 0.05 }));
+    const G = F._hairGeo, root = new THREE.Group();
+    const tieMat = mk(L.accent);
+    const hair = new THREE.Group(); hair.position.set(0, 0.13, -0.118); root.add(hair);
+    const segs = [];
+    if (L.hairStyle === 'bun') {
+      const bun = new THREE.Mesh(G.ball, mk(L.hair)); bun.scale.set(0.075, 0.068, 0.07); bun.position.set(0, 0.03, -0.03); hair.add(bun);
+      const tie = new THREE.Mesh(G.tie, tieMat); tie.rotation.x = 0.3; tie.position.set(0, 0.0, 0.0); hair.add(tie);
+      const tail = new THREE.Group(); tail.rotation.x = 0.5; hair.add(tail); segs.push(tail);
+      const t = new THREE.Mesh(G.seg, mk(L.hairTip)); t.scale.set(0.028, 0.12, 0.028); t.position.y = -0.07; tail.add(t);
+    } else {
+      const n = L.hairStyle === 'braid' ? 5 : 4, len = L.hairStyle === 'braid' ? 0.095 : 0.115;
+      const tie = new THREE.Mesh(G.tie, tieMat); tie.rotation.x = 1.2; tie.scale.setScalar(1.35); hair.add(tie);
+      const cA = new THREE.Color(L.hair), cB = new THREE.Color(L.hairTip);
+      let parent = hair;
+      for (let i = 0; i < n; i++) {
+        const k = i / (n - 1), r = (L.hairStyle === 'braid' ? 0.042 : 0.058) * (1 - k * 0.55);
+        const joint = new THREE.Group(); joint.rotation.x = i === 0 ? 0.55 : -0.13;
+        if (i > 0) joint.position.y = -len;
+        parent.add(joint); segs.push(joint);
+        const col = '#' + cA.clone().lerp(cB, Math.pow(k, 1.5)).getHexString();
+        const m = new THREE.Mesh(G.seg, mk(col)); m.scale.set(r, len, r); m.position.y = -len / 2; joint.add(m);
+        const b = new THREE.Mesh(G.ball, mk(col)); b.scale.setScalar(L.hairStyle === 'braid' ? r * 1.25 : r); joint.add(b);
+        parent = joint;
+      }
+      const end = new THREE.Mesh(G.ball, mk(L.hairTip)); end.scale.set(0.014, 0.03, 0.014); end.position.y = -len - 0.01; parent.add(end);
+      if (L.hairStyle === 'braid') { const t2 = new THREE.Mesh(G.tie, tieMat); t2.scale.setScalar(0.5); t2.rotation.x = Math.PI / 2; t2.position.y = -len; parent.add(t2); }
+    }
+    // valkyrie: little gold wings on the helmet
+    if (id === 'valkyrie') {
+      const M = this.gearMats();
+      const ws = new THREE.Shape(); ws.moveTo(0, 0); ws.quadraticCurveTo(0.05, 0.1, 0.02, 0.17); ws.quadraticCurveTo(-0.03, 0.12, -0.07, 0.15); ws.quadraticCurveTo(-0.05, 0.06, 0, 0);
+      const wg = new THREE.ShapeGeometry(ws);
+      for (const s of [-1, 1]) { const w = new THREE.Mesh(wg, M.gold); w.material.side = THREE.DoubleSide; w.position.set(s * 0.115, 0.13, -0.02); w.rotation.set(0, s * Math.PI / 2, s * -0.35); root.add(w); }
+    }
+    root.traverse(o => { if (o.isMesh) o.castShadow = true; });
+    this.keepGear(this.attachToBone('Head', root, this.f.headLocal));
+    this.hair = { segs, t: Math.random() * 10 };
   }
 
   attachToBone(boneName, obj, localMatrix) {
@@ -790,6 +885,19 @@ export class Character {
     this.root.rotation.y = s.yaw;
     if (this.orbit) { this.orbitT = (this.orbitT || 0) + dt; this.orbit.rotation.y = this.orbitT * 1.6; this.orbit.position.y = 1.05 + Math.sin(this.orbitT * 2) * 0.06; }
     if (this.wings) { this.wingT = (this.wingT || 0) + dt * (s.thrusting || s.mode === 'glide' ? 9 : 2.2); for (const w of this.wings) w.rotation.y = w.userData.side * (0.55 + Math.sin(this.wingT) * (s.thrusting ? 0.35 : 0.1)); }
+    if (this.hair) {
+      const H = this.hair; H.t += dt;
+      const sy0 = Math.sin(s.yaw), cy0 = Math.cos(s.yaw);
+      const fwd = (s.vx || 0) * sy0 + (s.vz || 0) * cy0, side = -((s.vx || 0) * cy0 - (s.vz || 0) * sy0);
+      const air = s.mode === 'skydive' || s.mode === 'glide';
+      H.swing = (H.swing || 0) + ((Math.max(-0.5, Math.min(0.5, side * 0.06))) - (H.swing || 0)) * Math.min(1, dt * 4);
+      H.lift = (H.lift || 0) + ((air ? 0.9 : Math.min(0.6, Math.abs(fwd) * 0.07)) - (H.lift || 0)) * Math.min(1, dt * 3);
+      H.segs.forEach((j, i) => {
+        const base = i === 0 ? 0.55 : -0.13;
+        j.rotation.x = base + (i === 0 ? H.lift : H.lift * 0.15) + Math.sin(H.t * 3.1 - i * 0.7) * 0.05 * (1 + H.lift);
+        j.rotation.z = H.swing * (i === 0 ? 1 : 0.4) + Math.sin(H.t * 2.3 - i * 0.6) * 0.06;
+      });
+    }
     if (this.jetFlames) for (const fl of this.jetFlames) { fl.visible = !!s.thrusting && !this.dead; if (fl.visible) fl.scale.set(1, 0.75 + Math.random() * 0.5, 1); }
     if (this.dead) {
       this.deathT += dt;

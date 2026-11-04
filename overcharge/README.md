@@ -32,7 +32,11 @@ For local testing: `python3 -m http.server` in the repository root, then open `h
   - Reversal Compound: a coach bus under an OVERCHARGE hot-air balloon.
   - Warehouse: a tandem-rotor cargo helicopter hauling a freight trailer.
   - Vulcan Garrison: an armoured VTOL dropship with tilt engines and searchlights.
-- **Queues:** Unranked for casual play with easier bots; Ranked with **Bronze I → Gold III**. Everyone starts at Bronze I and climbs with placement and eliminations. Bronze never loses progress, and you can't be demoted out of a division you've earned. Bots get tougher as you rank up.
+- **Queues:**
+  - Unranked: casual play with easier bots.
+  - Ranked: Bronze → Silver → Gold → Platinum → Diamond, three divisions each, then Champion → Unreal → Unreal Legend → Supreme. The colours follow Fortnite's ranks: teal Platinum, blue Diamond, orange Champion, purple Unreal, magenta Unreal Legend and red Supreme.
+  - Everyone starts at Bronze I and climbs with placement and eliminations. Bronze never loses progress, and you can't be demoted out of a division you've earned.
+  - Higher tiers give less RP per match, and bots get tougher as you rank up.
 - **Zero Build:** 100 health and a 50 overshield that regenerates after 5 s out of combat. Every elimination fully restores your health and shield.
 - **Jetpacks:** everyone drops in wearing one by default. If you switch that off in the LOADOUT tab, jetpacks spawn around the map and in chests instead. A jetpack sits on your back without using a slot. Hold JUMP in the air to fly, up to about 24 m. Fuel refills on the ground, and you take no fall damage while wearing one. Bots use them too.
 - **Weapons:** Assault Rifle, Pump Shotgun, Volt SMG and Arc Sniper, in Common → Legendary rarities. Nothing ever lies on the floor. You drop in with your loadout. Chests and ammo boxes put their contents straight into your inventory, and a chest upgrades the matching gun if its rarity is higher. When you eliminate someone, you automatically collect their ammo, grenades and medkits.

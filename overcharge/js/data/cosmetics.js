@@ -29,6 +29,26 @@ export const SKINS = [
     id: 'frost', name: 'Frost Trooper', rarity: 3, series: 'Glacier Series',
     desc: 'Glacier-white plating that glitters with frost, crowned with ice crystals.',
   },
+  {
+    id: 'nova', name: 'Nova', rarity: 3, series: 'Strike Force Series', body: 'female',
+    desc: 'White strike armor with hot-pink trim and a ponytail to match.',
+  },
+  {
+    id: 'viper', name: 'Viper', rarity: 4, series: 'Strike Force Series', body: 'female',
+    desc: 'Glossy black armor laced with neon venom-green. Strikes first.',
+  },
+  {
+    id: 'valkyrie', name: 'Valkyrie', rarity: 4, series: 'Mythic Series', body: 'female',
+    desc: 'Crimson and gold battle plate, a winged helm and a golden braid.',
+  },
+  {
+    id: 'arcticfox', name: 'Arctic Fox', rarity: 2, series: 'Glacier Series', body: 'female',
+    desc: 'Snow-camo plating with blaze-orange accents. Quick and quiet.',
+  },
+  {
+    id: 'rose', name: 'Midnight Rose', rarity: 3, series: 'Nightfall Series', body: 'female',
+    desc: 'Deep violet armor with rose-gold trim and a long midnight ponytail.',
+  },
 ];
 
 export const PICKAXES = [
