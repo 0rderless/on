@@ -21,7 +21,7 @@ import { rankedDelta, applyRanked, botSkillFor, xpForLevel } from './data/ranks.
 
 const $ = id => document.getElementById(id);
 const TIPS = [
-  'Throw a Shockwave Grenade at your feet to launch out of a bad fight — no fall damage!',
+  'Tap fire with a Shockwave Grenade to rocket up and forward — great for escaping fights or rotating. No fall damage!',
   'Overdrive Grenades shock enemies and supercharge you and your squad: faster moves, faster fire.',
   'Your overshield regenerates after 5 seconds without taking damage. Break line of sight to recharge.',
   'Every elimination fully restores your health and shield.',
