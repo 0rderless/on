@@ -13,6 +13,22 @@ export const SKINS = [
     id: 'platinum', name: 'Platinum Boy', rarity: 4, series: 'Icon Series',
     desc: 'Polished platinum plating with a gold visor. Never seen a scratch.',
   },
+  {
+    id: 'cursed', name: 'Cursed Trooper', rarity: 4, series: 'Hexed Series',
+    desc: 'Charred armor split by glowing curse veins, horns, and spirits that never leave its side.',
+  },
+  {
+    id: 'zombie', name: 'Zombie', rarity: 2, series: 'Hexed Series',
+    desc: 'Rotting, mossy and still on its feet. Toxic green eyes see you first.',
+  },
+  {
+    id: 'dragon', name: 'Red Dragon Trooper', rarity: 4, series: 'Dragonforge Series',
+    desc: 'Crimson scale armor with gold trim, swept horns and a pair of dragon wings.',
+  },
+  {
+    id: 'frost', name: 'Frost Trooper', rarity: 3, series: 'Glacier Series',
+    desc: 'Glacier-white plating that glitters with frost, crowned with ice crystals.',
+  },
 ];
 
 export const PICKAXES = [
