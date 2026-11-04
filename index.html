@@ -120,6 +120,7 @@
       </div>
       <button class="btn play" id="btn-play"><span>PLAY</span></button>
     </div>
+    <button class="lobby-emote" id="lobby-emote" aria-label="Emote"><i class="ic ic-dance"></i><span>EMOTE</span></button>
   </div>
 
   <div class="tabpane" data-pane="loadout">
@@ -154,6 +155,7 @@
   <div class="tabpane" data-pane="settings">
     <div class="settings panel" id="settings"></div>
   </div>
+  <div id="lobby-wheel" class="emote-wheel"><div class="ew-ring"><button class="ew-close" aria-label="Close"><i class="ic ic-close"></i></button></div></div>
 </section>
 
 <!-- ============================================================ MATCHMAKING -->
@@ -221,7 +223,7 @@
   <button class="ctl round small" id="b-pause"><i class="ic ic-gear"></i></button>
   <div id="fps"></div>
 
-  <div id="emote-wheel"><div class="ew-ring" id="ew-ring"><button class="ew-close" id="ew-close" aria-label="Close"><i class="ic ic-close"></i></button></div></div>
+  <div id="emote-wheel" class="emote-wheel"><div class="ew-ring"><button class="ew-close" aria-label="Close"><i class="ic ic-close"></i></button></div></div>
   <div id="bigmap"><canvas id="bigmap-c" width="900" height="900"></canvas><button class="btn ghost" id="bigmap-close"><span>CLOSE</span></button></div>
 
   <div id="death" class="overlay">

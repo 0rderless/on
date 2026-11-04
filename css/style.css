@@ -595,8 +595,8 @@ input { font-family: inherit; }
 
 /* ---------------------------------------------------------------- emote wheel */
 #b-emote.on { background: rgba(196, 139, 255, 0.4); border-color: #d9b8ff; box-shadow: 0 0 16px rgba(196, 139, 255, 0.7); }
-#emote-wheel { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; z-index: 6; background: radial-gradient(circle at 50% 50%, rgba(24, 12, 70, 0.6), rgba(5, 3, 18, 0.35) 65%); }
-#emote-wheel.show { display: flex; animation: ewIn 0.16s ease-out; }
+.emote-wheel { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; z-index: 6; background: radial-gradient(circle at 50% 50%, rgba(24, 12, 70, 0.6), rgba(5, 3, 18, 0.35) 65%); }
+.emote-wheel.show { display: flex; animation: ewIn 0.16s ease-out; }
 @keyframes ewIn { from { opacity: 0; } to { opacity: 1; } }
 .ew-ring { position: relative; width: 300px; height: 300px; flex: none; border-radius: 50%; transform: scale(var(--hud-k, 1)); background: radial-gradient(circle, rgba(36, 22, 92, 0.55) 0 30%, rgba(14, 9, 40, 0.82) 31% 100%); border: 2px solid rgba(255, 255, 255, 0.3); box-shadow: 0 0 40px rgba(138, 92, 255, 0.35), inset 0 0 36px rgba(138, 92, 255, 0.25); }
 .ew-btn { position: absolute; width: 92px; height: 92px; margin: -46px 0 0 -46px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; padding: 6px; color: #fff; background: rgba(40, 26, 100, 0.8); border: 2px solid rgba(255, 255, 255, 0.4); font-family: var(--head); font-size: 11px; letter-spacing: 0.03em; line-height: 1.05; text-align: center; text-transform: uppercase; cursor: pointer; transition: transform 0.08s, background 0.12s; }
@@ -604,3 +604,9 @@ input { font-family: inherit; }
 .ew-btn:hover, .ew-btn:active { background: rgba(80, 52, 180, 0.9); border-color: var(--ec, #fff); }
 .ew-btn:active { transform: scale(0.93); }
 .ew-close { position: absolute; left: 50%; top: 50%; width: 62px; height: 62px; margin: -31px 0 0 -31px; border-radius: 50%; display: grid; place-items: center; font-size: 24px; color: #fff; background: rgba(255, 77, 106, 0.3); border: 2px solid rgba(255, 140, 160, 0.8); cursor: pointer; }
+#lobby-wheel { z-index: 20; }
+.emote-wheel.dancing .ew-close .ic { --m: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='5' y='5' width='14' height='14' rx='2.5'/></svg>"); }
+.lobby-emote { position: absolute; left: calc((min(300px, 30vw) + 100vw - min(380px, 40vw)) / 2); bottom: calc(18px + var(--sb)); transform: translateX(-50%); display: flex; align-items: center; gap: 7px; padding: 8px 17px 8px 12px; border-radius: 999px; font-family: var(--head); font-size: 15px; letter-spacing: 0.06em; color: #fff; background: rgba(20, 12, 50, 0.62); border: 2px solid rgba(255, 255, 255, 0.5); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25), 0 0 22px rgba(138, 92, 255, 0.35); cursor: pointer; }
+.lobby-emote .ic { font-size: 23px; color: #d9b8ff; }
+.lobby-emote:active { transform: translateX(-50%) scale(0.95); }
+.lobby-emote.on { background: rgba(196, 139, 255, 0.4); border-color: #d9b8ff; box-shadow: 0 0 22px rgba(196, 139, 255, 0.75); }

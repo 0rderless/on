@@ -15,6 +15,7 @@ import { CAMERA_RIG, rigPose } from './game/player.js';
 import { Controls, applyLayout } from './ui/controls.js';
 import { Hud } from './ui/hud.js';
 import { LobbyScene } from './ui/lobbyScene.js';
+import { playEmoteBeat } from './game/emotes.js';
 import { renderIcons, renderMapImage } from './ui/icons.js';
 import { initAuth, initLobby, initLoadout, renderLoadout, refreshModeCard, refreshMe, renderLocker, renderCareer, renderSettings, HudEditor, showResults } from './ui/menus.js';
 import { rankedDelta, applyRanked, botSkillFor, xpForLevel } from './data/ranks.js';
@@ -320,7 +321,24 @@ class App {
     if (notice) setTimeout(() => alert(notice), 50);
   }
 
+  startLobbyEmote(id) {
+    this.stopLobbyEmote();
+    this.lobbyScene.playEmote(id);
+    try { this.lobbyBeatStop = playEmoteBeat(id); } catch { this.lobbyBeatStop = null; }
+    Audio.loopVolume('music', 0.12);   // the dance's own beat takes over from the lobby music
+    $('lobby-emote').classList.add('on'); this.lobbyWheel.setDancing(true);
+  }
+
+  stopLobbyEmote() {
+    if (!this.lobbyScene.emoteId && !this.lobbyBeatStop) return;
+    this.lobbyScene.stopEmote();
+    if (this.lobbyBeatStop) { this.lobbyBeatStop(); this.lobbyBeatStop = null; }
+    if (this.state === 'lobby') Audio.loopVolume('music', 0.8);
+    $('lobby-emote').classList.remove('on'); this.lobbyWheel.setDancing(false);
+  }
+
   showTab(tab) {
+    this.stopLobbyEmote(); this.lobbyWheel.toggle(false);
     document.querySelectorAll('.navtab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
     document.querySelectorAll('.tabpane').forEach(p => p.classList.toggle('show', p.dataset.pane === tab));
     this.lobbyScene.layout(tab);
@@ -435,6 +453,7 @@ class App {
 
   // ================================================================ match flow
   startMatchmaking() {
+    this.stopLobbyEmote(); this.lobbyWheel.toggle(false);
     if (this.state !== 'lobby') return;
     this.state = 'mm';
     const lm = this.profile.lastMode;

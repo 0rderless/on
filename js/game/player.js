@@ -107,7 +107,8 @@ export class PlayerController {
     // ---------------- emotes: anything that moves, shoots or switches gear ends the dance
     if (input.emote) {
       const id = input.emote; input.emote = null;
-      if (g.startEmote(f, id)) { this.emoteOrbit = 0; this.emotePitch = -0.12; }
+      if (id === 'stop') g.stopEmote(f);
+      else if (g.startEmote(f, id)) { this.emoteOrbit = 0; this.emotePitch = -0.12; }
       else if (f.mode !== 'ground') g.hud.toast('Land first to emote');
     }
     if (f.emote) {

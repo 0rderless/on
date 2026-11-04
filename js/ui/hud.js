@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { WEAPONS, GRENADES, HEALS, RARITIES, itemName, itemColor } from '../data/items.js';
 import { MAP_HALF, MAX_HEALTH, MAX_SHIELD, SOLO_RESPAWNS, KILLS_PER_RESPAWN } from '../config.js';
-import { EMOTES } from '../game/emotes.js';
+import { makeEmoteWheel } from './emoteWheel.js';
 
 const RESPAWN_SVG = '<svg viewBox="0 0 24 24"><path d="M12 4a8 8 0 1 0 7.75 10h-2.1A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35A7.96 7.96 0 0 0 12 4z"/></svg>';
 
@@ -29,35 +29,11 @@ export class Hud {
     this.fpsT = 0; this.frames = 0;
     $('bigmap-close').addEventListener('click', () => this.toggleMap(false));
     $('b-pause').addEventListener('click', () => app.pause(true));
-    this.onEmotePick = null; this.emoteOpenedAt = 0;
-    this.buildEmoteWheel();
+    this.onEmotePick = null;
+    this.emoteWheel = makeEmoteWheel($('emote-wheel'), id => this.onEmotePick && this.onEmotePick(id), () => this.onEmotePick && this.onEmotePick('stop'));
   }
 
-  /** Emote wheel: five dances around a close button. */
-  buildEmoteWheel() {
-    const ring = $('ew-ring'), R = 104, C = 150;
-    const colors = { takethel: '#7cff6b', floss: '#4dd7ff', orangejustice: '#ff9a2e', laugh: '#ffe14d', defaultdance: '#c48bff' };
-    EMOTES.forEach((e, i) => {
-      const a = -Math.PI / 2 + i * (Math.PI * 2 / EMOTES.length);
-      const b = document.createElement('button');
-      b.className = 'ew-btn'; b.dataset.emote = e.id;
-      b.style.left = (C + Math.cos(a) * R).toFixed(1) + 'px'; b.style.top = (C + Math.sin(a) * R).toFixed(1) + 'px';
-      b.style.setProperty('--ec', colors[e.id] || '#ffe14d');
-      b.innerHTML = `<i class="ic ic-em-${e.id}"></i><span>${e.name}</span>`;
-      b.addEventListener('click', ev => { ev.stopPropagation(); if (performance.now() - this.emoteOpenedAt < 250) return; this.toggleEmotes(false); if (this.onEmotePick) this.onEmotePick(e.id); });
-      ring.appendChild(b);
-    });
-    $('ew-close').addEventListener('click', ev => { ev.stopPropagation(); this.toggleEmotes(false); });
-    // tapping the dimmed background closes it (ignoring the click that the opening tap itself produces)
-    $('emote-wheel').addEventListener('click', ev => { if (ev.target.id === 'emote-wheel' && performance.now() - this.emoteOpenedAt > 400) this.toggleEmotes(false); });
-  }
-
-  toggleEmotes(force) {
-    const w = $('emote-wheel');
-    const on = force !== undefined ? force : !w.classList.contains('show');
-    if (on && !w.classList.contains('show')) this.emoteOpenedAt = performance.now();
-    w.classList.toggle('show', on);
-  }
+  toggleEmotes(force) { this.emoteWheel.toggle(force); }
 
   matchStart(m) {
     this.m = m;
@@ -91,7 +67,7 @@ export class Hud {
     $('hp-num').textContent = Math.ceil(f.health);
     $('sh-num').textContent = Math.ceil(f.shield);
     const dancing = !!p.emote;
-    if (this.dancing !== dancing) { this.dancing = dancing; $('b-emote').classList.toggle('on', dancing); }
+    if (this.dancing !== dancing) { this.dancing = dancing; $('b-emote').classList.toggle('on', dancing); this.emoteWheel.setDancing(dancing); }
     if (!p.alive || p.mode !== 'ground') { if ($('emote-wheel').classList.contains('show')) this.toggleEmotes(false); }
     const jet = $('jet');
     if (f.jetpack) { jet.classList.add('show'); jet.classList.toggle('low', f.fuel < 25); $('jet-fill').style.width = f.fuel + '%'; } else jet.classList.remove('show');
