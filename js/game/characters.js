@@ -9,6 +9,7 @@ import { makeJetpack } from './jetpack.js';
 const _q = new THREE.Quaternion(), _qp = new THREE.Quaternion(), _qi = new THREE.Quaternion();
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _m = new THREE.Matrix4();
 const _right = new THREE.Vector3(), _fwd = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
+const _bUp = new THREE.Vector3(), _bFwd = new THREE.Vector3(), _bX = new THREE.Vector3(), _bBasis = new THREE.Matrix4();
 
 /** Rotate a bone about a world-space axis (applied after the animation mixer). */
 function rotateBoneWorld(bone, axis, angle) {
@@ -104,13 +105,38 @@ export class CharacterFactory {
     const pickWorld = new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(0.55, 0, 0));
     pickWorld.setPosition(handPos);
     this.pickLocal = handInv.clone().multiply(pickWorld);
-    // Back frame (for backpacks) relative to Spine2
-    const backWorld = new THREE.Matrix4().makeTranslation(0, new THREE.Vector3().setFromMatrixPosition(spine2.matrixWorld).y + 0.02, -0.17);
-    this.backLocal = spine2.matrixWorld.clone().invert().multiply(backWorld);
     const headPos = new THREE.Vector3().setFromMatrixPosition(head.matrixWorld);
     this.headLocal = head.matrixWorld.clone().invert().multiply(new THREE.Matrix4().makeTranslation(headPos.x, headPos.y, headPos.z));
     const chestPos = new THREE.Vector3().setFromMatrixPosition(spine2.matrixWorld);
     this.chestLocal = spine2.matrixWorld.clone().invert().multiply(new THREE.Matrix4().makeTranslation(chestPos.x, chestPos.y, chestPos.z));
+    // Back gear (jetpack, battery pack) rides on a mount that faces where the character faces, because the
+    // rifle stance blades the whole torso ~55 degrees and a pack glued to it would hang off one side.
+    // How far behind the spine the back surface is depends on that twist: measure it straight and bladed.
+    const backDepth = (root) => {
+      root.updateMatrixWorld(true);
+      const sp = this.findBone(root, 'Spine2');
+      const p = new THREE.Vector3().setFromMatrixPosition(sp.matrixWorld);
+      let minZ = Infinity; const v = new THREE.Vector3();
+      root.traverse(o => {
+        if (!o.isSkinnedMesh) return;
+        const P = o.geometry.attributes.position;
+        for (let i = 0; i < P.count; i++) {
+          o.getVertexPosition(i, v); v.applyMatrix4(o.matrixWorld);
+          if (Math.abs(v.y - p.y) < 0.06 && Math.abs(v.x - p.x) < 0.06 && v.z < minZ) minZ = v.z;
+        }
+      });
+      const f = new THREE.Vector3(0, 0, 1).transformDirection(sp.matrixWorld); f.y = 0; f.normalize();
+      return { d: isFinite(minZ) ? p.z - minZ : 0.19, twist: Math.abs(Math.atan2(f.x, f.z)) };
+    };
+    const straight = backDepth(SkeletonUtils.clone(this.template));
+    const bladed = backDepth(inst);
+    // model the torso as an ellipse: depth(twist) = sqrt(w^2 sin^2 + d0^2 cos^2)
+    this.backD0 = straight.d;
+    const s2 = Math.sin(bladed.twist) ** 2;
+    this.backW2 = s2 > 0.05 ? Math.max(straight.d ** 2, (bladed.d ** 2 - straight.d ** 2 * (1 - s2)) / s2) : straight.d ** 2;
+    // legacy frame (bone-relative), kept for anything that still wants to follow the torso exactly
+    const backWorld = new THREE.Matrix4().makeTranslation(chestPos.x, chestPos.y + 0.02, chestPos.z - straight.d);
+    this.backLocal = spine2.matrixWorld.clone().invert().multiply(backWorld);
     const s = new THREE.Vector3(); hand.matrixWorld.decompose(new THREE.Vector3(), new THREE.Quaternion(), s);
     this.boneScale = s.x; // ~0.01 (armature is in centimetres)
   }
@@ -540,7 +566,10 @@ export class Character {
       const tip = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 6), yel);
       tip.position.set(x, 0.42, 0); pack.add(tip);
     }
-    this.attachments.push(this.attachToBone('Spine2', pack, this.f.backLocal));
+    pack.position.z = -0.045;
+    this.getBackMount().add(pack);
+    this.updateBackMount();
+    this.attachments.push(pack);
   }
 
   gearMats() {
@@ -673,8 +702,10 @@ export class Character {
   setJetpack(on) {
     if (on && !this.jetpackObj) {
       const m = this.f.jetpackModel();
-      m.position.set(0, -0.035, -0.02);
-      this.jetpackObj = this.attachToBone('Spine2', m, this.f.backLocal);
+      m.position.set(0, -0.035, 0.008);
+      this.getBackMount().add(m);
+      this.updateBackMount();
+      this.jetpackObj = m;
       this.jetFlames = m.userData.flames;
     } else if (!on && this.jetpackObj) {
       this.jetpackObj.parent && this.jetpackObj.parent.remove(this.jetpackObj);
@@ -719,6 +750,37 @@ export class Character {
    *         reloadFrac (0..1 or -1), camDist (for LOD)}
    */
   update(dt, s) {
+    this.updatePose(dt, s);
+    if (this.backMount) this.updateBackMount();
+  }
+
+  /** A mount on the middle of the back that faces where the character faces, leaning with the spine. */
+  getBackMount() {
+    if (!this.backMount) { this.backMount = new THREE.Group(); this.body.add(this.backMount); }
+    return this.backMount;
+  }
+
+  updateBackMount() {
+    const sp = this.bones.Spine2;
+    sp.updateWorldMatrix(true, false);
+    _m.copy(this.body.matrixWorld).invert().multiply(sp.matrixWorld);        // spine in body space
+    _v.setFromMatrixPosition(_m);
+    _bUp.set(0, 1, 0).transformDirection(_m);                               // along the spine
+    _bFwd.set(0, 0, 1).addScaledVector(_bUp, -_bUp.z);                       // facing, leaned with the spine
+    if (_bFwd.lengthSq() < 1e-4) _bFwd.set(0, 0, 1).transformDirection(_m); else _bFwd.normalize();
+    _bX.crossVectors(_bUp, _bFwd).normalize();
+    _bFwd.crossVectors(_bX, _bUp);
+    _bBasis.makeBasis(_bX, _bUp, _bFwd);
+    this.backMount.quaternion.setFromRotationMatrix(_bBasis);
+    // how bladed is the torso right now? (spine forward vs facing, around the spine)
+    _v2.set(0, 0, 1).transformDirection(_m);
+    const tw = Math.atan2(_v2.dot(_bX), _v2.dot(_bFwd));
+    const sn = Math.sin(tw), cs = Math.cos(tw);
+    const depth = Math.sqrt(this.f.backW2 * sn * sn + this.f.backD0 * this.f.backD0 * cs * cs);
+    this.backMount.position.copy(_v).addScaledVector(_bFwd, -depth).addScaledVector(_bUp, 0.02);
+  }
+
+  updatePose(dt, s) {
     const camDist = s.camDist ?? 0;
     this.lod = camDist > 70 ? 2 : camDist > 30 ? 1 : 0;
     if (this.lod === 2) {
