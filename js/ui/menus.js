@@ -194,9 +194,12 @@ export function renderSettings(app, container, inGame = false) {
       ${toggle('invertY', 'Invert Look')}
       ${toggle('haptics', 'Vibration', 'Buzz when you take damage')}
       <div class="set-row"><div>HUD Layout<small>Move and resize every button and panel</small></div><button class="btn ghost sm" id="set-hud"><span>EDIT HUD</span></button></div>
+      <div class="set-row"><div>How to Play<small>Controls, Auto Shoot, jetpack, Shockwave and more</small></div><button class="btn ghost sm" id="set-howto"><span>SHOW</span></button></div>
     </div>
     <div class="set-sec"><h3>GRAPHICS</h3>
       <div class="set-row"><div>Quality<small>Lower = smoother on older phones (full effect after restart)</small></div><div class="seg" data-seg="quality">${['low', 'medium', 'high'].map(q => `<button class="${S.quality === q ? 'on' : ''}" data-q="${q}">${q.toUpperCase()}</button>`).join('')}</div></div>
+      ${toggle('autoRes', 'Auto Resolution', 'Lowers the resolution a little if the frame rate drops, so matches stay smooth')}
+      ${toggle('fpsCap', '60 FPS Cap', 'Saves battery and heat on 120 Hz phones')}
       ${toggle('showFps', 'Show FPS')}
     </div>
     <div class="set-sec"><h3>AUDIO</h3>
@@ -245,6 +248,8 @@ export function renderSettings(app, container, inGame = false) {
   container.querySelectorAll('[data-q]').forEach(b => b.addEventListener('click', () => {
     click(); S.quality = b.dataset.q; container.querySelectorAll('[data-q]').forEach(x => x.classList.toggle('on', x === b)); app.applySettings(); Store.save();
   }));
+  const howBtn = container.querySelector('#set-howto');
+  if (howBtn) howBtn.addEventListener('click', () => { click(); app.showHowTo(); });
   const hudBtn = container.querySelector('#set-hud');
   if (hudBtn) hudBtn.addEventListener('click', () => { click(); app.openHudEditor(inGame); });
   const so = container.querySelector('#set-signout');
