@@ -228,7 +228,7 @@ input { font-family: inherit; }
 #joy { width: 150px; height: 150px; }
 .joy-base { position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle, rgba(255, 255, 255, 0.04) 40%, rgba(255, 255, 255, 0.12) 70%, rgba(255, 255, 255, 0.04)); border: 2px solid rgba(255, 255, 255, 0.35); }
 .joy-knob { position: absolute; left: 50%; top: 50%; width: 62px; height: 62px; margin: -31px 0 0 -31px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, rgba(255, 255, 255, 0.9), rgba(200, 190, 255, 0.55)); box-shadow: 0 0 16px rgba(138, 92, 255, 0.6); }
-#b-pause { position: absolute; right: calc(10px + var(--sr)); top: calc(10px + var(--st)); width: 44px; height: 44px; font-size: 20px; }
+#b-pause { position: absolute; right: calc(10px + var(--sr)); top: calc(10px + var(--st)); width: 44px; height: 44px; font-size: 20px; transform: scale(var(--hud-k, 1)); transform-origin: top right; }
 #fps { position: absolute; right: calc(62px + var(--sr)); top: calc(18px + var(--st)); font-size: 12px; color: var(--muted); }
 
 #minimap-wrap { width: 150px; }
@@ -304,7 +304,7 @@ input { font-family: inherit; }
 .scope-h { left: 15%; right: 15%; top: 50%; height: 2px; }
 .scope-v { top: 15%; bottom: 15%; left: 50%; width: 2px; }
 
-#killfeed { position: absolute; right: calc(64px + var(--sr)); top: calc(10px + var(--st)); display: flex; flex-direction: column; align-items: flex-end; gap: 3px; pointer-events: none; max-width: 36vw; }
+#killfeed { transform: scale(var(--hud-k, 1)); transform-origin: top right; position: absolute; right: calc(64px + var(--sr)); top: calc(10px + var(--st)); display: flex; flex-direction: column; align-items: flex-end; gap: 3px; pointer-events: none; max-width: 36vw; }
 .kf { font-size: 13px; padding: 2px 8px; border-radius: 4px; background: rgba(10, 6, 30, 0.55); animation: kfIn 0.25s ease-out; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kf b { color: #fff; }
 .kf .kf-me { color: var(--y); }

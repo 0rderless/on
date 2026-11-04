@@ -56,7 +56,7 @@ export class World {
     M('steel', std({ color: 0x9ea3c0, roughness: 0.35, metalness: 0.8 }), 'world', 2);
     M('hazard', std({ color: 0xffffff, map: T.hazard, roughness: 0.8 }), 'world', 1.2);
     M('padPurple', basic(0xa564ff), 'unit', 1, false);
-    M('orange', basic(0xffb46b), 'unit', 1, false);
+    M('orange', basic(0xffa860), 'unit', 1, false);
     M('cyan', basic(0x5ff4ff), 'unit', 1, false);
     M('white', basic(0xf2f0ff), 'unit', 1, false);
     M('pink', basic(0xff63d8), 'unit', 1, false);
@@ -416,7 +416,7 @@ export class World {
     this.wall(x0, z1, x1, z1, H, t, 'slats', [{ at: 10, w: 8, h: 5.5 }, { at: W / 2, w: 10, h: 5.5 }, { at: W - 10, w: 8, h: 5.5 }]);
     this.box(cx, H, cz, W + 1, 0.6, D + 1, 'darker');
     // skylight strips + inner light bands
-    for (let i = -2; i <= 2; i++) this.pushBox('white', cx + i * 9, H - 0.02, cz, 4, 0.05, D - 6);
+    for (let i = -2; i <= 2; i++) this.pushBox('white', cx + i * 9, H - 0.02, cz, 1.6, 0.05, D - 6);
     this.pushBox('padPurple', cx, 6.2, z0 + t / 2 + 0.03, W - 3, 0.18, 0.04);
     this.pushBox('padPurple', cx, 2.2, z0 + t / 2 + 0.03, W - 3, 0.1, 0.04);
     // spawn pads (purple glowing floor tiles like the walkthrough)
@@ -468,7 +468,7 @@ export class World {
     // orange canopy on the west end
     for (const [px, pz] of [[x0 + 1.5, z0 + 1.5], [x0 + 1.5, z1 - 1.5], [x0 + 9, z0 + 1.5], [x0 + 9, z1 - 1.5]]) this.box(px, Y, pz, 0.5, 3.6, 0.5, 'metal');
     this.box(x0 + 5.2, Y + 3.6, cz, 9.5, 0.4, D - 1, 'darker');
-    this.pushBox('orange', x0 + 5.2, Y + 3.58, cz, 8.4, 0.04, D - 2.4);
+    for (let k = -1; k <= 1; k++) this.pushBox('orange', x0 + 5.2 + k * 2.8, Y + 3.58, cz, 1.1, 0.04, D - 2.4);
     this.monitor(x0 + 5, cz - 3, Math.PI / 2, Y); this.monitor(x0 + 5, cz + 3, Math.PI / 2, Y);
     this.crate(cx + 4, cz - 3, 1.4, Y); this.crate(cx + 9, cz + 3.5, 1.4, Y);
     this.chest(x0 + 3, Y, cz); this.chest(cx + 2, 0, cz, 0);
@@ -599,7 +599,7 @@ export class World {
     const W = 26, D = 16, Y = 6.5;
     for (const px of [-W / 2 + 1, 0, W / 2 - 1]) for (const pz of [-D / 2 + 1, D / 2 - 1]) this.box(cx + px, 0, cz + pz, 0.7, Y, 0.7, 'metal');
     this.box(cx, Y, cz, W, 0.6, D, 'darker');
-    this.pushBox('orange', cx, Y - 0.03, cz, W - 3, 0.05, D - 3);
+    for (let k = -2; k <= 2; k++) this.pushBox('orange', cx + k * 4.8, Y - 0.03, cz, 1.4, 0.05, D - 3);
     // consoles
     for (const px of [-8, 0, 8]) {
       this.box(cx + px, 0, cz - 2, 4, 1.0, 1.2, 'metal');

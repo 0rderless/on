@@ -213,6 +213,7 @@ class App {
     this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
     this.lobbyScene && this.lobbyScene.resize(w, h);
     this.effects && this.effects.setViewport(h * this.renderer.getPixelRatio());
+    if (this.profile) applyLayout(this.hudEditor && document.getElementById('hud').classList.contains('editing') ? this.hudEditor.layout : this.profile.hud);
   }
 
   applySettings() {

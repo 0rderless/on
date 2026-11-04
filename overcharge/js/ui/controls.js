@@ -19,14 +19,21 @@ export const HUD_NAMES = {
   ads: 'Aim (ADS)', jump: 'Jump', crouch: 'Crouch', reload: 'Reload', interact: 'Pick Up / Open', map: 'Map',
 };
 
+/** Scale factor so the HUD keeps the same proportions on small phones and tablets (baseline 844×390). */
+export function hudScale() {
+  return Math.max(0.68, Math.min(1.6, Math.min(innerWidth / 844, innerHeight / 390)));
+}
+
 export function applyLayout(layout) {
+  const k = hudScale();
+  document.documentElement.style.setProperty('--hud-k', k);
   for (const id in HUD_DEFAULTS) {
     const el = document.querySelector(`[data-hud="${id}"]`);
     if (!el) continue;
     const L = { ...HUD_DEFAULTS[id], ...(layout[id] || {}) };
     el.style.left = (L.x * 100) + 'vw';
     el.style.top = (L.y * 100) + 'vh';
-    el.style.transform = `translate(-50%, -50%) scale(${L.s})`;
+    el.style.transform = `translate(-50%, -50%) scale(${L.s * k})`;
     el.style.opacity = L.o;
   }
 }
