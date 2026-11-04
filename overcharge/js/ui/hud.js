@@ -38,7 +38,7 @@ export class Hud {
     $('killfeed').innerHTML = '';
     $('h-kills').textContent = '0';
     this.slotKey = '';
-    this.setAlive(m.fighters.length, m.mode === 'reload' ? m.teams : null);
+    this.setAlive(m.fighters.length, m.teamSize > 1 ? m.teams : null);
     const rt = $('reload-tag');
     rt.textContent = m.mode === 'reload' ? 'RELOAD ACTIVE' : ''; rt.className = 'reload-tag' + (m.mode === 'reload' ? ' open' : '');
     this.squadUpdate(m);
@@ -189,7 +189,7 @@ export class Hud {
   }
 
   // ------------------------------------------------------------ events
-  setAlive(n, teams) { $('h-alive').textContent = teams ? `${teams}` : n; $('h-alive').parentElement.title = teams ? 'Squads left' : 'Players left'; }
+  setAlive(n, teams) { $('h-alive').textContent = teams ? `${teams}` : n; $('h-alive').parentElement.title = teams ? 'Teams left' : 'Players left'; }
 
   killfeed(msg, myTeam) {
     const kf = $('killfeed');
@@ -259,7 +259,7 @@ export class Hud {
 
   squadUpdate(m) {
     const sq = $('squad');
-    if (m.mode !== 'reload') { sq.innerHTML = ''; return; }
+    if (m.teamSize <= 1) { sq.innerHTML = ''; return; }
     sq.innerHTML = m.fighters.filter(f => f.team === m.player.team).map(f =>
       `<div class="sq ${f.alive ? '' : 'dead'}" data-id="${f.id}"><span class="sq-n" style="color:${f.isPlayer ? 'var(--y)' : 'var(--c)'}">${esc(f.name)}</span><div class="sq-b"><i style="width:${f.alive ? f.health : 0}%"></i></div></div>`).join('');
     clearTimeout(this._sqT);
@@ -275,7 +275,9 @@ export class Hud {
     const d = $('death');
     $('respawn').classList.remove('show');
     $('death-by').innerHTML = killer ? `by <b style="color:var(--red)">${esc(killer.name)}</b>` : 'by the storm';
-    $('death-place').textContent = '#' + placement;
+    const teamUp = placement === null;
+    $('death-place').textContent = teamUp ? `${result.team === 'duo' ? 'DUO' : 'SQUAD'} STILL IN` : '#' + placement;
+    $('death-place').classList.toggle('team-up', teamUp);
     $('death-stats').textContent = `${result.kills} eliminations · ${result.damage} damage`;
     d.classList.remove('spectating');
     d.classList.add('show');
@@ -284,7 +286,9 @@ export class Hud {
     $('death-leave').onclick = () => this.app.endMatch(this.m.result);
   }
 
-  victory() {
+  victory(r) {
+    const sub = document.querySelector('#victory .v-sub');
+    if (sub) sub.textContent = { duo: 'LAST DUO STANDING', squad: 'LAST SQUAD STANDING' }[r && r.team] || 'LAST ONE STANDING';
     $('death').classList.remove('show');
     $('elimpop').classList.remove('show');
     $('victory').classList.add('show');

@@ -244,6 +244,12 @@ export class BotBrain {
 
   updateAir(dt) {
     const f = this.f;
+    // duos/squads: track the leader through the air so the team lands together
+    const L = this.followLeader;
+    if (L && L.alive && (L.mode === 'skydive' || L.mode === 'glide')) {
+      if (!this.airOff) { const a = Math.random() * Math.PI * 2; this.airOff = { x: Math.cos(a) * 7, z: Math.sin(a) * 7 }; }
+      this.dropTarget = { x: L.pos.x + L.vel.x * 1.5 + this.airOff.x, z: L.pos.z + L.vel.z * 1.5 + this.airOff.z };
+    }
     if (!this.dropTarget) { f.move.set(0, 0); return; }
     const dx = this.dropTarget.x - f.pos.x, dz = this.dropTarget.z - f.pos.z, d = Math.hypot(dx, dz);
     if (d > 3) f.move.set(dx / d, dz / d); else f.move.set(0, 0);

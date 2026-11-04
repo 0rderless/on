@@ -6,7 +6,7 @@ import { HUD_DEFAULTS, HUD_NAMES, applyLayout } from './controls.js';
 import { Audio } from '../core/audio.js';
 import { esc } from './hud.js';
 import { xpForLevel } from '../data/ranks.js';
-import { GAME_VERSION } from '../config.js';
+import { GAME_VERSION, TEAM_SIZES, TEAM_LABELS, PLAYER_COUNTS } from '../config.js';
 import { LOADOUT_ITEMS, DEFAULT_LOADOUT, normalizeLoadout, itemColor, HEALS, GRENADES, WEAPONS } from '../data/items.js';
 
 const $ = id => document.getElementById(id);
@@ -74,6 +74,9 @@ export function initLobby(app) {
   document.querySelectorAll('.mode-btn').forEach(b => b.addEventListener('click', () => {
     click(); app.profile.lastMode.mode = b.dataset.mode; Store.save(); refreshModeCard(app);
   }));
+  document.querySelectorAll('.t-btn').forEach(b => b.addEventListener('click', () => {
+    click(); app.profile.lastMode.team = b.dataset.team; Store.save(); refreshModeCard(app);
+  }));
   document.querySelectorAll('.q-btn').forEach(b => b.addEventListener('click', () => {
     click(); app.profile.lastMode.ranked = b.dataset.ranked === '1'; Store.save(); refreshModeCard(app);
   }));
@@ -92,7 +95,14 @@ export function initLobby(app) {
 
 export function refreshModeCard(app) {
   const p = app.profile, lm = p.lastMode;
-  document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === lm.mode));
+  const team = TEAM_SIZES[lm.team] ? lm.team : 'solo';
+  const teamLabel = TEAM_LABELS[team];
+  document.querySelectorAll('.mode-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === lm.mode);
+    const n = PLAYER_COUNTS[b.dataset.mode][team];
+    b.querySelector('small').textContent = b.dataset.mode === 'reload' ? `${teamLabel} · Respawns` : `${teamLabel} · ${n} players`;
+  });
+  document.querySelectorAll('.t-btn').forEach(b => b.classList.toggle('active', b.dataset.team === team));
   document.querySelectorAll('.q-btn').forEach(b => b.classList.toggle('active', (b.dataset.ranked === '1') === !!lm.ranked));
   $('mode-rank').innerHTML = lm.ranked ? rankBlock(p.ranked[lm.mode], lm.mode === 'br' ? 'Battle Royale' : 'Reload')
     : `<div class="rank-sub" style="padding:4px 2px">Casual playlist — practice with chill bots. Your rank isn't affected.</div>`;
@@ -343,14 +353,18 @@ export class HudEditor {
 export function showResults(app, r, rewards) {
   $('results').classList.add('show');
   $('res-place').textContent = '#' + r.placement;
-  $('res-title').textContent = r.won ? 'OVERCHARGED VICTORY' : r.placement <= (r.mode === 'br' ? 10 : 3) ? 'SO CLOSE!' : 'MATCH COMPLETE';
-  $('res-mode').textContent = `${r.mode === 'br' ? 'BATTLE ROYALE' : 'RELOAD'} · ${r.ranked ? 'RANKED' : 'UNRANKED'} · REVERSAL COMPOUND`;
+  const team = TEAM_SIZES[r.team] ? r.team : 'solo';
+  $('res-title').textContent = r.won ? 'OVERCHARGED VICTORY' : r.placement <= (r.total > 12 ? 10 : 3) ? 'SO CLOSE!' : 'MATCH COMPLETE';
+  $('res-mode').textContent = `${r.mode === 'br' ? 'BATTLE ROYALE' : 'RELOAD'} · ${TEAM_LABELS[team].toUpperCase()} · ${r.ranked ? 'RANKED' : 'UNRANKED'} · REVERSAL COMPOUND`;
   const mins = Math.floor(r.timeAlive / 60), secs = String(r.timeAlive % 60).padStart(2, '0');
   $('res-tiles').innerHTML = `
     <div class="stat"><b>${r.kills}</b><span>ELIMINATIONS</span></div>
     <div class="stat"><b>${r.damage}</b><span>DAMAGE DEALT</span></div>
     <div class="stat"><b>${mins}:${secs}</b><span>TIME SURVIVED</span></div>
-    <div class="stat"><b>${r.placement}/${r.total}</b><span>${r.mode === 'br' ? 'PLACEMENT' : 'SQUAD PLACEMENT'}</span></div>`;
+    <div class="stat"><b>${r.placement}/${r.total}</b><span>${{ solo: 'PLACEMENT', duo: 'DUO PLACEMENT', squad: 'SQUAD PLACEMENT' }[team]}</span></div>`;
+  $('res-squad').innerHTML = r.squad && r.squad.length > 1
+    ? r.squad.map(m => `<div class="rs${m.name === app.profile.username ? ' me' : ''}"><b>${esc(m.name)}</b><span>${m.kills} elim${m.kills === 1 ? '' : 's'}</span></div>`).join('')
+    : '';
   // XP
   const p = app.profile;
   $('res-lvl').textContent = rewards.levelBefore;

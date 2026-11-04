@@ -100,7 +100,12 @@
       <div class="mode-card panel" id="mode-card">
         <div class="mode-tabs">
           <button class="mode-btn active" data-mode="br"><b>BATTLE ROYALE</b><small>Solo · 30 players</small></button>
-          <button class="mode-btn" data-mode="reload"><b>RELOAD</b><small>Squads · Respawns</small></button>
+          <button class="mode-btn" data-mode="reload"><b>RELOAD</b><small>Solo · Respawns</small></button>
+        </div>
+        <div class="team-tabs">
+          <button class="t-btn active" data-team="solo"><i class="t-ico">&#9679;</i>SOLO</button>
+          <button class="t-btn" data-team="duo"><i class="t-ico">&#9679;&#9679;</i>DUOS</button>
+          <button class="t-btn" data-team="squad"><i class="t-ico">&#9679;&#9679;&#9679;&#9679;</i>SQUADS</button>
         </div>
         <div class="queue-tabs">
           <button class="q-btn active" data-ranked="0">UNRANKED</button>
@@ -261,6 +266,7 @@
       <div><div class="res-title" id="res-title">VICTORY</div><div class="res-mode" id="res-mode"></div></div>
     </div>
     <div class="res-tiles" id="res-tiles"></div>
+    <div class="res-squad" id="res-squad"></div>
     <div class="res-xp panel"><div class="res-lbl">ACCOUNT LEVEL <b id="res-lvl">1</b> <span id="res-xpgain"></span></div><div class="xpbar"><div id="res-xpfill"></div></div></div>
     <div class="res-rank panel" id="res-rank"></div>
     <button class="btn primary" id="res-continue"><span>CONTINUE</span></button>
@@ -279,7 +285,7 @@
       <div class="ht"><b>JETPACK</b><span>Hold JUMP to fly. Fuel refills while you're on the ground, and you take no fall damage.</span></div>
       <div class="ht"><b>SHOCKWAVE</b><span>Select it and tap fire to rocket up and forward. It also knocks back anyone next to you.</span></div>
       <div class="ht"><b>MEDKIT &amp; SHIELD</b><span>Tap fire with a Medkit to heal to full. Your shield recharges out of combat, and every elimination fully heals you.</span></div>
-      <div class="ht"><b>THE STORM</b><span>Stay inside the white circle on your map. Last one standing wins. In Reload you respawn while a squadmate is alive.</span></div>
+      <div class="ht"><b>THE STORM</b><span>Stay inside the white circle on your map. Last player or team standing wins. In Reload you respawn while Reload is open &mdash; in Duos and Squads, only while a teammate is still alive.</span></div>
     </div>
     <button class="btn primary" id="howto-ok"><span>GOT IT</span></button>
   </div>

@@ -114,6 +114,11 @@ input { font-family: inherit; }
 .mode-btn b { display: block; font-family: var(--head); font-weight: 400; font-size: 15px; }
 .mode-btn small { color: var(--muted); font-size: 13px; }
 .mode-btn.active { background: rgba(138, 92, 255, 0.3); border-color: rgba(185, 140, 255, 0.7); }
+.team-tabs { display: flex; gap: 4px; margin-top: 8px; }
+.t-btn { flex: 1; padding: 6px 4px 7px; border-radius: 9px; font-family: var(--head); font-size: 13px; letter-spacing: 0.05em; color: var(--muted); background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.t-btn .t-ico { font-style: normal; font-size: 7px; letter-spacing: 2px; color: rgba(255, 255, 255, 0.35); line-height: 1; }
+.t-btn.active { background: rgba(79, 242, 255, 0.16); border-color: rgba(79, 242, 255, 0.75); color: #fff; box-shadow: 0 0 12px rgba(79, 242, 255, 0.25) inset; }
+.t-btn.active .t-ico { color: #4ff2ff; }
 .queue-tabs { display: flex; margin-top: 8px; background: rgba(0, 0, 0, 0.3); border-radius: 10px; padding: 3px; }
 .q-btn { flex: 1; padding: 8px; border-radius: 8px; font-family: var(--head); font-size: 13px; letter-spacing: 0.05em; color: var(--muted); }
 .q-btn.active { background: #fff; color: #1a1033; }
@@ -344,6 +349,7 @@ input { font-family: inherit; }
 .death-k { font-family: var(--head); font-size: 16px; letter-spacing: 0.3em; color: var(--red); }
 .death-by { font-size: 20px; margin-top: 4px; }
 .death-place { font-family: var(--head); font-size: clamp(60px, 10vw, 100px); line-height: 1; margin: 6px 0; text-shadow: 0 0 30px rgba(255, 77, 106, 0.6); }
+.death-place.team-up { font-size: clamp(30px, 5vw, 48px); color: #4ff2ff; text-shadow: 0 0 24px rgba(79, 242, 255, 0.55); margin: 12px 0 8px; }
 .death-stats { color: var(--muted); margin-bottom: 14px; }
 .death-btns { display: flex; gap: 12px; justify-content: center; }
 #death.spectating { background: none; pointer-events: none; }
@@ -382,6 +388,12 @@ input { font-family: inherit; }
 .res-mode { color: var(--muted); letter-spacing: 0.1em; }
 .res-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .res-tiles .stat { background: var(--panel); border: 1px solid var(--panel-b); }
+.res-squad { display: flex; flex-wrap: wrap; gap: 6px; }
+.res-squad:empty { display: none; }
+.res-squad .rs { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 10px; background: var(--panel); border: 1px solid var(--panel-b); font-size: 14px; }
+.res-squad .rs.me { border-color: rgba(79, 242, 255, 0.7); }
+.res-squad .rs b { font-family: var(--head); font-weight: 400; color: #4ff2ff; }
+.res-squad .rs span { color: var(--muted); }
 .res-xp, .res-rank { padding: 12px 14px; }
 .res-lbl { font-size: 14px; color: var(--muted); }
 .res-lbl b { color: #fff; font-family: var(--head); font-weight: 400; }
@@ -418,6 +430,8 @@ input { font-family: inherit; }
   .li-name { font-size: 22px; }
   .btn.play { padding: 10px 40px; }
   .mode-btn { padding: 7px 9px; }
+  .team-tabs { margin-top: 6px; }
+  .t-btn { padding: 4px 3px 5px; font-size: 12px; }
   .mode-btn b { font-size: 13px; }
   .mode-btn small { font-size: 11px; }
   .res-tiles .stat b { font-size: 18px; }

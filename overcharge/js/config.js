@@ -12,7 +12,7 @@ export const firebaseConfig = {
 // All game data lives under this root so it never collides with other apps on the same database.
 export const DB_ROOT = 'overcharge';
 
-export const GAME_VERSION = '1.3.1';
+export const GAME_VERSION = '1.4.0';
 
 export const MAP_HALF = 160;          // map spans -160..160 on X and Z (metres)
 export const GRAVITY = 24;
@@ -39,3 +39,8 @@ export const FORTNITE_FOV = 80;
 export function vfovFromH(hfov) {
   return 2 * Math.atan(Math.tan((hfov * Math.PI / 180) / 2) / (16 / 9)) * 180 / Math.PI;
 }
+
+// Team sizes and lobby sizes for every playlist (Solo / Duos / Squads)
+export const TEAM_SIZES = { solo: 1, duo: 2, squad: 4 };
+export const TEAM_LABELS = { solo: 'Solo', duo: 'Duos', squad: 'Squads' };
+export const PLAYER_COUNTS = { br: { solo: 30, duo: 30, squad: 32 }, reload: { solo: 20, duo: 24, squad: 24 } };

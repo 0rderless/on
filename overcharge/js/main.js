@@ -1,7 +1,7 @@
 // OVERCHARGE — app bootstrap and state machine.
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { QUALITY, GAME_VERSION, MAP_HALF, FORTNITE_FOV, vfovFromH } from './config.js';
+import { QUALITY, GAME_VERSION, MAP_HALF, FORTNITE_FOV, vfovFromH, TEAM_LABELS } from './config.js';
 import { Store } from './net/store.js';
 import { Assets } from './core/assets.js';
 import { Audio } from './core/audio.js';
@@ -10,7 +10,7 @@ import { NavGrid } from './game/nav.js';
 import { CharacterFactory } from './game/characters.js';
 import { Effects } from './game/effects.js';
 import { Loot } from './game/loot.js';
-import { Match } from './game/match.js';
+import { Match, PLAYER_COUNTS, TEAM_SIZES } from './game/match.js';
 import { CAMERA_RIG, rigPose } from './game/player.js';
 import { Controls, applyLayout } from './ui/controls.js';
 import { Hud } from './ui/hud.js';
@@ -72,9 +72,9 @@ class App {
       this.setupGameScene();
       this.factory = new CharacterFactory(Assets, this.renderer);
       this.charPool = [];
-      for (let i = 0; i < 30; i++) {
+      for (let i = 0; i < 32; i++) {
         this.charPool.push(this.factory.create({ shadows: QUALITY[this.quality].shadows }));
-        if (i % 6 === 5) { progress(0.76 + (i / 30) * 0.1, 'Suiting up soldiers…'); await frame(); }
+        if (i % 6 === 5) { progress(0.76 + (i / 32) * 0.1, 'Suiting up soldiers…'); await frame(); }
       }
       this.effects = new Effects(this.gameScene, this.textures, this.quality);
       this.loot = new Loot({ scene: this.gameScene, factory: this.factory, textures: this.textures, time: 0, col: this.world.col, noise() {} });
@@ -400,8 +400,9 @@ class App {
     if (this.state !== 'lobby') return;
     this.state = 'mm';
     const lm = this.profile.lastMode;
-    const total = lm.mode === 'reload' ? 24 : 30;
-    $('mm-mode').textContent = (lm.mode === 'br' ? 'BATTLE ROYALE' : 'RELOAD') + (lm.ranked ? ' · RANKED' : '');
+    const team = TEAM_SIZES[lm.team] ? lm.team : 'solo';
+    const total = PLAYER_COUNTS[lm.mode][team];
+    $('mm-mode').textContent = (lm.mode === 'br' ? 'BATTLE ROYALE' : 'RELOAD') + ' · ' + TEAM_LABELS[team].toUpperCase() + (lm.ranked ? ' · RANKED' : '');
     $('mm').classList.add('show');
     $('mm-status').textContent = 'Finding players…';
     let n = 1;
@@ -421,7 +422,7 @@ class App {
     Audio.stopLoop('music');
     $('lobby').classList.remove('show'); $('mm').classList.remove('show');
     this.loot.g = null;
-    this.match = new Match(this, { mode: lm.mode, ranked: !!lm.ranked, skill: botSkillFor(!!lm.ranked, rank), profile: this.profile });
+    this.match = new Match(this, { mode: lm.mode, team: TEAM_SIZES[lm.team] ? lm.team : 'solo', ranked: !!lm.ranked, skill: botSkillFor(!!lm.ranked, rank), profile: this.profile });
     this.state = 'match';
     this.paused = false;
     this.controls.reset();
@@ -440,7 +441,7 @@ class App {
     m.ended = true;
     this.controls.enabled = false;
     if (document.pointerLockElement) document.exitPointerLock();
-    const r = result || m.result || { mode: m.mode, ranked: m.ranked, won: false, placement: m.mode === 'reload' ? m.teamsRemaining() : m.aliveCount(), total: m.mode === 'reload' ? m.teams : m.fighters.length, kills: m.player.kills, damage: Math.round(m.player.damageDealt), timeAlive: Math.round(m.time) };
+    const r = result || m.result || { mode: m.mode, ranked: m.ranked, won: false, team: m.team, placement: m.teamMode ? m.teamsRemaining() : m.aliveCount(), total: m.teamMode ? m.teams : m.fighters.length, kills: m.player.kills, damage: Math.round(m.player.damageDealt), timeAlive: Math.round(m.time) };
     const rewards = this.applyRewards(r);
     m.dispose();
     this.match = null;
