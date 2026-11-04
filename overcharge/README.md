@@ -1,6 +1,6 @@
 # OVERCHARGE
 
-A mobile **zero-build battle royale** built for phones in landscape. Guns, **Shockwave** and **Overdrive** grenades, realistic bots, ranked play and a fully customizable HUD. Drop into **Reversal Compound**.
+A mobile **zero-build battle royale** built for phones in landscape. Guns, **Shockwave** and **Overdrive** grenades, realistic bots, ranked play and a fully customizable HUD. Drop into **Reversal Compound** or the **Warehouse**.
 
 ## Play
 
@@ -15,7 +15,10 @@ For local testing: `python3 -m http.server` in the repository root, then open `h
 
 ## Features
 
-- **Modes:** Battle Royale (solo, 30 players) and Reload (squads of 4, 24 players, respawn while a squadmate is alive until the storm closes Reload).
+- **Modes:** Battle Royale and Reload, each in **Solo, Duos or Squads**. Battle Royale has 30 players (32 in Squads). Reload has 20 players in Solo and 24 in Duos and Squads. In Reload Solo you get 2 respawns and earn one back every 3 eliminations, up to 2. In Duos and Squads you respawn while a teammate is alive. Respawns stop when the storm closes Reload.
+- **Maps** (pick one in the lobby):
+  - **Reversal Compound:** an open industrial compound around a reactor core.
+  - **Warehouse:** a giant distribution centre under an open steel-truss roof. Nine zones are joined by wide doorways: Dispatch, High Racks, Offices, Loading Docks, Cold Storage, Container Stacks, The Red Room, Conveyor Line and Forklift Bay.
 - **Queues:** Unranked for casual play with easier bots; Ranked with **Bronze I → Gold III**. Everyone starts at Bronze I and climbs with placement and eliminations. Bronze never loses progress, and you can't be demoted out of a division you've earned. Bots get tougher as you rank up.
 - **Zero Build:** 100 health and a 50 overshield that regenerates after 5 s out of combat. Every elimination fully restores your health and shield.
 - **Jetpacks:** everyone drops in wearing one by default. If you switch that off in the LOADOUT tab, jetpacks spawn around the map and in chests instead. A jetpack sits on your back without using a slot. Hold JUMP in the air to fly, up to about 24 m. Fuel refills on the ground, and you take no fall damage while wearing one. Bots use them too.

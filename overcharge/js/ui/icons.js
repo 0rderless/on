@@ -95,9 +95,11 @@ export function renderIcons(renderer, factory, envTex) {
 }
 
 /** Top-down render of the map for the minimap / big map. */
-export function renderMapImage(renderer, world, size = 1024) {
+export function renderMapImage(renderer, world, size = 1024, bg = 0x8f86c9) {
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x8f86c9);
+  scene.background = new THREE.Color(bg);
+  const roofWas = world.roof ? world.roof.visible : false;
+  if (world.roof) world.roof.visible = false;
   scene.add(new THREE.HemisphereLight(0xffffff, 0x6a5fa0, 2.4));
   const dl = new THREE.DirectionalLight(0xffffff, 1.2); dl.position.set(-0.4, 1, -0.3); scene.add(dl);
   const parent = world.group.parent;
@@ -111,6 +113,7 @@ export function renderMapImage(renderer, world, size = 1024) {
   const canvas = rtToDataURL(renderer, rt, size, size, null);
   rt.dispose();
   scene.remove(world.group);
+  if (world.roof) world.roof.visible = roofWas;
   if (parent) parent.add(world.group);
   // subtle grid + vignette
   const x = canvas.getContext('2d');
