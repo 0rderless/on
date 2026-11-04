@@ -6,6 +6,7 @@ import { HUD_DEFAULTS, HUD_NAMES, applyLayout } from './controls.js';
 import { Audio } from '../core/audio.js';
 import { esc } from './hud.js';
 import { xpForLevel } from '../data/ranks.js';
+import { GAME_VERSION } from '../config.js';
 import { LOADOUT_ITEMS, DEFAULT_LOADOUT, normalizeLoadout, itemColor, HEALS, GRENADES, WEAPONS } from '../data/items.js';
 
 const $ = id => document.getElementById(id);
@@ -100,6 +101,7 @@ export function refreshModeCard(app) {
     <div class="lo-row"><span>OUTFIT</span><b style="color:${RARITY_COLORS[sk.rarity]}">${sk.name}</b></div>
     <div class="lo-row"><span>PICKAXE</span><b style="color:${RARITY_COLORS[pk.rarity]}">${pk.name}</b></div>
     <div class="lo-row"><span>LOADOUT</span><span class="lo-icons">${normalizeLoadout(p.loadout).map(id => `<img src="${loadoutIcon(app, id)}" alt="">`).join('')}</span></div>
+    <div class="lo-row"><span>BACK</span><b style="color:#ff9a3c">${p.jetpackStart !== false ? 'Jetpack' : 'None'}</b></div>
     <div class="lo-row"><span>BR RANK</span><b style="color:${divInfo(p.ranked.br.div).tier.color}">${divInfo(p.ranked.br.div).name}</b></div>
     <div class="lo-row"><span>RELOAD RANK</span><b style="color:${divInfo(p.ranked.reload.div).tier.color}">${divInfo(p.ranked.reload.div).name}</b></div>`;
 }
@@ -211,7 +213,7 @@ export function renderSettings(app, container, inGame = false) {
       <div class="set-row"><div>${esc(app.profile.username)}<small>${Store.isConnected() ? 'Synced to the cloud' : 'Offline — saved on this device'}</small></div>${inGame ? '' : '<button class="btn danger sm" id="set-signout"><span>SIGN OUT</span></button>'}</div>
     </div>
     <div class="set-sec"><h3>ABOUT</h3>
-      <div class="set-row"><div>OVERCHARGE v${'1.0.0'}<small>Map: Reversal Compound · Engine: three.js · Data: Firebase Realtime Database</small></div></div>
+      <div class="set-row"><div>OVERCHARGE v${GAME_VERSION}<small>Map: Reversal Compound · Engine: three.js · Data: Firebase Realtime Database</small></div></div>
       <div class="set-row"><div>Credits<small>Soldier model &amp; animations: Mixamo (Adobe), via the open-source “Dive” project by Mugen87 (MIT).
         Sci-Fi Assault Rifle by Ptis (CC BY-NC 4.0) · Shotgun by Harry_L (CC BY 4.0) · SciFi Blaster by Feche Pedroza (CC BY 4.0), all from Sketchfab.
         Gunshot/footstep sounds from Dive (MIT). Everything else made for this game.</small></div></div>
