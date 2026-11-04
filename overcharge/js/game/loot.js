@@ -1,6 +1,6 @@
 // Floor loot, chests, ammo boxes and dropped items.
 import * as THREE from 'three';
-import { RARITIES, AMMO_TYPES, FLOOR_RARITY, CHEST_RARITY, rollRarity, rollWeapon, makeGun, makeGrenade, makeHeal, WEAPONS, itemName } from '../data/items.js';
+import { RARITIES, AMMO_TYPES, GRENADES, FLOOR_RARITY, CHEST_RARITY, rollRarity, rollWeapon, makeGun, makeGrenade, makeHeal, WEAPONS, itemName } from '../data/items.js';
 import { Audio } from '../core/audio.js';
 
 const SHOW_DIST = 40;
@@ -52,7 +52,8 @@ export class Loot {
   populate(world, density = 0.8, rng = Math.random) {
     this.clear();
     const free = s => world.col.isFree(s.x, s.y + 0.05, s.z, 0.45, 1.2);
-    for (const s of world.lootSpots) {
+    // No loose loot on the floor: everyone drops in with a full kit; chests and ammo boxes hand items straight to you.
+    for (const s of (this.floorLoot ? world.lootSpots : [])) {
       if (rng() > density || !free(s)) continue;
       // No guns on the floor: everyone drops in with a full loadout. Guns (and upgrades) come from chests.
       const k = rng();
@@ -167,9 +168,10 @@ export class Loot {
     const r = Math.random();
     const jetLoot = this.g.opts && this.g.opts.profile && this.g.opts.profile.jetpackStart === false;
     const extra = r < 0.15 && jetLoot ? { kind: 'jetpack', id: 'jetpack' } : r < 0.45 ? makeGrenade(Math.random() < 0.4 ? 'shockwave' : 'overdrive', 1 + Math.floor(Math.random() * 2)) : r < 0.7 ? makeHeal('medkit', 1) : this.randomAmmo();
-    // the chest's gun goes straight into your loadout (never onto the floor)
-    this.giveChestGun(f, makeGun(id, rollRarity(CHEST_RARITY)));
-    this.drop([this.ammoFor(id), extra], c.pos, 0.9);
+    // everything goes straight into your inventory (nothing spills onto the floor)
+    const msgs = [this.giveChestGun(f, makeGun(id, rollRarity(CHEST_RARITY)))];
+    msgs.push(...this.giveDirect(f, [this.ammoFor(id), extra]));
+    if (f.isPlayer) { this.g.hud.toast(msgs.filter(Boolean).join('  ·  '), 'yellow'); Audio.play('equip', { vol: 0.8 }); }
     this.g.noise(f, c.pos, 25);
   }
 
@@ -185,7 +187,21 @@ export class Loot {
       if (empty >= 0) { f.slots[empty] = gun; msg = 'NEW · ' + itemName(gun); }
       else { f.ammo[WEAPONS[gun.id].ammo] += WEAPONS[gun.id].mag * 2; msg = '+ ' + AMMO_TYPES[WEAPONS[gun.id].ammo].name.toUpperCase(); }
     }
-    if (f.isPlayer && msg) { this.g.hud.toast(msg, gun.rarity >= 3 ? 'yellow' : 'cyan'); Audio.play('equip', { vol: 0.8 }); }
+    return msg;
+  }
+
+  /** Put items straight into a fighter's inventory. Returns short labels of what was received. */
+  giveDirect(f, items) {
+    const tally = new Map(); // merge duplicates, e.g. two ammo piles of the same type
+    for (const it of items) {
+      if (!it) continue;
+      if (it.kind === 'jetpack' && f.jetpack) { f.fuel = 100; continue; }
+      const r = f.addItem({ ...it }, false);
+      if (!r.ok) continue;
+      const label = it.kind === 'ammo' ? AMMO_TYPES[it.id].name.toUpperCase() : it.kind === 'grenade' ? GRENADES[it.id].short : it.kind === 'heal' ? 'MEDKIT' : 'JETPACK';
+      tally.set(label, (tally.get(label) || 0) + (it.count || 1));
+    }
+    return [...tally].map(([label, n]) => `+${n} ${label}`);
   }
 
   openBox(b, f) {
@@ -193,7 +209,8 @@ export class Loot {
     b.opened = true;
     Audio.play('ammo', { pos: b.pos, vol: 0.8, range: 30 });
     b.mesh.children[1].visible = false;
-    this.drop([this.randomAmmo(), this.randomAmmo()], b.pos, 0.6);
+    const got = this.giveDirect(f, [this.randomAmmo(), this.randomAmmo()]);
+    if (f.isPlayer && got.length) this.g.hud.toast(got.join('  ·  '), 'cyan');
   }
 
   remove(rec) {

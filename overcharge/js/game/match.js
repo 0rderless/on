@@ -264,7 +264,11 @@ export class Match {
     const drops = target.slots.filter(s => s && s.kind !== 'gun'); // no guns left lying around
     if (target.jetpack) { if (this.opts.profile.jetpackStart === false) drops.push({ kind: 'jetpack', id: 'jetpack' }); target.jetpack = false; target.thrusting = false; }
     for (const k in target.ammo) if (target.ammo[k] > 0) drops.push({ kind: 'ammo', id: k, count: Math.min(target.ammo[k], AMMO_TYPES[k].pickup * 2) });
-    this.loot.drop(drops, dropPos, 1.2);
+    // no loot spills on the floor: whoever got the elimination collects it automatically
+    if (attacker && attacker !== target && attacker.alive) {
+      const got = this.loot.giveDirect(attacker, drops);
+      if (attacker.isPlayer && got.length) setTimeout(() => this.hud.toast(got.slice(0, 3).join('  ·  '), 'cyan'), 900);
+    }
     target.slots = [null, null, null, null, null]; target.selected = 0;
     // credit
     const how = info.weapon;
