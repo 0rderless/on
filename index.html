@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b0820">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="OVERCHARGE">
+<meta name="format-detection" content="telephone=no">
+<meta name="description" content="OVERCHARGE — a mobile zero-build battle royale.">
+<title>OVERCHARGE</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="assets/icon.png">
+<link rel="apple-touch-icon" href="assets/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<script src="vendor/firebase/firebase-app-compat.js"></script>
+<script src="vendor/firebase/firebase-database-compat.js"></script>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }
+</script>
+</head>
+<body>
+<canvas id="gl"></canvas>
+
+<!-- ============================================================ LOADING -->
+<section id="loading" class="screen show">
+  <div class="ld-grid"></div>
+  <canvas id="ld-bolts"></canvas>
+  <div class="ld-center">
+    <div class="logo big"><span class="logo-o">OVER</span><span class="logo-c">CHARGE</span></div>
+    <div class="ld-sub">ZERO BUILD · BATTLE ROYALE</div>
+    <div class="ld-bar"><div class="ld-fill" id="ld-fill"></div><div class="ld-cells"></div></div>
+    <div class="ld-row"><span id="ld-status">Charging cells…</span><span id="ld-pct">0%</span></div>
+  </div>
+  <div class="ld-tip"><b>TIP</b> <span id="ld-tip">Throw a Shockwave Grenade at your feet to launch out of a bad fight.</span></div>
+  <div class="ld-ver" id="ld-ver"></div>
+</section>
+
+<!-- ============================================================ AUTH -->
+<section id="auth" class="screen">
+  <div class="auth-card panel">
+    <div class="logo"><span class="logo-o">OVER</span><span class="logo-c">CHARGE</span></div>
+    <div class="auth-tabs">
+      <button class="tab active" data-auth="create">NEW PLAYER</button>
+      <button class="tab" data-auth="signin">SIGN IN</button>
+    </div>
+    <form id="auth-form" autocomplete="off">
+      <label>Choose your username
+        <input id="auth-name" maxlength="16" placeholder="e.g. VoltRider" autocapitalize="off" spellcheck="false">
+      </label>
+      <label>4-digit PIN <small>(lets you sign in on another device)</small>
+        <input id="auth-pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="••••" type="password">
+      </label>
+      <div class="auth-err" id="auth-err"></div>
+      <button class="btn primary wide" id="auth-go" type="submit"><span>CREATE PLAYER</span></button>
+      <div class="auth-note" id="auth-note">Your progress, ranks, locker and HUD layout are saved to the cloud.</div>
+    </form>
+  </div>
+</section>
+
+<!-- ============================================================ LOBBY -->
+<section id="lobby" class="screen">
+  <header class="topbar">
+    <div class="logo small"><span class="logo-o">OVER</span><span class="logo-c">CHARGE</span></div>
+    <nav class="tabs">
+      <button class="navtab active" data-tab="play">PLAY</button>
+      <button class="navtab" data-tab="loadout">LOADOUT</button>
+      <button class="navtab" data-tab="locker">LOCKER</button>
+      <button class="navtab" data-tab="career">CAREER</button>
+      <button class="navtab" data-tab="settings">SETTINGS</button>
+    </nav>
+    <div class="me">
+      <div class="lvl" id="me-lvl">1</div>
+      <div class="me-txt"><div class="me-name" id="me-name">Player</div><div class="me-xp"><div id="me-xpbar"></div></div></div>
+      <div class="net" id="net-dot" title="Cloud status"></div>
+    </div>
+  </header>
+
+  <div id="install" class="panel">
+    <div class="in-txt"><b>Play it like an app</b><span id="install-msg"></span></div>
+    <button class="btn primary sm" id="install-go" style="display:none"><span>INSTALL</span></button>
+    <button class="in-x" id="install-x" aria-label="Dismiss">✕</button>
+  </div>
+
+  <div class="tabpane show" data-pane="play">
+    <div class="play-left">
+      <div class="season panel">
+        <div class="season-k">SEASON 1</div>
+        <div class="season-t">OVERCHARGED</div>
+        <div class="season-d">Zero Build only. Guns, Shockwaves and Overdrive. Drop into <b>Reversal Compound</b>.</div>
+      </div>
+      <div class="loadout panel" id="lobby-loadout"></div>
+    </div>
+    <div class="play-right">
+      <div class="mode-card panel" id="mode-card">
+        <div class="mode-tabs">
+          <button class="mode-btn active" data-mode="br"><b>BATTLE ROYALE</b><small>Solo · 30 players</small></button>
+          <button class="mode-btn" data-mode="reload"><b>RELOAD</b><small>Squads · Respawns</small></button>
+        </div>
+        <div class="queue-tabs">
+          <button class="q-btn active" data-ranked="0">UNRANKED</button>
+          <button class="q-btn" data-ranked="1">RANKED</button>
+        </div>
+        <div class="mode-rank" id="mode-rank"></div>
+        <div class="mode-map">MAP · <b>REVERSAL COMPOUND</b></div>
+      </div>
+      <button class="btn play" id="btn-play"><span>PLAY</span></button>
+    </div>
+  </div>
+
+  <div class="tabpane" data-pane="loadout">
+    <div class="loadout-ed panel">
+      <div class="le-head"><h3>STARTING LOADOUT</h3><span>Everyone drops in with this kit. Drag an item to a new slot, or tap two items to swap them.</span></div>
+      <div class="le-slots" id="le-slots"></div>
+      <div class="le-foot"><span id="le-info">Slot 1 is always your pickaxe. In a match you can also press and hold a slot to move it.</span><button class="btn ghost sm" id="le-reset"><span>RESET ORDER</span></button></div>
+    </div>
+  </div>
+
+  <div class="tabpane" data-pane="locker">
+    <div class="locker">
+      <div class="locker-tabs">
+        <button class="ltab active" data-cat="skins">OUTFITS</button>
+        <button class="ltab" data-cat="pickaxes">PICKAXES</button>
+      </div>
+      <div class="locker-grid" id="locker-grid"></div>
+      <div class="locker-info panel" id="locker-info"></div>
+    </div>
+  </div>
+
+  <div class="tabpane" data-pane="career">
+    <div class="career">
+      <div class="career-ranks" id="career-ranks"></div>
+      <div class="career-stats panel" id="career-stats"></div>
+      <div class="career-board panel"><h3>RANKED LEADERBOARD <small>Battle Royale</small></h3><div id="board">Loading…</div></div>
+    </div>
+  </div>
+
+  <div class="tabpane" data-pane="settings">
+    <div class="settings panel" id="settings"></div>
+  </div>
+</section>
+
+<!-- ============================================================ MATCHMAKING -->
+<section id="mm" class="screen">
+  <div class="mm-card panel">
+    <div class="mm-mode" id="mm-mode">BATTLE ROYALE</div>
+    <div class="mm-ring"><div class="mm-spin"></div><div class="mm-count" id="mm-count">1</div></div>
+    <div class="mm-status" id="mm-status">Finding players…</div>
+    <button class="btn ghost" id="mm-cancel"><span>CANCEL</span></button>
+  </div>
+</section>
+
+<!-- ============================================================ IN-GAME HUD -->
+<section id="hud" class="screen">
+  <div id="vignette"></div>
+  <div id="storm-tint"></div>
+  <div id="scope"><div class="scope-ring"></div><div class="scope-h"></div><div class="scope-v"></div></div>
+  <div id="crosshair" class="ch-cross"><i></i><i></i><i></i><i></i><b></b></div>
+  <div id="hitmarker"><i></i><i></i><i></i><i></i></div>
+  <div id="dmgdir"></div>
+  <div id="dmgnums"></div>
+
+  <div class="hud-el" data-hud="minimap" id="minimap-wrap">
+    <canvas id="minimap" width="300" height="300"></canvas>
+    <div class="mm-info">
+      <span title="Players left"><i class="ic ic-people"></i><b id="h-alive">30</b></span>
+      <span title="Eliminations"><i class="ic ic-skull"></i><b id="h-kills">0</b></span>
+      <span title="Storm"><i class="ic ic-storm"></i><b id="h-storm">0:00</b></span>
+    </div>
+    <div class="reload-tag" id="reload-tag"></div>
+    <div class="squad" id="squad"></div>
+  </div>
+
+  <div id="killfeed"></div>
+  <div id="banner"><div class="b-title"></div><div class="b-sub"></div></div>
+  <div id="toast"></div>
+  <div id="elimpop"></div>
+  <div id="bus-hint"></div>
+
+  <div class="hud-el" data-hud="status" id="status">
+    <div class="od" id="od"><span>OVERDRIVE</span><div class="od-bar"><div id="od-fill"></div></div></div>
+    <div class="bar shield"><div class="fill" id="sh-fill"></div><b id="sh-num">0</b></div>
+    <div class="bar health"><div class="fill" id="hp-fill"></div><b id="hp-num">100</b></div>
+  </div>
+
+  <div class="hud-el" data-hud="hotbar" id="hotbar">
+    <div class="ammo-line"><span id="ammo-mag">–</span><small id="ammo-res"></small></div>
+    <div class="slots" id="slots"></div>
+  </div>
+
+  <div class="hud-el ctl" data-hud="joystick" id="joy"><div class="joy-base"></div><div class="joy-knob" id="joy-knob"></div></div>
+  <button class="hud-el ctl round fire" data-hud="fire" id="b-fire"><i class="ic ic-fire"></i></button>
+  <button class="hud-el ctl round fire small" data-hud="fireL" id="b-fireL"><i class="ic ic-fire"></i></button>
+  <button class="hud-el ctl round" data-hud="ads" id="b-ads"><i class="ic ic-scope"></i></button>
+  <button class="hud-el ctl round" data-hud="jump" id="b-jump"><i class="ic ic-jump"></i></button>
+  <button class="hud-el ctl round" data-hud="crouch" id="b-crouch"><i class="ic ic-crouch"></i></button>
+  <button class="hud-el ctl round" data-hud="reload" id="b-reload"><i class="ic ic-reload"></i></button>
+  <button class="hud-el ctl pill" data-hud="interact" id="b-interact"><span id="interact-txt">PICK UP</span></button>
+  <button class="hud-el ctl round small" data-hud="map" id="b-map"><i class="ic ic-map"></i></button>
+  <button class="ctl round small" id="b-pause"><i class="ic ic-gear"></i></button>
+  <div id="fps"></div>
+
+  <div id="bigmap"><canvas id="bigmap-c" width="900" height="900"></canvas><button class="btn ghost" id="bigmap-close"><span>CLOSE</span></button></div>
+
+  <div id="death" class="overlay">
+    <div class="death-card">
+      <div class="death-k">ELIMINATED</div>
+      <div class="death-by" id="death-by"></div>
+      <div class="death-place" id="death-place">#12</div>
+      <div class="death-stats" id="death-stats"></div>
+      <div class="death-btns">
+        <button class="btn ghost" id="death-spec"><span>SPECTATE</span></button>
+        <button class="btn primary" id="death-leave"><span>CONTINUE</span></button>
+      </div>
+    </div>
+  </div>
+  <div id="spec-tag"></div>
+  <div id="victory" class="overlay"><div class="v-num">#1</div><div class="v-txt">OVERCHARGED!</div><div class="v-sub">LAST ONE STANDING</div></div>
+  <div id="respawn"></div>
+  <div id="healbar"><span>HEALING <b id="heal-t"></b></span><div class="hb-track"><div id="heal-fill"></div></div></div>
+
+  <div id="pause" class="overlay">
+    <div class="pause-card panel">
+      <h2>PAUSED</h2>
+      <button class="btn primary wide" id="p-resume"><span>RESUME</span></button>
+      <button class="btn ghost wide" id="p-settings"><span>SETTINGS</span></button>
+      <button class="btn ghost wide" id="p-hud"><span>EDIT HUD</span></button>
+      <button class="btn danger wide" id="p-leave"><span>LEAVE MATCH</span></button>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ HUD EDITOR -->
+<section id="hud-editor" class="screen">
+  <div class="he-bar panel">
+    <b>HUD LAYOUT</b>
+    <span class="he-sel" id="he-sel">Tap a control to select it, drag to move</span>
+    <label>SIZE <input type="range" id="he-size" min="50" max="200" value="100"><em id="he-size-v">100%</em></label>
+    <label>OPACITY <input type="range" id="he-op" min="20" max="100" value="100"><em id="he-op-v">100%</em></label>
+    <button class="btn ghost sm" id="he-reset"><span>RESET</span></button>
+    <button class="btn ghost sm" id="he-cancel"><span>CANCEL</span></button>
+    <button class="btn primary sm" id="he-save"><span>SAVE</span></button>
+  </div>
+  <div class="he-grid"></div>
+</section>
+
+<!-- ============================================================ RESULTS -->
+<section id="results" class="screen">
+  <div class="res-wrap">
+    <div class="res-head">
+      <div class="res-place" id="res-place">#1</div>
+      <div><div class="res-title" id="res-title">VICTORY</div><div class="res-mode" id="res-mode"></div></div>
+    </div>
+    <div class="res-tiles" id="res-tiles"></div>
+    <div class="res-xp panel"><div class="res-lbl">ACCOUNT LEVEL <b id="res-lvl">1</b> <span id="res-xpgain"></span></div><div class="xpbar"><div id="res-xpfill"></div></div></div>
+    <div class="res-rank panel" id="res-rank"></div>
+    <button class="btn primary" id="res-continue"><span>CONTINUE</span></button>
+  </div>
+</section>
+
+<!-- settings modal used in-game -->
+<section id="settings-modal" class="screen"><div class="settings panel" id="settings2"></div></section>
+
+<div id="rotate"><div class="rot-phone"></div><b>ROTATE YOUR DEVICE</b><span>OVERCHARGE plays in landscape</span></div>
+<div id="tapstart"><div class="logo"><span class="logo-o">OVER</span><span class="logo-c">CHARGE</span></div><b>TAP TO START</b></div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
