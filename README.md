@@ -26,7 +26,7 @@ For local testing: `python3 -m http.server` in the repository root, then open `h
 - **Field of View:** defaults to Fortnite mobile's 80° and is adjustable from 60° to 120° in Settings, with a live preview of the game view.
 - **Auto Shoot:** locks onto enemies near your crosshair (the closer they are, the wider it grabs). It sticks to them while they strafe or briefly duck behind cover, and fires accurately for you. Only a deliberate flick breaks the lock. It's separate from Aim Assist and can be toggled with the AUTO button in a match.
 - **HUD editor** (Settings → Edit HUD): drag any control, inventory or panel, and set its size and opacity per element.
-- **Locker:** outfits *Default*, *Shock Trooper* and *Platinum Boy*, and pickaxes *Standard Issue*, *Volt Splitter*, *Platinum Pick* and *Neon Reaper*. All are free while the game is in testing.
+- **Locker:** outfits *Default*, *Shock Trooper*, *Platinum Boy*, *Cursed Trooper* (curse veins, horns, orbiting spirits), *Zombie*, *Red Dragon Trooper* (scale armor, gold horns, wings) and *Frost Trooper* (ice armor and crystals). Pickaxes are *Standard Issue*, *Volt Splitter*, *Platinum Pick* and *Neon Reaper*. All are free while the game is in testing.
 - **Bots** have imperfect, reaction-limited aim, choose weapons by range, strafe and jump, loot chests, rotate with the storm, retreat to cover to recharge shields, use grenades, investigate gunfire, and have player-style names.
 - **Firebase:** username plus 4-digit PIN accounts, profile, stats, ranks, locker, settings, HUD layout, match history and a ranked leaderboard.
 

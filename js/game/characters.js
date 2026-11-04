@@ -25,6 +25,14 @@ const GUN_MODELS = {
   blaster: { flip: false, scale: 1.6,  grip: [0.5, 0.25, 0.30], muzzle: 1.0 },
 };
 
+// Material settings for the shader-based skins (body + visor).
+const SKIN_LOOKS = {
+  cursed: { rough: 0.55, metal: 0.35, env: 0.5, visor: 0x0a0010, visorGlow: 0xb24dff, visorI: 2.4 },
+  zombie: { rough: 0.85, metal: 0.05, env: 0.25, visor: 0x050a02, visorGlow: 0x7dff3c, visorI: 2.2 },
+  dragon: { rough: 0.32, metal: 0.55, env: 0.9, visor: 0x220400, visorGlow: 0xff8a1f, visorI: 2.0 },
+  frost: { rough: 0.18, metal: 0.25, env: 1.2, visor: 0x0a2236, visorGlow: 0x7ee8ff, visorI: 2.2 },
+};
+
 export class CharacterFactory {
   constructor(assets, renderer) {
     this.assets = assets;
@@ -98,6 +106,10 @@ export class CharacterFactory {
     // Back frame (for backpacks) relative to Spine2
     const backWorld = new THREE.Matrix4().makeTranslation(0, new THREE.Vector3().setFromMatrixPosition(spine2.matrixWorld).y + 0.02, -0.17);
     this.backLocal = spine2.matrixWorld.clone().invert().multiply(backWorld);
+    const headPos = new THREE.Vector3().setFromMatrixPosition(head.matrixWorld);
+    this.headLocal = head.matrixWorld.clone().invert().multiply(new THREE.Matrix4().makeTranslation(headPos.x, headPos.y, headPos.z));
+    const chestPos = new THREE.Vector3().setFromMatrixPosition(spine2.matrixWorld);
+    this.chestLocal = spine2.matrixWorld.clone().invert().multiply(new THREE.Matrix4().makeTranslation(chestPos.x, chestPos.y, chestPos.z));
     const s = new THREE.Vector3(); hand.matrixWorld.decompose(new THREE.Vector3(), new THREE.Quaternion(), s);
     this.boneScale = s.x; // ~0.01 (armature is in centimetres)
   }
@@ -143,6 +155,11 @@ export class CharacterFactory {
       mat = new THREE.MeshStandardMaterial({ map: baseMat.map, normalMap: baseMat.normalMap || null, roughness: 0.2, metalness: 1.0, envMapIntensity: 1.35 });
       if (isVisor) { mat.map = null; mat.color.set(0xffc44d); mat.metalness = 1; mat.roughness = 0.12; mat.emissive.set(0x5a3a00); }
       else this.patchShader(mat, 'platinum');
+    } else if (SKIN_LOOKS[skinId]) {
+      const L = SKIN_LOOKS[skinId];
+      mat = new THREE.MeshStandardMaterial({ map: baseMat.map, normalMap: baseMat.normalMap || null, roughness: L.rough, metalness: L.metal, envMapIntensity: L.env });
+      if (isVisor) { mat.map = null; mat.color.set(L.visor); mat.emissive.set(L.visorGlow); mat.emissiveIntensity = L.visorI; mat.roughness = 0.15; }
+      else this.patchShader(mat, skinId);
     } else mat = baseMat.clone();
     mat.name = key;
     this.skinCache[key] = mat;
@@ -156,6 +173,9 @@ export class CharacterFactory {
       sh.fragmentShader = 'uniform float uTime;\n' + sh.fragmentShader;
       const helpers = `
           float oc_l(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+          float oc_hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+          float oc_noise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+            return mix(mix(oc_hash(i), oc_hash(i + vec2(1.0, 0.0)), f.x), mix(oc_hash(i + vec2(0.0, 1.0)), oc_hash(i + vec2(1.0, 1.0)), f.x), f.y); }
       `;
       sh.fragmentShader = sh.fragmentShader.replace('void main() {', helpers + '\nvoid main() {');
       const common = `
@@ -181,6 +201,64 @@ export class CharacterFactory {
           float pulse = 0.7 + 0.3 * sin(uTime * 6.0 + vMapUv.x * 20.0);
           totalEmissiveRadiance += vec3(0.15, 0.8, 1.0) * edge * (1.0 - darkness) * (1.3 * pulse + band * 2.5);
           totalEmissiveRadiance += vec3(1.0, 0.85, 0.2) * redness * 1.6 * pulse;
+        `);
+      } else if (kind === 'cursed') {
+        // charred armour split by glowing purple curse veins
+        sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', common + `
+          float vein = 1.0 - smoothstep(0.0, 0.035, abs(oc_noise(vMapUv * 34.0) - 0.5));
+          vein *= 1.0 - darkness;
+          diffuseColor.rgb = mix(vec3(0.018, 0.012, 0.025), vec3(0.11, 0.07, 0.14), smoothstep(0.15, 0.8, lum));
+        `).replace('#include <emissivemap_fragment>', `
+          #include <emissivemap_fragment>
+          float flick = 0.65 + 0.35 * sin(uTime * 3.0 + vMapUv.y * 30.0);
+          totalEmissiveRadiance += vec3(0.62, 0.18, 1.0) * (vein * 1.6 * flick + edge * 0.35);
+          totalEmissiveRadiance += vec3(0.25, 1.0, 0.45) * redness * 0.9;
+        `);
+      } else if (kind === 'zombie') {
+        // rotting, mossy skin with dried-blood straps
+        sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', common + `
+          float rot = oc_noise(vMapUv * 14.0) * 0.55 + oc_noise(vMapUv * 48.0) * 0.45;
+          vec3 flesh = mix(vec3(0.11, 0.15, 0.08), vec3(0.27, 0.35, 0.17), rot);         // grey-green dead skin
+          float sores = smoothstep(0.6, 0.74, oc_noise(vMapUv * 22.0 + 7.0));
+          flesh = mix(flesh, vec3(0.06, 0.05, 0.025), sores * 0.85);                     // dark rot patches
+          float blood = smoothstep(0.68, 0.8, oc_noise(vMapUv * 31.0 + 21.0));
+          flesh = mix(flesh, vec3(0.3, 0.02, 0.015), blood * 0.75);                       // dried blood
+          flesh *= 0.6 + 0.5 * smoothstep(0.1, 0.8, lum);
+          flesh = mix(flesh, vec3(0.04, 0.04, 0.025), darkness * 0.8);
+          diffuseColor.rgb = mix(flesh, vec3(0.2, 0.02, 0.015), redness);
+        `).replace('#include <emissivemap_fragment>', `
+          #include <emissivemap_fragment>
+          totalEmissiveRadiance += vec3(0.35, 1.0, 0.2) * edge * 0.12 * (1.0 - darkness);
+        `);
+      } else if (kind === 'dragon') {
+        // crimson scale armour, gold trim, ember glow in the seams
+        sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', common + `
+          vec2 suv = vMapUv * vec2(70.0, 90.0); suv.x += floor(suv.y) * 0.5;
+          float scaleRim = smoothstep(0.32, 0.5, length((fract(suv) - 0.5) * vec2(1.0, 1.35)));
+          vec3 red = mix(vec3(0.12, 0.005, 0.005), vec3(0.5, 0.03, 0.02), smoothstep(0.1, 0.8, lum));
+          red *= 1.0 - scaleRim * 0.45;
+          red = mix(red, vec3(0.03, 0.01, 0.01), darkness);
+          float gold = max(redness, edge * 0.6);
+          diffuseColor.rgb = mix(red, vec3(1.0, 0.68, 0.18), gold);
+          float oc_gold = gold;
+        `).replace('#include <metalnessmap_fragment>', `
+          #include <metalnessmap_fragment>
+          metalnessFactor = mix(0.45, 1.0, oc_gold);
+        `).replace('#include <emissivemap_fragment>', `
+          #include <emissivemap_fragment>
+          totalEmissiveRadiance += vec3(1.0, 0.32, 0.05) * edge * (1.0 - darkness) * (0.45 + 0.25 * sin(uTime * 2.2 + vMapUv.x * 12.0));
+        `);
+      } else if (kind === 'frost') {
+        // glacier-white plating with icy cyan seams and twinkling frost
+        sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', common + `
+          float frostN = oc_noise(vMapUv * 28.0);
+          vec3 ice = mix(vec3(0.45, 0.62, 0.8), vec3(0.93, 0.97, 1.0), smoothstep(0.1, 0.75, lum) * 0.8 + frostN * 0.2);
+          ice = mix(ice, vec3(0.12, 0.2, 0.32), darkness);
+          diffuseColor.rgb = ice;
+          float sparkle = step(0.985, oc_hash(floor(vMapUv * 420.0))) * (0.5 + 0.5 * sin(uTime * 4.0 + oc_hash(floor(vMapUv * 420.0)) * 30.0));
+        `).replace('#include <emissivemap_fragment>', `
+          #include <emissivemap_fragment>
+          totalEmissiveRadiance += vec3(0.3, 0.85, 1.0) * (edge * 0.7 * (1.0 - darkness) + redness * 0.8) + vec3(0.8, 0.95, 1.0) * sparkle * 1.5;
         `);
       } else {
         sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', common + `
@@ -456,9 +534,13 @@ export class Character {
     }
     for (const a of this.attachments) a.parent && a.parent.remove(a);
     this.attachments = [];
+    this.orbit = null; this.wings = null;
     if (id === 'shock') this.addShockGear();
     if (id === 'platinum') this.addPlatinumGear();
-    for (const a of this.attachments) a.visible = !this.jetpackObj;
+    if (id === 'cursed') this.addCursedGear();
+    if (id === 'dragon') this.addDragonGear();
+    if (id === 'frost') this.addFrostGear();
+    for (const a of this.attachments) a.visible = !this.jetpackObj || !!a.userData.keep;
   }
 
   attachToBone(boneName, obj, localMatrix) {
@@ -488,6 +570,97 @@ export class Character {
       tip.position.set(x, 0.42, 0); pack.add(tip);
     }
     this.attachments.push(this.attachToBone('Spine2', pack, this.f.backLocal));
+  }
+
+  gearMats() {
+    if (!this.f._gear) {
+      this.f._gear = {
+        horn: new THREE.MeshStandardMaterial({ color: 0x1a0d22, roughness: 0.4, metalness: 0.3, emissive: 0x4a1080, emissiveIntensity: 0.7 }),
+        purple: new THREE.MeshBasicMaterial({ color: 0xb24dff, toneMapped: false }),
+        purpleSoft: new THREE.MeshBasicMaterial({ color: 0x7a2cff, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }),
+        gold: new THREE.MeshStandardMaterial({ color: 0xffc04a, metalness: 1, roughness: 0.22, emissive: 0x3a1a00 }),
+        membrane: new THREE.MeshStandardMaterial({ color: 0x8a0a06, roughness: 0.55, metalness: 0.1, side: THREE.DoubleSide, emissive: 0x3a0300, emissiveIntensity: 0.8 }),
+        bone: new THREE.MeshStandardMaterial({ color: 0x2a0806, roughness: 0.5, metalness: 0.4 }),
+        ice: new THREE.MeshStandardMaterial({ color: 0xcfefff, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.85, emissive: 0x2a9cff, emissiveIntensity: 0.55 }),
+      };
+    }
+    return this.f._gear;
+  }
+
+  keepGear(holder) { holder.userData.keep = true; this.attachments.push(holder); return holder; }
+
+  addHorns(mat, long) {
+    const g = new THREE.Group();
+    for (const s of [-1, 1]) {
+      const base = new THREE.Mesh(new THREE.ConeGeometry(long ? 0.05 : 0.035, long ? 0.18 : 0.2, 10), mat);
+      base.position.set(0.085 * s, 0.2, -0.01); base.rotation.set(long ? -0.9 : -0.35, 0, -0.55 * s);
+      g.add(base);
+      if (long) {
+        const tip = new THREE.Mesh(new THREE.ConeGeometry(0.034, 0.2, 10), mat);
+        tip.position.set(0.15 * s, 0.25, -0.12); tip.rotation.set(-1.7, 0, -0.35 * s);
+        g.add(tip);
+      }
+    }
+    return g;
+  }
+
+  addCursedGear() {
+    const M = this.gearMats();
+    this.keepGear(this.attachToBone('Head', this.addHorns(M.horn, false), this.f.headLocal));
+    // three spirits orbiting the body
+    const orbit = new THREE.Group(); orbit.position.y = 1.05;
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2;
+      const core = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), M.purple);
+      const halo = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), M.purpleSoft);
+      core.position.set(Math.cos(a) * 0.55, Math.sin(a * 2) * 0.25, Math.sin(a) * 0.55); halo.position.copy(core.position);
+      orbit.add(core, halo);
+    }
+    this.root.add(orbit);
+    this.orbit = orbit;
+    this.keepGear(orbit);
+  }
+
+  addDragonGear() {
+    const M = this.gearMats();
+    this.keepGear(this.attachToBone('Head', this.addHorns(M.gold, true), this.f.headLocal));
+    // bat-style wings spreading from the shoulder blades
+    const shape = new THREE.Shape();
+    shape.moveTo(0, 0); shape.lineTo(0.32, 0.26); shape.lineTo(0.72, 0.34); shape.lineTo(0.95, 0.14);
+    shape.quadraticCurveTo(0.76, 0.04, 0.7, -0.16); shape.quadraticCurveTo(0.52, -0.04, 0.42, -0.3);
+    shape.quadraticCurveTo(0.26, -0.12, 0.12, -0.3); shape.lineTo(0, 0);
+    const memGeo = new THREE.ShapeGeometry(shape);
+    const wings = new THREE.Group(); wings.position.set(0, 0.1, -0.16);
+    const pivots = [];
+    for (const s of [1, -1]) {
+      const pivot = new THREE.Group(); pivot.position.x = 0.09 * s;
+      const wing = new THREE.Group(); wing.scale.x = s;
+      wing.add(new THREE.Mesh(memGeo, M.membrane));
+      for (const [x, y, len, rz] of [[0.36, 0.17, 0.42, 0.67], [0.83, 0.24, 0.27, -0.73], [0.45, 0.1, 0.48, -0.1], [0.3, -0.05, 0.38, -0.9]]) {
+        const b = new THREE.Mesh(new THREE.BoxGeometry(len, 0.022, 0.022), M.bone); b.position.set(x, y, 0.004); b.rotation.z = rz; wing.add(b);
+      }
+      pivot.add(wing); pivot.rotation.y = 0.55 * s; pivot.userData.side = s;
+      wings.add(pivot); pivots.push(pivot);
+    }
+    wings.traverse(o => { if (o.isMesh) o.castShadow = true; });
+    this.keepGear(this.attachToBone('Spine2', wings, this.f.chestLocal));
+    this.wings = pivots;
+  }
+
+  addFrostGear() {
+    const M = this.gearMats();
+    const crystal = (r, h) => new THREE.Mesh(new THREE.ConeGeometry(r, h, 5), M.ice);
+    const g = new THREE.Group();
+    for (const s of [-1, 1]) {
+      for (const [dx, dy, dz, h, tilt] of [[0.2, 0.2, 0, 0.22, 0.35], [0.26, 0.17, 0.04, 0.15, 0.7], [0.16, 0.19, -0.05, 0.13, 0.15]]) {
+        const c = crystal(0.035, h); c.position.set(dx * s, dy + h / 2, dz); c.rotation.z = -tilt * s; g.add(c);
+      }
+      const back = crystal(0.05, 0.34); back.position.set(0.1 * s, 0.22, -0.17); back.rotation.set(-0.5, 0, -0.25 * s); g.add(back);
+    }
+    this.keepGear(this.attachToBone('Spine2', g, this.f.chestLocal));
+    const crown = new THREE.Group();
+    for (let i = -2; i <= 2; i++) { const c = crystal(0.018, 0.08 + (2 - Math.abs(i)) * 0.03); c.position.set(i * 0.04, 0.2, 0.06 - Math.abs(i) * 0.02); crown.add(c); }
+    this.keepGear(this.attachToBone('Head', crown, this.f.headLocal));
   }
 
   addPlatinumGear() {
@@ -536,8 +709,8 @@ export class Character {
       this.jetpackObj.parent && this.jetpackObj.parent.remove(this.jetpackObj);
       this.jetpackObj = null; this.jetFlames = null;
     }
-    // the Shock Trooper battery pack would clip through the jetpack
-    for (const a of this.attachments) a.visible = !this.jetpackObj;
+    // the Shock Trooper battery pack would clip through the jetpack (horns, wings, crystals stay)
+    for (const a of this.attachments) a.visible = !this.jetpackObj || !!a.userData.keep;
   }
 
   setGlider(on) {
@@ -583,6 +756,8 @@ export class Character {
       dt += this._accum || 0; this._accum = 0;
     }
     this.root.rotation.y = s.yaw;
+    if (this.orbit) { this.orbitT = (this.orbitT || 0) + dt; this.orbit.rotation.y = this.orbitT * 1.6; this.orbit.position.y = 1.05 + Math.sin(this.orbitT * 2) * 0.06; }
+    if (this.wings) { this.wingT = (this.wingT || 0) + dt * (s.thrusting || s.mode === 'glide' ? 9 : 2.2); for (const w of this.wings) w.rotation.y = w.userData.side * (0.55 + Math.sin(this.wingT) * (s.thrusting ? 0.35 : 0.1)); }
     if (this.jetFlames) for (const fl of this.jetFlames) { fl.visible = !!s.thrusting && !this.dead; if (fl.visible) fl.scale.set(1, 0.75 + Math.random() * 0.5, 1); }
     if (this.dead) {
       this.deathT += dt;
