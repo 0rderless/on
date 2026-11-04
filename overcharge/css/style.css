@@ -472,3 +472,11 @@ input { font-family: inherit; }
 .round.fire.autofiring { border-color: #fff; background: rgba(255, 60, 90, 0.55); box-shadow: 0 0 0 4px rgba(255, 77, 106, 0.45), 0 0 26px rgba(255, 77, 106, 0.8); animation: autoPulse 0.18s ease-in-out infinite alternate; }
 .round.fire.autofiring::after { content: 'AUTO'; position: absolute; bottom: -16px; left: 50%; transform: translateX(-50%); font-family: var(--head); font-size: 11px; color: #ff8fa3; text-shadow: 0 1px 3px #000; }
 @keyframes autoPulse { to { filter: brightness(1.35); } }
+
+/* FOV preview */
+.fov-preview { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; padding: 10px 4px 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+.fov-view { position: relative; flex: 1 1 300px; max-width: 460px; border-radius: 10px; overflow: hidden; border: 2px solid rgba(255, 255, 255, 0.18); background: #1c1640; line-height: 0; }
+.fov-canvas { display: block; width: 100%; }
+.fov-cross { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; background: linear-gradient(#fff, #fff) center / 2px 100% no-repeat, linear-gradient(#fff, #fff) center / 100% 2px no-repeat; filter: drop-shadow(0 0 1px #000); }
+.fov-tag { position: absolute; left: 8px; bottom: 6px; line-height: 1.2; font-size: 11px; font-family: var(--head); color: var(--muted); background: rgba(10, 6, 30, 0.7); padding: 3px 7px; border-radius: 5px; }
+.fov-tag b { color: var(--y); font-weight: 400; }

@@ -1,7 +1,7 @@
 // OVERCHARGE — app bootstrap and state machine.
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { QUALITY, GAME_VERSION, MAP_HALF } from './config.js';
+import { QUALITY, GAME_VERSION, MAP_HALF, FORTNITE_FOV, vfovFromH } from './config.js';
 import { Store } from './net/store.js';
 import { Assets } from './core/assets.js';
 import { Audio } from './core/audio.js';
@@ -11,6 +11,7 @@ import { CharacterFactory } from './game/characters.js';
 import { Effects } from './game/effects.js';
 import { Loot } from './game/loot.js';
 import { Match } from './game/match.js';
+import { CAMERA_RIG, rigPose } from './game/player.js';
 import { Controls, applyLayout } from './ui/controls.js';
 import { Hud } from './ui/hud.js';
 import { LobbyScene } from './ui/lobbyScene.js';
@@ -128,7 +129,7 @@ class App {
     const pm = new THREE.PMREMGenerator(r);
     this.env = pm.fromScene(new RoomEnvironment(), 0.04).texture;
     pm.dispose();
-    this.camera = new THREE.PerspectiveCamera(78, innerWidth / innerHeight, 0.08, 900);
+    this.camera = new THREE.PerspectiveCamera(vfovFromH(FORTNITE_FOV), innerWidth / innerHeight, 0.08, 900);
   }
 
   setupGameScene() {
@@ -315,6 +316,48 @@ class App {
     if (on) { this.controls.reset(); if (document.pointerLockElement) document.exitPointerLock(); }
   }
 
+  /**
+   * Live FOV preview: renders the real game view at the chosen FOV into a small canvas.
+   * Rendered straight to the main canvas (so tone mapping matches the game) then copied out.
+   */
+  renderFovPreview(canvas, hfov) {
+    const r = this.renderer, pr = r.getPixelRatio();
+    const aspect = innerWidth / innerHeight;
+    const cssW = Math.min(canvas.parentElement.clientWidth || 360, 460), cssH = Math.round(cssW / aspect);
+    if (canvas.width !== Math.round(cssW * pr)) { canvas.width = Math.round(cssW * pr); canvas.height = Math.round(cssH * pr); }
+    canvas.style.width = cssW + 'px'; canvas.style.height = cssH + 'px';
+    const cam = this.fovCam || (this.fovCam = new THREE.PerspectiveCamera(50, 1, 0.08, 900));
+    cam.aspect = aspect; cam.fov = vfovFromH(hfov); cam.updateProjectionMatrix();
+    const staged = [];
+    if (this.match) {
+      cam.position.copy(this.camera.position); cam.quaternion.copy(this.camera.quaternion);
+    } else {
+      // stage your outfit in The Yard, an enemy ahead of you, the reactor behind them
+      const me = this.charPool[0], foe = this.charPool[1];
+      const pos = new THREE.Vector3(15, 0, 27), yaw = Math.atan2(-15, -27);
+      me.setSkin(this.profile.locker.skin); me.setHeld('gun', 'ar', 3);
+      foe.setSkin(this.profile.locker.skin === 'shock' ? 'platinum' : 'shock'); foe.setHeld('gun', 'smg', 2);
+      const fwd = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)), rgt = new THREE.Vector3(-fwd.z, 0, fwd.x);
+      me.root.position.copy(pos);
+      foe.root.position.copy(pos).addScaledVector(fwd, 11).addScaledVector(rgt, -1.5);
+      for (const [c, y] of [[me, yaw], [foe, yaw + Math.PI + 0.2]]) {
+        c.revive(); c.root.visible = true; this.gameScene.add(c.root); staged.push(c);
+        c.update(0.016, { vx: 0, vz: 0, yaw: y, pitch: 0, grounded: true, mode: 'ground', reloadFrac: -1, camDist: 3 });
+      }
+      const target = new THREE.Vector3();
+      rigPose(pos, yaw, -0.04, false, CAMERA_RIG.hip, cam.position, target);
+      cam.lookAt(target);
+      this.sun.position.set(pos.x + 40, 80, pos.z + 25); this.sun.target.position.copy(pos); this.sun.target.updateMatrixWorld();
+    }
+    this.sky.position.copy(cam.position);
+    r.setScissorTest(true); r.setViewport(0, 0, cssW, cssH); r.setScissor(0, 0, cssW, cssH);
+    r.render(this.gameScene, cam);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(r.domElement, 0, r.domElement.height - canvas.height, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
+    r.setScissorTest(false); r.setViewport(0, 0, innerWidth, innerHeight);
+    for (const c of staged) { this.gameScene.remove(c.root); c.root.visible = false; }
+  }
+
   // ================================================================ match flow
   startMatchmaking() {
     if (this.state !== 'lobby') return;
@@ -347,7 +390,7 @@ class App {
     this.controls.reset();
     this.controls.enabled = true;
     applyLayout(this.profile.hud);
-    this.camera.fov = 78; this.camera.updateProjectionMatrix();
+    this.camera.fov = vfovFromH(this.profile.settings.fov || FORTNITE_FOV); this.camera.updateProjectionMatrix();
     this.clock.getDelta();
   }
 
