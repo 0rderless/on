@@ -81,13 +81,18 @@ export class Hud {
     else {
       ch.classList.remove('hidden');
       const style = w ? w.crosshair : 'dot';
-      ch.className = 'ch-' + style + (m.ctrl.autoTarget && m.time < m.ctrl.autoUntil ? ' target' : '') + (m.ctrl.assistTarget ? ' target' : '');
+      ch.className = 'ch-' + style + (m.ctrl.autoFiring || m.ctrl.assistTarget ? ' target' : '');
       if (w) {
         const spread = (p.ads ? w.ads : w.hip) + p.bloom + (Math.hypot(p.vel.x, p.vel.z) > 1 ? w.moveSpread : 0);
         const px = Math.max(4, Math.tan(spread) / Math.tan(m.app.camera.fov * Math.PI / 360) * innerHeight / 2);
         this.setCross(ch, style === 'circle' ? px : px + 2);
       } else this.setCross(ch, 6);
     }
+    // auto shoot feedback
+    const af = !!(m.ctrl.autoFiring && p.alive);
+    if (af !== this._af) { this._af = af; $('b-fire').classList.toggle('autofiring', af); $('b-fireL').classList.toggle('autofiring', af); }
+    const autoOn = !!this.app.settings().autoFire;
+    if (autoOn !== this._autoOn) { this._autoOn = autoOn; $('b-auto').classList.toggle('on', autoOn); $('b-auto').querySelector('small').textContent = autoOn ? 'ON' : 'OFF'; }
     // interact button
     const t = m.ctrl.interactTarget, ib = $('b-interact');
     if (t && p.alive) {

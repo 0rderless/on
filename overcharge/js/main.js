@@ -86,6 +86,11 @@ class App {
       this.input = this.controls;
       this.controls.onMap = () => this.hud.toggleMap();
       this.controls.onPause = () => this.pause(!this.paused);
+      this.controls.onAutoToggle = () => {
+        const S = this.profile.settings; S.autoFire = !S.autoFire; Store.save();
+        this.hud.toast(S.autoFire ? 'AUTO SHOOT ON' : 'AUTO SHOOT OFF', S.autoFire ? 'cyan' : '');
+        Audio.play('click', { vol: 0.6 });
+      };
       this.hudEditor = new HudEditor(this);
       this.compileShaders();
       progress(0.97, 'Connecting…');

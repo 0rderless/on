@@ -182,8 +182,8 @@ export function renderSettings(app, container, inGame = false) {
     <div class="set-sec"><h3>CONTROLS</h3>
       ${slider('sens', 'Look Sensitivity', 0.3, 2.5, 0.05, 'How fast swiping turns the camera', v => (+v).toFixed(2))}
       ${slider('adsSens', 'Aim (ADS) Sensitivity', 0.3, 1.5, 0.05, 'Multiplier while aiming down sights', v => (+v).toFixed(2))}
-      ${toggle('autoFire', 'Auto Fire', 'Fires automatically when your crosshair is on an enemy in range')}
-      ${toggle('aimAssist', 'Aim Assist', 'Slows and gently pulls your aim onto nearby targets')}
+      ${toggle('autoFire', 'Auto Shoot', 'Shoots for you the moment your crosshair is on an enemy — no fire button needed. Also toggled by the AUTO button in a match')}
+      ${toggle('aimAssist', 'Aim Assist', 'Slows and gently pulls your crosshair onto nearby enemies (works with or without Auto Shoot)')}
       ${toggle('autoSprint', 'Auto Sprint', 'Sprint when the joystick is pushed all the way')}
       ${toggle('autoPickup', 'Auto Pick Up', 'Grab ammo, grenades and guns into empty slots')}
       ${toggle('invertY', 'Invert Look')}

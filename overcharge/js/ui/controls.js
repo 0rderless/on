@@ -13,10 +13,11 @@ export const HUD_DEFAULTS = {
   reload:   { x: 0.775, y: 0.38, s: 0.85, o: 0.9 },
   interact: { x: 0.62,  y: 0.63, s: 1, o: 1 },
   map:      { x: 0.5,   y: 0.08, s: 1, o: 0.9 },
+  autofire: { x: 0.86,  y: 0.885, s: 1, o: 0.95 },
 };
 export const HUD_NAMES = {
   minimap: 'Minimap', status: 'Health & Shield', hotbar: 'Inventory', joystick: 'Move Joystick', fire: 'Fire (Right)', fireL: 'Fire (Left)',
-  ads: 'Aim (ADS)', jump: 'Jump', crouch: 'Crouch', reload: 'Reload', interact: 'Pick Up / Open', map: 'Map',
+  ads: 'Aim (ADS)', jump: 'Jump', crouch: 'Crouch', reload: 'Reload', interact: 'Pick Up / Open', map: 'Map', autofire: 'Auto Shoot Toggle',
 };
 
 /** Scale factor so the HUD keeps the same proportions on small phones and tablets (baseline 844×390). */
@@ -107,6 +108,7 @@ export class Controls {
       case 'b-interact': return { role: 'interact', el: ctl };
       case 'b-map': case 'minimap-wrap': return { role: 'map', el: ctl };
       case 'b-pause': return { role: 'pause', el: ctl };
+      case 'b-auto': return { role: 'auto', el: ctl };
       default: return { role: 'look' };
     }
   }
@@ -135,6 +137,7 @@ export class Controls {
       case 'interact': s.interact = true; break;
       case 'map': this.onMap && this.onMap(); break;
       case 'pause': this.onPause && this.onPause(); break;
+      case 'auto': this.onAutoToggle && this.onAutoToggle(); break;
       case 'slot': {
         const i = +r.el.dataset.i;
         if (this.swapFrom !== null) {
