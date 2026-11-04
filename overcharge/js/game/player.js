@@ -142,6 +142,13 @@ export class PlayerController {
           if (f.startHeal()) Audio.play('uiopen', { vol: 0.5, rate: 0.8 });
           else if (input.firePressed && f.health >= 100) this.g.hud.toast('Health is already full');
         }
+      } else if (it.kind === 'grenade' && it.id === 'shockwave') {
+        // Shockwave = mobility: launch up and forward where you're moving (or looking)
+        if (input.firePressed) {
+          const mv = Math.hypot(input.move.x, input.move.y);
+          const dir = mv > 0.3 ? new THREE.Vector3(f.move.x, 0, f.move.y) : new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
+          if (g.combat.useShockwave(f, dir)) this.shake = Math.max(this.shake, 0.6);
+        }
       } else if (it.kind === 'grenade') {
         if (input.firePressed) { this.cam.getWorldDirection(_dir); g.combat.throwGrenade(f, _dir.clone()); }
       } else if (it.kind === 'gun') {

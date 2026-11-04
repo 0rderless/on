@@ -20,7 +20,7 @@ For local testing: `python3 -m http.server` in the repository root, then open `h
 - **Zero Build:** 100 health and a 50 overshield that regenerates after 5 s out of combat. Every elimination fully restores your health and shield.
 - **Jetpacks:** two spawn at every named location, more are scattered around, and chests can drop them. A jetpack sits on your back without using a slot. Hold JUMP in the air to fly, up to about 24 m. Fuel refills on the ground, and you take no fall damage while wearing one. Bots use them too.
 - **Weapons:** Assault Rifle, Pump Shotgun, Volt SMG and Arc Sniper, in Common → Legendary rarities.
-- **Shockwave Grenade:** launches everyone in the blast, with no fall damage until you land.
+- **Shockwave Grenade:** works like Fortnite's. Tap fire and it pops at your feet, launching you up and forward (about 30 m) in the direction you're moving, or where you're looking if you're standing still. You can steer in the air, and you take no fall damage. Anyone next to you gets knocked away.
 - **Overdrive Grenade:** an electric blast that damages enemies and supercharges you and allies (+25% speed, +30% fire rate, faster reloads, faster shield regen).
 - **Mobile controls:** joystick; two fire buttons that also steer the camera while held; swipe to look; **Auto Fire**; aim assist; auto-sprint; auto pick-up.
 - **Field of View:** defaults to Fortnite mobile's 80° and is adjustable from 60° to 120° in Settings, with a live preview of the game view.

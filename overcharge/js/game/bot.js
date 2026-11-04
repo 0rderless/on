@@ -584,19 +584,25 @@ export class BotBrain {
     return ok;
   }
 
-  useShockwaveAway(tgt) {
+  /** Pop a shockwave to launch ourselves in a direction (x,z). */
+  launch(dx, dz) {
     const f = this.f;
     const slot = f.slotOf(s => s.kind === 'grenade' && s.id === 'shockwave');
-    if (slot < 0) return;
-    // throw at own feet slightly toward the threat so we get launched away from it
-    const p = new THREE.Vector3(f.pos.x + (tgt.pos.x - f.pos.x) * 0.06, f.pos.y, f.pos.z + (tgt.pos.z - f.pos.z) * 0.06);
-    this.throwNade('shockwave', p);
+    if (slot < 0 || f.mode !== 'ground') return false;
+    const prev = f.selected;
+    f.selected = slot; f.throwCd = 0;
+    const ok = this.g.combat.useShockwave(f, new THREE.Vector3(dx, 0, dz));
+    f.selected = f.slots[prev - 1] || prev === 0 ? prev : (f.slotOf(s => s.kind === 'gun') > 0 ? f.slotOf(s => s.kind === 'gun') : 0);
+    this.nadeCd = rnd(6, 14);
+    return ok;
   }
 
-  useShockwaveTo(x, z) {
+  useShockwaveAway(tgt) {
     const f = this.f;
-    if (f.slotOf(s => s.kind === 'grenade' && s.id === 'shockwave') < 0) return;
-    const dx = x - f.pos.x, dz = z - f.pos.z, d = Math.hypot(dx, dz);
-    this.throwNade('shockwave', new THREE.Vector3(f.pos.x - dx / d * 1.2, f.pos.y, f.pos.z - dz / d * 1.2));
+    // escape: launch away from the threat, angled a little to the side
+    const dx = f.pos.x - tgt.pos.x, dz = f.pos.z - tgt.pos.z, s = Math.random() < 0.5 ? 0.5 : -0.5;
+    this.launch(dx - dz * s, dz + dx * s);
   }
+
+  useShockwaveTo(x, z) { const f = this.f; this.launch(x - f.pos.x, z - f.pos.z); }
 }

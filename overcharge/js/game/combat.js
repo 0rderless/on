@@ -234,7 +234,26 @@ export class Combat {
     }
   }
 
-  shockwave(pos, owner) {
+  /**
+   * Shockwave (Fortnite-style mobility): pops at your feet the moment you use it and rockets you
+   * up and forward in `dir` (your movement or look direction). Anyone else caught in the blast is
+   * knocked away from you. No damage, and no fall damage until you land.
+   */
+  useShockwave(f, dir) {
+    const it = f.item;
+    if (!it || it.kind !== 'grenade' || it.id !== 'shockwave' || f.throwCd > 0 || f.mode !== 'ground') return false;
+    f.throwCd = 0.55;
+    it.count--;
+    if (it.count <= 0) { f.slots[f.selected - 1] = null; const gun = f.slotOf(s => s.kind === 'gun'); f.selected = gun > 0 ? gun : 0; }
+    if (f.char) f.char.throwAnim();
+    const d = new THREE.Vector3(dir.x, 0, dir.z);
+    if (d.lengthSq() < 1e-4) d.set(Math.sin(f.yaw), 0, Math.cos(f.yaw));
+    d.normalize();
+    this.shockwave(new THREE.Vector3(f.pos.x, f.pos.y + 0.1, f.pos.z), f, d);
+    return true;
+  }
+
+  shockwave(pos, owner, ownerDir = null) {
     const R = GRENADES.shockwave.radius;
     this.g.effects.shockwave(pos);
     Audio.play('shock', { pos, vol: 1, range: 120, near: 10 });
@@ -243,10 +262,16 @@ export class Combat {
       const dx = f.pos.x - pos.x, dz = f.pos.z - pos.z, dy = f.pos.y + 0.9 - pos.y;
       const d = Math.hypot(dx, dy, dz);
       if (d > R) continue;
-      const h = Math.hypot(dx, dz);
-      const nx = h > 0.3 ? dx / h : (f === owner ? Math.sin(f.yaw) : 0), nz = h > 0.3 ? dz / h : (f === owner ? Math.cos(f.yaw) : 0);
       f.mode = 'ground';
-      f.vel.set(nx * 16, 21, nz * 16);
+      if (f === owner && ownerDir) {
+        // the user: big boost up and forward, keeping a bit of the speed you already had
+        f.vel.set(ownerDir.x * 18 + f.vel.x * 0.25, 19.5, ownerDir.z * 18 + f.vel.z * 0.25);
+      } else {
+        const h = Math.hypot(dx, dz);
+        const nx = h > 0.3 ? dx / h : Math.sin(f.yaw), nz = h > 0.3 ? dz / h : Math.cos(f.yaw);
+        const k = 1 - 0.35 * Math.min(1, d / R); // stronger near the centre
+        f.vel.set(nx * 15 * k, 17 * k + 4, nz * 15 * k);
+      }
       f.phys.grounded = false;
       f.pos.y += 0.15;
       f.noFallDamage = true; f.peakFallSpeed = 0;

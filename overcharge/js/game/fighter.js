@@ -259,9 +259,17 @@ export class Fighter {
     const mag = Math.min(1, Math.hypot(this.move.x, this.move.y));
     const tx = this.move.x * speed, tz = this.move.y * speed;
     const grounded = this.phys.grounded;
-    const accel = grounded ? (mag > 0.05 ? 14 : 18) : (this.noFallDamage ? 0.8 : 2.2);
+    const accel = grounded ? (mag > 0.05 ? 14 : 18) : 2.2;
     const k = Math.min(1, dt * accel);
-    if (grounded || mag > 0.05) {
+    if (!grounded && this.noFallDamage) {
+      // launched by a shockwave: keep your speed, the joystick only steers it
+      if (mag > 0.05) {
+        const hs = Math.max(Math.hypot(this.vel.x, this.vel.z), speed);
+        const sk = Math.min(1, dt * 2.4);
+        this.vel.x += (this.move.x / mag * hs - this.vel.x) * sk;
+        this.vel.z += (this.move.y / mag * hs - this.vel.z) * sk;
+      }
+    } else if (grounded || mag > 0.05) {
       this.vel.x += (tx - this.vel.x) * k;
       this.vel.z += (tz - this.vel.z) * k;
     }

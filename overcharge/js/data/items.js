@@ -58,7 +58,7 @@ export const WEAPONS = {
 export const GRENADES = {
   shockwave: {
     id: 'shockwave', name: 'Shockwave Grenade', short: 'SHOCK', stack: 6, color: 0x4fb6ff,
-    radius: 5.5, fuse: 0.0, desc: 'Launches everyone caught in the blast. No damage, no fall damage after launch.',
+    radius: 5.5, fuse: 0.0, desc: 'Tap fire to pop it at your feet and launch up and forward where you are moving or looking. Knocks nearby players away. No damage, no fall damage.',
   },
   overdrive: {
     id: 'overdrive', name: 'Overdrive Grenade', short: 'OVERDRIVE', stack: 4, color: 0xffe14d,

@@ -70,7 +70,7 @@ export class Hud {
     if (w) {
       $('ammo-mag').textContent = f.reloading ? 'RELOADING' : it.mag;
       $('ammo-res').textContent = f.reloading ? '' : '/ ' + f.ammo[w.ammo];
-    } else if (it && it.kind === 'grenade') { $('ammo-mag').textContent = '×' + it.count; $('ammo-res').textContent = GRENADES[it.id].short; }
+    } else if (it && it.kind === 'grenade') { $('ammo-mag').textContent = '×' + it.count; $('ammo-res').textContent = it.id === 'shockwave' ? 'TAP FIRE TO LAUNCH' : GRENADES[it.id].short; }
     else if (it && it.kind === 'heal') { $('ammo-mag').textContent = '×' + it.count; $('ammo-res').textContent = f.healing ? 'HEALING…' : f.health >= 100 ? 'HEALTH FULL' : 'TAP FIRE TO HEAL'; }
     else { $('ammo-mag').textContent = ''; $('ammo-res').textContent = ''; }
     // healing progress
