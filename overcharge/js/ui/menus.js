@@ -1,4 +1,5 @@
 // Menus: auth, lobby tabs, locker, career, settings, HUD editor, results.
+import { makeEmoteWheel } from './emoteWheel.js';
 import { Store, validateUsername } from '../net/store.js';
 import { SKINS, PICKAXES, GLIDERS, RARITY_COLORS, RARITY_NAMES } from '../data/cosmetics.js';
 import { divInfo, MAX_DIV, TIERS, tierTop } from '../data/ranks.js';
@@ -98,6 +99,9 @@ export function initLobby(app) {
     click(); app.profile.lastMode.ranked = b.dataset.ranked === '1'; Store.save(); refreshModeCard(app);
   }));
   $('btn-play').addEventListener('click', () => { Audio.unlock(); Audio.play('uiopen', { vol: 0.7 }); app.startMatchmaking(); });
+  // lobby emotes (like dancing in the Fortnite lobby before a match)
+  app.lobbyWheel = makeEmoteWheel($('lobby-wheel'), id => app.startLobbyEmote(id), () => app.stopLobbyEmote());
+  $('lobby-emote').addEventListener('click', () => { Audio.unlock(); click(); app.lobbyWheel.toggle(); });
   document.querySelectorAll('.ltab').forEach(b => b.addEventListener('click', () => {
     click(); document.querySelectorAll('.ltab').forEach(x => x.classList.toggle('active', x === b));
     app.lockerCat = b.dataset.cat; renderLocker(app);

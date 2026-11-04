@@ -62,7 +62,10 @@ export class LobbyScene {
 
   setSkin(id) { this.char.setSkin(id); }
   showPickaxe(id) { this.char.setHeld('pickaxe', id); }
-  showGun() { this.char.setHeld('gun', 'ar', 4); }
+  showGun() { if (!this.emoteId) this.char.setHeld('gun', 'ar', 4); }
+  /** Lobby emote: the character dances (gun put away) until stopped. */
+  playEmote(id) { this.showGlider(null); this.emoteId = id; this.char.playEmote(id); }
+  stopEmote() { if (!this.emoteId) return; this.emoteId = null; this.char.stopEmote(); this.showGun(); }
   /** Locker glider preview: the character glides in place under the chosen glider (null = back to normal). */
   showGlider(id) {
     this.glidePreview = id || null;
