@@ -96,6 +96,7 @@ export class Match {
       if (!isPlayer) f.bot = new BotBrain(f, this, this.opts.skill);
       f.loadoutOrder = isPlayer ? P.loadout : DEFAULT_LOADOUT;
       f.giveLoadout(f.loadoutOrder);
+      if (P.jetpackStart !== false) { f.jetpack = true; f.fuel = 100; }
       this.fighters.push(f);
     }
     this.player = this.fighters[0];
@@ -357,6 +358,7 @@ export class Match {
     f.health = 100; f.shield = MAX_SHIELD; f.eliminatedBy = null;
     f.ammo = { light: 0, medium: 0, heavy: 0, shells: 0 };
     f.giveLoadout(f.loadoutOrder || DEFAULT_LOADOUT);
+    if (this.opts.profile.jetpackStart !== false) { f.jetpack = true; f.fuel = 100; }
     f.overdriveT = 0; f.healT = 0;
     f.mode = 'skydive';
     f.pos.set(p.x, 95, p.z); f.vel.set(0, -10, 0);

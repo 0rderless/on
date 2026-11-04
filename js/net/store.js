@@ -73,6 +73,7 @@ export function defaultProfile(uid, username) {
     settings: defaultSettings(),
     hud: {},
     loadout: [...DEFAULT_LOADOUT],
+    jetpackStart: true,
     lastMode: { mode: 'br', ranked: false },
   };
 }
@@ -87,6 +88,7 @@ function normalize(p) {
   out.settings = { ...d.settings, ...(p.settings || {}) };
   out.hud = p.hud || {};
   out.loadout = normalizeLoadout(p.loadout);
+  out.jetpackStart = p.jetpackStart !== false;
   out.lastMode = { ...d.lastMode, ...(p.lastMode || {}) };
   return out;
 }

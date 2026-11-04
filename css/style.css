@@ -499,3 +499,9 @@ input { font-family: inherit; }
 .jet.low #jet-fill { background: #ff4d6a; }
 #b-jump.has-jet { border-color: #ff9a3c; box-shadow: 0 0 14px rgba(255, 154, 60, 0.55); }
 #b-jump.has-jet::after { content: 'HOLD'; position: absolute; bottom: -15px; left: 50%; transform: translateX(-50%); font-family: var(--head); font-size: 10px; color: #ffb35a; text-shadow: 0 1px 3px #000; }
+
+.le-back { display: flex; align-items: center; gap: 12px; padding: 8px 10px; margin-bottom: 10px; border-radius: 10px; background: rgba(255, 154, 60, 0.08); border: 1px solid rgba(255, 154, 60, 0.35); }
+.le-back-ic { width: 46px; height: 46px; border-radius: 8px; background: rgba(0, 0, 0, 0.3); display: grid; place-items: center; flex: none; }
+.le-back-ic img { width: 42px; height: 42px; object-fit: contain; }
+.le-back-txt { flex: 1; font-size: 13px; color: var(--muted); line-height: 1.25; }
+.le-back-txt b { display: block; font-family: var(--head); font-weight: 400; color: #ff9a3c; letter-spacing: 0.04em; }

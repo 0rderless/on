@@ -50,6 +50,7 @@ export function renderIcons(renderer, factory, envTex) {
   }
   for (const id of ['shockwave', 'overdrive']) shoot(factory.grenadeModel(id), 'nade_' + id, { dir: new THREE.Vector3(0.3, 0.4, 1) });
   shoot(factory.medkitModel(), 'heal_medkit', { dir: new THREE.Vector3(0.25, 0.35, 1) });
+  { const jp = factory.jetpackModel(); for (const fl of jp.userData.flames) jp.remove(fl); shoot(jp, 'jetpack', { dir: new THREE.Vector3(0.7, 0.25, -1) }); }
   for (const p of PICKAXES) { const g = factory.pickaxeModel(p.id); g.rotation.z = -0.7; shoot(g, 'pick_' + p.id, { dir: new THREE.Vector3(0, 0, 1) }); }
 
   // Skin portraits (locker cards) — taller render target

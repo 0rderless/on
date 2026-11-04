@@ -53,6 +53,20 @@ export class Controls {
     this.keys = new Set();
     this.onMap = null; this.onPause = null;
     this.joy = document.getElementById('joy');
+    // iOS Safari can cancel a long-held pointer; track held jump touches with raw touch events too
+    this.jumpTouches = new Set();
+    const jb = document.getElementById('b-jump');
+    jb.addEventListener('touchstart', e => {
+      if (!this.enabled || this.hud.classList.contains('editing')) return;
+      for (const t of e.changedTouches) this.jumpTouches.add(t.identifier);
+      this.state.jumpHeld = true;
+    }, { passive: true });
+    const endJump = e => {
+      for (const t of e.changedTouches) this.jumpTouches.delete(t.identifier);
+      if (!this.jumpTouches.size) { let other = false; for (const q of this.pointers.values()) if (q.role === 'jump') other = true; if (!other) this.state.jumpHeld = false; }
+    };
+    window.addEventListener('touchend', endJump, { passive: true });
+    window.addEventListener('touchcancel', endJump, { passive: true });
     this.knob = document.getElementById('joy-knob');
     this.bind();
   }
@@ -61,7 +75,7 @@ export class Controls {
     const s = this.state;
     s.move.x = s.move.y = 0; s.look.dx = s.look.dy = 0;
     s.fire = false; s.firePressed = false; s.adsToggle = false; s.adsHeld = null;
-    s.jump = s.crouch = s.reload = s.interact = false; s.jumpHeld = false; s.slot = null; s.sprintKey = false; s.swap = null;
+    s.jump = s.crouch = s.reload = s.interact = false; s.jumpHeld = false; this.jumpTouches && this.jumpTouches.clear(); s.slot = null; s.sprintKey = false; s.swap = null;
     this.endSwap();
     this.pointers.clear();
     this.knob.style.transform = '';
@@ -174,7 +188,7 @@ export class Controls {
     this.pointers.delete(e.pointerId);
     if (p.el) p.el.classList.remove('pressed');
     if (p.role === 'slot') clearTimeout(this.holdTimer);
-    if (p.role === 'jump') { let other = false; for (const q of this.pointers.values()) if (q.role === 'jump') other = true; if (!other) this.state.jumpHeld = false; }
+    if (p.role === 'jump') { let other = this.jumpTouches.size > 0; for (const q of this.pointers.values()) if (q.role === 'jump') other = true; if (!other) this.state.jumpHeld = false; }
     if (p.role === 'joy') { this.state.move.x = 0; this.state.move.y = 0; this.knob.style.transform = ''; }
     if (p.role === 'fire') {
       // stop firing only when no other fire button is held
