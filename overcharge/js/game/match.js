@@ -249,7 +249,8 @@ export class Match {
     target.char.setGlider(false);
     const dropPos = target.pos.clone();
     setTimeout(() => {
-      if (target.alive) return;
+      // the character may have been recycled into a new match by now
+      if (target.alive || this.ended || !this.fighters.includes(target)) return;
       this.effects.elimination(dropPos);
       target.char.root.visible = false;
     }, 1700);

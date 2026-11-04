@@ -224,18 +224,28 @@ export class CharacterFactory {
         o.material = cache.get(o.material);
       }
     });
+    if (!this._parts) {
+      this._parts = {
+        barrel: new THREE.CylinderGeometry(0.018, 0.022, 0.42, 10), scope: new THREE.CylinderGeometry(0.035, 0.035, 0.32, 14),
+        lens: new THREE.CircleGeometry(0.03, 14), lensMat: new THREE.MeshBasicMaterial({ color: 0xff5cf0, toneMapped: false }),
+        strips: {}, stripMats: RARITIES.map(r => new THREE.MeshBasicMaterial({ color: r.glow, toneMapped: false })),
+      };
+    }
+    const P = this._parts;
     if (id === 'sniper') {
       // longer barrel + big scope
-      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.42, 10), this.metalMat());
+      const barrel = new THREE.Mesh(P.barrel, this.metalMat());
       barrel.rotation.x = Math.PI / 2; barrel.position.set(0, 0.035, g.userData.muzzle.z + 0.17);
-      const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.32, 14), this.metalMat());
+      const scope = new THREE.Mesh(P.scope, this.metalMat());
       scope.rotation.x = Math.PI / 2; scope.position.set(0, 0.16, 0.05);
-      const lens = new THREE.Mesh(new THREE.CircleGeometry(0.03, 14), new THREE.MeshBasicMaterial({ color: 0xff5cf0, toneMapped: false }));
+      const lens = new THREE.Mesh(P.lens, P.lensMat);
       lens.position.set(0, 0.16, 0.211);
       g.add(barrel, scope, lens);
       g.userData.muzzle = g.userData.muzzle.clone(); g.userData.muzzle.z += 0.38;
     }
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.012, g.userData.length * 0.45), new THREE.MeshBasicMaterial({ color: rc, toneMapped: false }));
+    const L = +(g.userData.length * 0.45).toFixed(3);
+    const stripGeo = P.strips[L] || (P.strips[L] = new THREE.BoxGeometry(0.012, 0.012, L));
+    const strip = new THREE.Mesh(stripGeo, P.stripMats[rarity]);
     strip.position.set(0.035, 0.03, g.userData.length * 0.12);
     g.add(strip);
     return g;
@@ -247,22 +257,27 @@ export class CharacterFactory {
   }
 
   grenadeModel(id) {
-    const grp = new THREE.Group();
+    if (!this._nade) {
+      const glowB = new THREE.MeshBasicMaterial({ color: 0x4fb6ff, toneMapped: false });
+      const glowY = new THREE.MeshBasicMaterial({ color: 0xffe14d, toneMapped: false });
+      this._nade = {
+        sphere: new THREE.SphereGeometry(0.075, 16, 12), torus: new THREE.TorusGeometry(0.076, 0.012, 8, 24),
+        capS: new THREE.CylinderGeometry(0.025, 0.03, 0.04, 10), body: new THREE.CylinderGeometry(0.05, 0.05, 0.16, 14),
+        band: new THREE.CylinderGeometry(0.052, 0.052, 0.014, 14), capO: new THREE.CylinderGeometry(0.03, 0.04, 0.035, 10),
+        shockMat: new THREE.MeshStandardMaterial({ color: 0x1b2a4a, metalness: 0.6, roughness: 0.3 }),
+        odMat: new THREE.MeshStandardMaterial({ color: 0x1d1b22, metalness: 0.5, roughness: 0.4 }), glowB, glowY,
+      };
+    }
+    const N = this._nade, grp = new THREE.Group();
     if (id === 'shockwave') {
-      const body = new THREE.Mesh(new THREE.SphereGeometry(0.075, 16, 12), new THREE.MeshStandardMaterial({ color: 0x1b2a4a, metalness: 0.6, roughness: 0.3 }));
-      const band = new THREE.Mesh(new THREE.TorusGeometry(0.076, 0.012, 8, 24), new THREE.MeshBasicMaterial({ color: 0x4fb6ff, toneMapped: false }));
-      band.rotation.x = Math.PI / 2;
-      const band2 = band.clone(); band2.rotation.set(0, 0, 0);
-      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, 0.04, 10), this.metalMat()); cap.position.y = 0.08;
-      grp.add(body, band, band2, cap);
+      const band = new THREE.Mesh(N.torus, N.glowB); band.rotation.x = Math.PI / 2;
+      const band2 = new THREE.Mesh(N.torus, N.glowB);
+      const cap = new THREE.Mesh(N.capS, this.metalMat()); cap.position.y = 0.08;
+      grp.add(new THREE.Mesh(N.sphere, N.shockMat), band, band2, cap);
     } else {
-      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.16, 14), new THREE.MeshStandardMaterial({ color: 0x1d1b22, metalness: 0.5, roughness: 0.4 }));
-      for (const y of [-0.045, 0, 0.045]) {
-        const b = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, 0.014, 14), new THREE.MeshBasicMaterial({ color: 0xffe14d, toneMapped: false }));
-        b.position.y = y; grp.add(b);
-      }
-      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.035, 10), this.metalMat()); cap.position.y = 0.095;
-      grp.add(body, cap);
+      for (const y of [-0.045, 0, 0.045]) { const b = new THREE.Mesh(N.band, N.glowY); b.position.y = y; grp.add(b); }
+      const cap = new THREE.Mesh(N.capO, this.metalMat()); cap.position.y = 0.095;
+      grp.add(new THREE.Mesh(N.body, N.odMat), cap);
     }
     return grp;
   }
