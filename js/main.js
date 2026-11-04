@@ -365,7 +365,7 @@ class App {
   /** Keep matches smooth: drop the render resolution when the frame rate sags, raise it when there is headroom. */
   adaptResolution(dt) {
     const S = this.profile.settings;
-    if (S.autoRes === false) return;
+    if (!S.dynRes) return; // opt-in only (iOS Low Power Mode caps games at 30 FPS, which used to trigger blurry drops)
     const now = performance.now();
     if (!this.fpsT0) { this.fpsT0 = now + 4000; this.fpsFrames = 0; return; } // let shaders warm up first
     if (now < this.fpsT0) return;
@@ -374,9 +374,10 @@ class App {
     if (elapsed < 2) return;
     const fps = this.fpsFrames / elapsed; this.fpsT0 = now; this.fpsFrames = 0;
     const maxPr = Math.min(window.devicePixelRatio || 1, QUALITY[S.quality].pixelRatio);
+    const minPr = Math.min(1, maxPr); // never blurrier than normal screen resolution
     let pr = this.renderer.getPixelRatio();
-    if (fps < 42 && pr > 0.6) pr = Math.max(0.6, pr - 0.15);
-    else if (fps > 56 && pr < maxPr - 0.01) pr = Math.min(maxPr, pr + 0.1);
+    if (fps < 26 && pr > minPr + 0.01) pr = Math.max(minPr, pr - 0.15);
+    else if (fps > 50 && pr < maxPr - 0.01) pr = Math.min(maxPr, pr + 0.15);
     else return;
     this.renderer.setPixelRatio(pr);
     this.resize();

@@ -200,7 +200,7 @@ export function renderSettings(app, container, inGame = false) {
     </div>
     <div class="set-sec"><h3>GRAPHICS</h3>
       <div class="set-row"><div>Quality<small>Lower = smoother on older phones (full effect after restart)</small></div><div class="seg" data-seg="quality">${['low', 'medium', 'high'].map(q => `<button class="${S.quality === q ? 'on' : ''}" data-q="${q}">${q.toUpperCase()}</button>`).join('')}</div></div>
-      ${toggle('autoRes', 'Auto Resolution', 'Lowers the resolution a little if the frame rate drops, so matches stay smooth')}
+      ${toggle('dynRes', 'Dynamic Resolution', 'Off by default. Only for very slow phones: lowers sharpness slightly when the frame rate is low')}
       ${toggle('fpsCap', '60 FPS Cap', 'Saves battery and heat on 120 Hz phones')}
       ${toggle('showFps', 'Show FPS')}
     </div>
