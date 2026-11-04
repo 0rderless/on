@@ -7,6 +7,7 @@ import { Loot } from './loot.js';
 import { makeBus } from './buses.js';
 import { Effects, StormWall } from './effects.js';
 import { PlayerController } from './player.js';
+import { playEmoteBeat, EMOTES } from './emotes.js';
 import { makeGun, makeGrenade, WEAPONS, AMMO_TYPES, DEFAULT_LOADOUT } from '../data/items.js';
 import { SKINS, PICKAXES, GLIDERS } from '../data/cosmetics.js';
 import { Audio } from '../core/audio.js';
@@ -238,13 +239,30 @@ export class Match {
     }
   }
 
+  /** Emotes: the fighter stands still and dances until it moves, shoots or gets interrupted. */
+  startEmote(f, id) {
+    if (!f.alive || f.mode !== 'ground' || !EMOTES.some(e => e.id === id)) return false;
+    this.stopEmote(f);
+    f.emote = { id, t: this.time };
+    f.ads = false; f.crouch = false; f.healT = 0; f.cancelReload();
+    f.char.playEmote(id);
+    if (f.isPlayer) { try { this.emoteStopBeat = playEmoteBeat(id); } catch { this.emoteStopBeat = null; } }
+    return true;
+  }
+  stopEmote(f) {
+    if (!f.emote) return;
+    f.emote = null;
+    f.char.stopEmote();
+    if (f.isPlayer && this.emoteStopBeat) { this.emoteStopBeat(); this.emoteStopBeat = null; }
+  }
+
   onDeploy(f) {
     f.char.setGlider(true);
     if (f.isPlayer) Audio.play('deploy', { vol: 0.9 });
   }
 
   onPlayerFired(w) { this.hud.onFire(w); }
-  onOverdrive(f) { if (f.isPlayer) { this.hud.toast('⚡ OVERDRIVE ACTIVE', 'yellow'); Audio.play('zap', { vol: 0.5 }); } }
+  onOverdrive(f) { if (f.isPlayer) { this.hud.toast('OVERDRIVE ACTIVE', 'yellow', 'ic-bolt'); Audio.play('zap', { vol: 0.5 }); } }
   onLaunched(f) { if (f.isPlayer) { this.ctrl.shake = 0.8; Audio.loop('wind', 0.4); setTimeout(() => Audio.stopLoop('wind'), 2500); } }
 
   onDamage(target, attacker, res, info) {
@@ -269,6 +287,7 @@ export class Match {
     target.ads = false; target.crouch = false;
     target.vel.set(0, 0, 0);
     target.eliminatedBy = attacker || null;
+    this.stopEmote(target);
     target.char.die();
     target.char.setGlider(false);
     if (this.teamSize > 1 && target.team !== this.player.team) this.assignLeader(target.team);
@@ -297,10 +316,10 @@ export class Match {
       this.combat.siphon(attacker);
       if (attacker.bot) attacker.bot.onKill(target);
       if (this.respawnTokens) this.creditRespawnKill(attacker);
-      msg = { a: attacker.name, b: target.name, how: WEAPON_NAMES[how] || 'Eliminated', aTeam: attacker.team, bTeam: target.team, head: !!info.head };
+      msg = { a: attacker.name, b: target.name, how: WEAPON_NAMES[how] || 'Eliminated', w: how, aTeam: attacker.team, bTeam: target.team, head: !!info.head };
       if (attacker.isPlayer) { this.hud.elimPopup(target.name); Audio.play('elim', { vol: 0.8 }); }
     } else {
-      msg = { a: null, b: target.name, how: how === 'storm' ? 'was lost in the storm' : how === 'fall' ? 'fell to their death' : 'was eliminated', bTeam: target.team };
+      msg = { a: null, b: target.name, how: how === 'storm' ? 'was lost in the storm' : how === 'fall' ? 'fell to their death' : 'was eliminated', w: how, bTeam: target.team };
     }
     this.hud.killfeed(msg, this.player.team);
     // Reload: respawn while Reload is open. Solo spends a respawn; duos/squads need a teammate still standing
@@ -524,9 +543,12 @@ export class Match {
       const shadow = d < 38;
       if (ch.castsShadow !== shadow) { ch.castsShadow = shadow; for (const mesh of ch.meshes) mesh.castShadow = shadow; }
       if (f.isPlayer && this.ctrl.scoped) ch.root.visible = false;
+      // emote sync (a fighter that left the ground or started moving stops dancing)
+      if (f.emote && (f.mode !== 'ground' || Math.hypot(f.move.x, f.move.y) > 0.15 || f.thrusting)) this.stopEmote(f);
       // held item
       const it = f.item;
-      if (f.mode === 'ground') {
+      if (f.emote) ch.setHeld(null);
+      else if (f.mode === 'ground') {
         if (!it) ch.setHeld('pickaxe', f.pickaxe);
         else if (it.kind === 'gun') ch.setHeld('gun', it.id, it.rarity);
         else if (it.kind === 'heal') ch.setHeld('heal', it.id);
@@ -536,7 +558,7 @@ export class Match {
       ch.setJetpack(f.jetpack);
       ch.update(dt, {
         vx: f.vel.x, vz: f.vel.z, yaw: f.yaw, pitch: f.pitch, grounded: f.phys.grounded, crouch: f.crouch,
-        sprint: f.sprint, mode: f.mode, reloadFrac: f.reloadT > 0 ? 1 - f.reloadT / f.reloadDur : -1, camDist: d, thrusting: f.thrusting,
+        sprint: f.sprint, mode: f.mode, reloadFrac: f.reloadT > 0 ? 1 - f.reloadT / f.reloadDur : -1, camDist: d, thrusting: f.thrusting, fuel: f.isPlayer ? f.fuel : undefined,
       });
     }
     this.effects.update(dt);
@@ -592,6 +614,7 @@ export class Match {
   }
 
   dispose() {
+    if (this.emoteStopBeat) { this.emoteStopBeat(); this.emoteStopBeat = null; }
     Audio.stopAllLoops();
     this.stormWall.dispose();
     this.combat.clear();

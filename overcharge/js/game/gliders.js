@@ -157,57 +157,61 @@ const BUILD = {
   },
 
   snake(C) {
+    // ridden like the surfboard: the serpent's body runs front-to-back under your feet,
+    // the head rears up in front and the tail whips out behind
     if (!C.snake) {
-      // the body snakes across the sky (left to right) and the head turns to face forward
-      const Y = 3.1, pts = [];
-      for (let i = 0; i <= 12; i++) { const x = -3.0 + 5.0 * i / 12; pts.push(new THREE.Vector3(x, Y + Math.sin(x * 0.9) * 0.1, Math.sin(x * 1.5) * 0.55)); }
-      pts.push(new THREE.Vector3(2.35, Y + 0.08, 0.35), new THREE.Vector3(2.5, Y + 0.14, 0.95));
+      const pts = [
+        new THREE.Vector3(0, -0.05, -3.6), new THREE.Vector3(0, -0.12, -2.6), new THREE.Vector3(0, -0.16, -1.6),
+        new THREE.Vector3(0, -0.17, -0.6), new THREE.Vector3(0, -0.17, 0.4), new THREE.Vector3(0, -0.12, 1.3),
+        new THREE.Vector3(0, 0.12, 2.0), new THREE.Vector3(0, 0.5, 2.45), new THREE.Vector3(0, 0.8, 2.75),
+      ];
       const curve = new THREE.CatmullRomCurve3(pts);
-      const body = taperedTube(curve, 80, 12, u => 0.04 + 0.28 * Math.pow(Math.sin(Math.min(1, u * 1.08) * Math.PI * 0.62), 0.8));
+      const body = taperedTube(curve, 90, 14, u => u < 0.78 ? 0.035 + 0.2 * Math.pow(Math.sin(Math.min(1, u / 0.78) * Math.PI * 0.5), 0.7) : 0.235 - (u - 0.78) * 0.25);
       const scales = canvasTex(128, 64, (x, w, h) => {
         x.fillStyle = '#2f8a3a'; x.fillRect(0, 0, w, h);
         for (let yy = 0; yy < h; yy += 8) for (let xx = (yy / 8) % 2 ? 0 : 8; xx < w; xx += 16) { x.fillStyle = (xx + yy) % 32 ? '#256e2e' : '#3fa548'; x.beginPath(); x.moveTo(xx, yy); x.lineTo(xx + 8, yy + 4); x.lineTo(xx, yy + 8); x.lineTo(xx - 8, yy + 4); x.fill(); }
         x.fillStyle = '#d8c14a'; x.fillRect(0, h * 0.42, w, h * 0.16);
         x.fillStyle = '#16301a'; for (let xx = 0; xx < w; xx += 32) { x.beginPath(); x.ellipse(xx + 16, h * 0.18, 9, 6, 0, 0, Math.PI * 2); x.fill(); x.beginPath(); x.ellipse(xx, h * 0.82, 9, 6, 0, 0, Math.PI * 2); x.fill(); }
-      }, [14, 1]);
+      }, [16, 1]);
       const mat = std({ map: scales, roughness: 0.35, metalness: 0.15 });
       const uTime = { value: 0 };
       mat.onBeforeCompile = (sh) => {
         sh.uniforms.uSnakeT = uTime;
+        // slither: side-to-side waves that are calm under the rider's feet and grow towards the tail
         sh.vertexShader = 'uniform float uSnakeT;\n' + sh.vertexShader.replace('#include <begin_vertex>',
-          '#include <begin_vertex>\n float sk = clamp((2.1 - position.x) / 5.0, 0.0, 1.0);\n transformed.z += sin(position.x * 1.9 + uSnakeT * 5.0) * 0.34 * sk;\n transformed.y += sin(position.x * 1.3 + uSnakeT * 3.0) * 0.09 * sk;');
+          '#include <begin_vertex>\n float sk = smoothstep(-0.2, -3.4, position.z) + smoothstep(1.2, 2.6, position.z) * 0.35;\n transformed.x += sin(position.z * 2.1 + uSnakeT * 6.0) * 0.34 * sk;\n transformed.y += sin(position.z * 1.4 + uSnakeT * 3.5) * 0.07 * sk;');
       };
-      mat.customProgramCacheKey = () => 'oc-snake';
-      const head = new THREE.SphereGeometry(1, 16, 12);
+      mat.customProgramCacheKey = () => 'oc-snake-ride';
       C.snake = {
         body, mat, uTime, end: curve.getPointAt(1), dir: curve.getTangentAt(1),
-        head, headMat: std({ color: 0x2c7f36, roughness: 0.35, metalness: 0.15 }), hoodMat: std({ color: 0x24692c, roughness: 0.45, side: THREE.DoubleSide }),
-        eye: new THREE.SphereGeometry(0.05, 8, 6), eyeMat: glow(0xffd21a), pupil: new THREE.BoxGeometry(0.012, 0.07, 0.02), pupilMat: new THREE.MeshBasicMaterial({ color: 0x111111 }),
-        fang: new THREE.ConeGeometry(0.022, 0.11, 6), fangMat: std({ color: 0xf4f0e2, roughness: 0.3 }),
-        tongue: new THREE.BoxGeometry(0.03, 0.012, 0.32), tongueMat: std({ color: 0xc61f3b, roughness: 0.5 }),
-        rein: new THREE.MeshBasicMaterial({ color: 0x3b2a16 }),
+        head: new THREE.SphereGeometry(1, 16, 12), headMat: std({ color: 0x2c7f36, roughness: 0.35, metalness: 0.15 }), hoodMat: std({ color: 0x24692c, roughness: 0.45, side: THREE.DoubleSide }),
+        belly: std({ color: 0xd8c14a, roughness: 0.4 }),
+        eye: new THREE.SphereGeometry(0.06, 8, 6), eyeMat: glow(0xffd21a), pupil: new THREE.BoxGeometry(0.014, 0.08, 0.02), pupilMat: new THREE.MeshBasicMaterial({ color: 0x111111 }),
+        fang: new THREE.ConeGeometry(0.026, 0.13, 6), fangMat: std({ color: 0xf4f0e2, roughness: 0.3 }),
+        tongue: new THREE.BoxGeometry(0.035, 0.014, 0.38), tongueMat: std({ color: 0xc61f3b, roughness: 0.5 }),
+        trail: new THREE.PlaneGeometry(0.9, 3), trailMat: new THREE.MeshBasicMaterial({ color: 0x7dff9a, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }),
       };
     }
     const S = C.snake, g = new THREE.Group();
-    const body = new THREE.Mesh(S.body, S.mat); g.add(body);
-    const head = new THREE.Group(); head.position.copy(S.end); g.add(head);
-    const skull = new THREE.Mesh(S.head, S.headMat); skull.scale.set(0.26, 0.17, 0.4); skull.position.z = 0.16; head.add(skull);
-    const hood = new THREE.Mesh(S.head, S.hoodMat); hood.scale.set(0.55, 0.08, 0.36); hood.position.set(0, -0.02, -0.18); head.add(hood);
-    for (const s of [-1, 1]) {
-      const e = new THREE.Mesh(S.eye, S.eyeMat); e.position.set(s * 0.15, 0.08, 0.3); head.add(e);
-      const p = new THREE.Mesh(S.pupil, S.pupilMat); p.position.set(s * 0.165, 0.08, 0.34); head.add(p);
-      const f = new THREE.Mesh(S.fang, S.fangMat); f.rotation.x = Math.PI; f.position.set(s * 0.07, -0.12, 0.46); head.add(f);
+    g.add(new THREE.Mesh(S.body, S.mat));
+    // head rearing up at the front, looking ahead
+    const head = new THREE.Group(); head.position.copy(S.end); head.rotation.x = -0.35; g.add(head);
+    const skull = new THREE.Mesh(S.head, S.headMat); skull.scale.set(0.3, 0.19, 0.46); skull.position.z = 0.18; head.add(skull);
+    const jaw = new THREE.Mesh(S.head, S.belly); jaw.scale.set(0.24, 0.07, 0.36); jaw.position.set(0, -0.12, 0.2); head.add(jaw);
+    const hood = new THREE.Mesh(S.head, S.hoodMat); hood.scale.set(0.62, 0.42, 0.08); hood.position.set(0, -0.08, -0.2); hood.rotation.x = 0.25; head.add(hood);
+    for (const sx of [-1, 1]) {
+      const e = new THREE.Mesh(S.eye, S.eyeMat); e.position.set(sx * 0.17, 0.09, 0.34); head.add(e);
+      const p = new THREE.Mesh(S.pupil, S.pupilMat); p.position.set(sx * 0.19, 0.09, 0.38); head.add(p);
+      const f = new THREE.Mesh(S.fang, S.fangMat); f.rotation.x = Math.PI; f.position.set(sx * 0.08, -0.13, 0.52); head.add(f);
     }
-    const tongue = new THREE.Mesh(S.tongue, S.tongueMat); tongue.position.set(0, -0.05, 0.62); head.add(tongue);
-    // reins from the belly to the hands
-    const belly = new THREE.Vector3(0, 2.85, 0.0);
-    const rL = rod(belly, HAND_L, 0.014, S.rein, 4), rR = rod(belly, HAND_R, 0.014, S.rein, 4); g.add(rL, rR);
-    g.add(rod(HAND_L.clone().setY(2.0), HAND_R.clone().setY(2.0), 0.025, S.rein, 6));
+    const tongue = new THREE.Mesh(S.tongue, S.tongueMat); tongue.position.set(0, -0.07, 0.7); head.add(tongue);
+    const trail = new THREE.Mesh(S.trail, S.trailMat); trail.rotation.x = -Math.PI / 2; trail.position.set(0, -0.35, -4.4); trail.renderOrder = 7; g.add(trail);
     return {
-      g, pose: 'hang', anim: (t) => {
+      g, pose: 'ride', anim: (t) => {
         S.uTime.value = t;
-        head.rotation.y = Math.sin(t * 2.4) * 0.25; head.rotation.x = Math.sin(t * 1.3) * 0.08;
-        tongue.scale.z = 0.5 + Math.max(0, Math.sin(t * 9)) * 0.8; tongue.position.z = 0.5 + tongue.scale.z * 0.13;
+        head.rotation.y = Math.sin(t * 1.6) * 0.22; head.rotation.x = -0.35 + Math.sin(t * 2.3) * 0.08;
+        tongue.scale.z = 0.5 + Math.max(0, Math.sin(t * 9)) * 0.8; tongue.position.z = 0.56 + tongue.scale.z * 0.14;
+        g.position.y = Math.sin(t * 3.0) * 0.03; g.rotation.z = Math.sin(t * 1.5) * 0.05;
       },
     };
   },

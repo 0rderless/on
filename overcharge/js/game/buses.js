@@ -61,7 +61,8 @@ function compoundBus() {
   // front: windshield, grille, headlights, bumper, destination sign
   add(g, new THREE.BoxGeometry(W - 0.3, 1.25, 0.05), glass, 0, H * 0.24, L / 2 + 0.01, -0.06, 0, 0);
   add(g, new THREE.BoxGeometry(W - 0.5, 0.26, 0.05), dark, 0, H * 0.55, L / 2 - 0.02);
-  const sign = canvasTex(256, 32, (x, w, h) => { x.fillStyle = '#100a20'; x.fillRect(0, 0, w, h); x.fillStyle = '#ffb21a'; x.font = 'bold 22px monospace'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('OVERCHARGE  ★  DROP ZONE', w / 2, h / 2 + 1); });
+  const sign = canvasTex(256, 32, (x, w, h) => { x.fillStyle = '#100a20'; x.fillRect(0, 0, w, h); x.fillStyle = '#ffb21a'; x.font = 'bold 22px monospace'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('OVERCHARGE      DROP ZONE', w / 2, h / 2 + 1);
+    x.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 4 : 9; x.lineTo(w / 2 + 14 + Math.cos(a) * r, h / 2 + Math.sin(a) * r); } x.closePath(); x.fill(); });
   add(g, new THREE.PlaneGeometry(W - 0.6, 0.22), glow(0xffffff, { map: sign }), 0, H * 0.55, L / 2 + 0.02);
   add(g, new THREE.BoxGeometry(1.4, 0.45, 0.06), chrome, 0, -H * 0.3, L / 2 + 0.02);
   for (let i = 0; i < 5; i++) add(g, new THREE.BoxGeometry(1.3, 0.04, 0.07), dark, 0, -H * 0.3 - 0.16 + i * 0.08, L / 2 + 0.03);

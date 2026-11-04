@@ -61,7 +61,7 @@ export class Fighter {
     this.slots = [null, null, null, null, null]; this.selected = 0;
     this.ammo = { light: 0, medium: 0, heavy: 0, shells: 0 };
     this.kills = 0; this.damageDealt = 0; this.placement = 0; this.eliminatedBy = null;
-    this.overdriveT = 0; this.reloadT = 0; this.fireCd = 0; this.respawnT = -1; this.healT = 0;
+    this.overdriveT = 0; this.reloadT = 0; this.fireCd = 0; this.respawnT = -1; this.healT = 0; this.emote = null;
     this.jetpack = false; this.fuel = JETPACK.fuel; this.thrusting = false;
     this.vel.set(0, 0, 0);
   }

@@ -166,7 +166,7 @@ export function renderLocker(app) {
     const overlay = ov ? `<img src="${ov}" style="object-fit:contain;padding:${cat === 'gliders' ? 10 : 16}px">` : '';
     return `<button class="card ${app.lockerSel === it.id ? 'sel' : ''}" data-id="${it.id}" style="border-color:${RARITY_COLORS[it.rarity]}">
       <img src="${img}">${overlay}<span class="c-tag" style="color:${RARITY_COLORS[it.rarity]}">${RARITY_NAMES[it.rarity].toUpperCase()}</span>
-      ${equipped === it.id ? '<span class="c-eq" title="Equipped">✓</span>' : ''}<span class="c-name">${it.name}</span></button>`;
+      ${equipped === it.id ? '<span class="c-eq" title="Equipped"><i class="ic ic-check"></i></span>' : ''}<span class="c-name">${it.name}</span></button>`;
   }).join('');
   grid.querySelectorAll('.card').forEach(c => c.addEventListener('click', () => {
     click(); app.lockerSel = c.dataset.id; renderLocker(app);

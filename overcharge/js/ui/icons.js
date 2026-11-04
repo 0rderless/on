@@ -86,7 +86,6 @@ export function renderIcons(renderer, factory, envTex) {
     const g = x.createRadialGradient(PW / 2, PH * 0.45, 10, PW / 2, PH * 0.45, PH * 0.8);
     g.addColorStop(0, RARITY_COLORS[p.rarity]); g.addColorStop(1, '#120a30');
     x.fillStyle = g; x.fillRect(0, 0, PW, PH);
-    const img = new Image(); img.src = icons['pick_' + p.id];
     icons[p.key + p.id + '_bg'] = out.toDataURL('image/png');
   }
   renderer.setRenderTarget(prevTarget);

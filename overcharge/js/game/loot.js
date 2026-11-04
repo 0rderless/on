@@ -89,7 +89,7 @@ export class Loot {
   }
 
   ammoFor(gunId) { const t = WEAPONS[gunId].ammo; return { kind: 'ammo', id: t, count: AMMO_TYPES[t].pickup }; }
-  randomAmmo(rng = Math.random) { const ks = Object.keys(AMMO_TYPES); const t = ks[Math.floor(rng() * ks.length)]; return { kind: 'ammo', id: t, count: AMMO_TYPES[t].pickup }; }
+  randomAmmo(rng = Math.random) { const ks = ['light', 'medium', 'heavy']; const t = ks[Math.floor(rng() * ks.length)]; return { kind: 'ammo', id: t, count: AMMO_TYPES[t].pickup }; }   // no shells: no shotguns
 
   makeMesh(item) {
     const g = new THREE.Group();

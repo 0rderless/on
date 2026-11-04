@@ -3,6 +3,7 @@
 // cover-seeking when shields break, grenade usage and memory of enemies they lost sight of.
 import * as THREE from 'three';
 import { WEAPONS } from '../data/items.js';
+import { EMOTES } from './emotes.js';
 
 const _v = new THREE.Vector3(), _d = new THREE.Vector3(), _e = new THREE.Vector3();
 const TAU = Math.PI * 2;
@@ -57,7 +58,7 @@ export class BotBrain {
     this.lookYaw = f.yaw; this.lookPitch = 0;
     this.dropTarget = null; this.jumpDist = rnd(20, 70);
     this.burstLeft = 0; this.burstPause = 0;
-    this.celebrateT = 0;
+    this.celebrateT = 0; this.emoteWait = 0; this.emoteUntil = 0;
     this.followLeader = null;
   }
 
@@ -70,6 +71,8 @@ export class BotBrain {
       this.trackT = 0;
       this.aimErr.set(rnd(-0.4, 0.4), rnd(-0.15, 0.15));
     }
+    if (this.f.emote) this.g.stopEmote(this.f);
+    this.emoteWait = 0;
     // panic jump/crouch habits
     if (Math.random() < this.pers.jumpy * 0.5) this.f.wantJump = true;
   }
@@ -81,7 +84,9 @@ export class BotBrain {
   }
 
   onKill(victim) {
-    if (Math.random() < 0.25 * this.pers.crouchy + 0.05) this.celebrateT = 1.2; // the classic crouch-spam
+    const r = Math.random();
+    if (r < 0.25 * this.pers.crouchy + 0.05) this.celebrateT = 1.2; // the classic crouch-spam
+    else if (r < 0.25 * this.pers.crouchy + 0.3) this.emoteWait = rnd(0.6, 1.4); // or hit a dance
     this.target = null;
   }
 
@@ -175,6 +180,19 @@ export class BotBrain {
     // ---- act
     f.move.set(0, 0); f.sprint = false;
     let lookAtX = null, lookAtZ = null, lookAtY = null;
+    // ---- post-elimination dance (bails the moment someone shows up)
+    if (this.emoteWait > 0 || f.emote) {
+      const threat = this.target && this.target.alive && g.time - this.targetSeenAt < 0.5;
+      if (threat || f.healing) { this.emoteWait = 0; if (f.emote) g.stopEmote(f); }
+      else if (!f.emote) {
+        this.emoteWait -= dt;
+        if (this.emoteWait <= 0 && f.mode === 'ground') { g.startEmote(f, EMOTES[Math.floor(Math.random() * EMOTES.length)].id); this.emoteUntil = g.time + rnd(2.5, 5); }
+        return this.applyLook(dt);
+      } else {
+        if (g.time > this.emoteUntil) g.stopEmote(f);
+        return this.applyLook(dt);
+      }
+    }
     if (this.celebrateT > 0) {
       this.celebrateT -= dt;
       f.crouch = Math.floor(this.celebrateT * 6) % 2 === 0;
