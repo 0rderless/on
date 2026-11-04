@@ -398,6 +398,8 @@ function loadoutIcon(app, id) {
 
 export function renderLoadout(app) {
   const p = app.profile;
+  $('le-jet').classList.toggle('on', p.jetpackStart !== false);
+  if (app.icons.jetpack) $('le-jet-img').src = app.icons.jetpack;
   p.loadout = normalizeLoadout(p.loadout);
   const box = $('le-slots');
   box.innerHTML = p.loadout.map((id, i) => {
@@ -461,4 +463,5 @@ export function initLoadout(app) {
     commitLoadout(app, order);
   });
   $('le-reset').addEventListener('click', () => { app.lePicked = null; commitLoadout(app, [...DEFAULT_LOADOUT]); });
+  $('le-jet').addEventListener('click', () => { click(); app.profile.jetpackStart = app.profile.jetpackStart === false; Store.save(); renderLoadout(app); });
 }
