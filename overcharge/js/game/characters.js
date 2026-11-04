@@ -5,6 +5,7 @@ import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { RARITIES } from '../data/items.js';
 import { makeJetpack } from './jetpack.js';
+import { makeGlider } from './gliders.js';
 
 const _q = new THREE.Quaternion(), _qp = new THREE.Quaternion(), _qi = new THREE.Quaternion();
 const _v = new THREE.Vector3(), _v2 = new THREE.Vector3(), _m = new THREE.Matrix4();
@@ -449,35 +450,7 @@ export class CharacterFactory {
     return g;
   }
 
-  gliderModel() {
-    const g = new THREE.Group();
-    const shape = new THREE.Shape();
-    shape.moveTo(-1.4, 0); shape.quadraticCurveTo(0, 0.55, 1.4, 0); shape.lineTo(1.1, -0.25); shape.quadraticCurveTo(0, 0.2, -1.1, -0.25); shape.lineTo(-1.4, 0);
-    if (!this._gliderTex) {
-      const c = document.createElement('canvas'); c.width = 256; c.height = 64;
-      const x = c.getContext('2d');
-      const g = x.createLinearGradient(0, 0, 256, 0);
-      g.addColorStop(0, '#5b2bd6'); g.addColorStop(0.5, '#9a5cff'); g.addColorStop(1, '#5b2bd6');
-      x.fillStyle = g; x.fillRect(0, 0, 256, 64);
-      x.fillStyle = '#ffe14d'; x.beginPath(); x.moveTo(118, 8); x.lineTo(100, 36); x.lineTo(126, 36); x.lineTo(112, 58); x.lineTo(156, 24); x.lineTo(130, 24); x.lineTo(142, 8); x.fill();
-      x.fillStyle = 'rgba(79,242,255,0.9)'; x.fillRect(0, 0, 256, 5); x.fillRect(0, 59, 256, 5);
-      this._gliderTex = new THREE.CanvasTexture(c); this._gliderTex.colorSpace = THREE.SRGBColorSpace;
-    }
-    const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.9, bevelEnabled: false });
-    // planar UVs across the span
-    const pos = geo.attributes.position, uv = geo.attributes.uv;
-    for (let i = 0; i < pos.count; i++) uv.setXY(i, (pos.getX(i) + 1.4) / 2.8, pos.getZ(i) / 0.9);
-    const wing = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: this._gliderTex, metalness: 0.2, roughness: 0.55, side: THREE.DoubleSide, emissive: 0x2a0f6a, emissiveIntensity: 0.6 }));
-    wing.rotation.x = Math.PI / 2; wing.position.set(0, 2.55, 0.45);
-    const trim = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.04, 0.05), new THREE.MeshBasicMaterial({ color: 0x5ff4ff, toneMapped: false }));
-    trim.position.set(0, 2.62, 0.46);
-    g.add(wing, trim);
-    for (const x of [-0.25, 0.25]) {
-      const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.9, 4), new THREE.MeshBasicMaterial({ color: 0x222233 }));
-      rope.position.set(x, 2.1, 0.05); g.add(rope);
-    }
-    return g;
-  }
+  gliderModel(id = 'volt') { return makeGlider(id, this); }
 
   create(opts) { return new Character(this, opts); }
 }
@@ -497,12 +470,19 @@ export class Character {
     for (const n of ['Hips', 'Spine', 'Spine1', 'Spine2', 'Neck', 'Head', 'RightArm', 'RightForeArm', 'RightHand', 'LeftArm', 'LeftForeArm', 'LeftHand', 'RightUpLeg', 'RightLeg', 'RightFoot', 'LeftUpLeg', 'LeftLeg', 'LeftFoot', 'RightShoulder', 'LeftShoulder'])
       this.bones[n] = factory.findBone(this.model, n);
     this.mixer = new THREE.AnimationMixer(this.model);
+    // procedural layers rotate these bones on top of the animation. three.js only rewrites a bone when its
+    // animated value changes, so with a static pose (skydive/glide T-pose) the extra rotations would pile up
+    // frame after frame. We restore the animated pose before every mixer update instead.
+    this.poseBones = Object.values(this.bones).filter(Boolean);
+    this.poseBase = this.poseBones.map(b => b.quaternion.clone());
     this.actions = {};
     for (const k of ['idle', 'forward', 'backward', 'left', 'right', 'run', 'tpose']) {
       const a = this.mixer.clipAction(factory.clips[k]);
       a.play(); a.setEffectiveWeight(k === 'idle' ? 1 : 0);
       this.actions[k] = a;
     }
+    // the T-pose clip is a single-frame loop: let it drift and the arms flail while skydiving/gliding
+    this.actions.tpose.timeScale = 0; this.actions.tpose.time = 0;
     for (const k of ['death1', 'death2']) {
       const a = this.mixer.clipAction(factory.clips[k]);
       a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true;
@@ -520,6 +500,7 @@ export class Character {
     this.glider = null;
     this.setSkin(skin);
     this.pickaxeId = pickaxe;
+    this.gliderId = 'volt';
   }
 
   setSkin(id) {
@@ -716,7 +697,11 @@ export class Character {
   }
 
   setGlider(on) {
-    if (on && !this.glider) { this.glider = this.f.gliderModel(); this.root.add(this.glider); }
+    const id = this.gliderId || 'volt';
+    if (on && (!this.glider || this.glider.userData.id !== id)) {
+      if (this.glider) this.root.remove(this.glider);
+      this.glider = this.f.gliderModel(id); this.root.add(this.glider);
+    }
     if (this.glider) this.glider.visible = on;
   }
 
@@ -780,6 +765,14 @@ export class Character {
     this.backMount.position.copy(_v).addScaledVector(_bFwd, -depth).addScaledVector(_bUp, 0.02);
   }
 
+  /** Animation step with the procedural offsets of the previous frame undone first. */
+  mixerStep(dt) {
+    const B = this.poseBones, Q = this.poseBase;
+    for (let i = 0; i < B.length; i++) B[i].quaternion.copy(Q[i]);
+    this.mixer.update(dt);
+    for (let i = 0; i < B.length; i++) Q[i].copy(B[i].quaternion);
+  }
+
   updatePose(dt, s) {
     const camDist = s.camDist ?? 0;
     this.lod = camDist > 70 ? 2 : camDist > 30 ? 1 : 0;
@@ -794,7 +787,7 @@ export class Character {
     if (this.jetFlames) for (const fl of this.jetFlames) { fl.visible = !!s.thrusting && !this.dead; if (fl.visible) fl.scale.set(1, 0.75 + Math.random() * 0.5, 1); }
     if (this.dead) {
       this.deathT += dt;
-      this.mixer.update(dt);
+      this.mixerStep(dt);
       return;
     }
     // ----- locomotion weights
@@ -831,12 +824,15 @@ export class Character {
     this.actions.forward.timeScale = this.actions.backward.timeScale = ts;
     this.actions.left.timeScale = this.actions.right.timeScale = ts;
     this.actions.run.timeScale = air ? 0.15 : Math.max(0.8, speed / 6.2);
-    this.mixer.update(dt);
+    this.mixerStep(dt);
 
     // ----- body orientation (skydive pitch)
     this.body.rotation.x = this.skydiveAmt * 1.25;
     this.body.position.y = this.skydiveAmt * 0.9;
-    if (this.glider) this.glider.visible = this.glideAmt > 0.3;
+    if (this.glider) {
+      this.glider.visible = this.glideAmt > 0.3;
+      if (this.glider.visible && this.glider.userData.anim) { this.glideT = (this.glideT || 0) + dt; this.glider.userData.anim(this.glideT, dt); }
+    }
 
     if (this.lod >= 2) return;
     // ----- procedural layers
@@ -857,10 +853,31 @@ export class Character {
       rotateBoneWorld(B.Spine, _right, -0.18 * c);
     }
     if (mode === 'glide' || this.glideAmt > 0.05) {
-      const g = this.glideAmt;
-      rotateBoneWorld(B.RightArm, _fwd, -1.15 * g); rotateBoneWorld(B.LeftArm, _fwd, 1.15 * g);
-      rotateBoneWorld(B.RightUpLeg, _right, 0.3 * g); rotateBoneWorld(B.LeftUpLeg, _right, 0.15 * g);
-      rotateBoneWorld(B.RightLeg, _right, -0.5 * g);
+      const g = this.glideAmt, pose = (this.glider && this.glider.userData.pose) || 'hang';
+      if (pose === 'ride') {
+        // surf stance: knees bent, arms out for balance, slight lean into the turn
+        const lean = Math.max(-0.35, Math.min(0.35, ((s.vx || 0) * cy - (s.vz || 0) * sy) * -0.03));
+        this.model.position.y = -0.26 * g;
+        rotateBoneWorld(B.LeftUpLeg, _right, 0.62 * g); rotateBoneWorld(B.RightUpLeg, _right, 0.5 * g);
+        rotateBoneWorld(B.LeftLeg, _right, -1.15 * g); rotateBoneWorld(B.RightLeg, _right, -0.95 * g);
+        rotateBoneWorld(B.LeftFoot, _right, 0.5 * g); rotateBoneWorld(B.RightFoot, _right, 0.45 * g);
+        rotateBoneWorld(B.Spine, _right, 0.22 * g); rotateBoneWorld(B.Spine1, _fwd, lean * g);
+        rotateBoneWorld(B.RightArm, _fwd, 0.28 * g); rotateBoneWorld(B.LeftArm, _fwd, -0.18 * g);
+        rotateBoneWorld(B.RightForeArm, _fwd, -0.25 * g); rotateBoneWorld(B.LeftForeArm, _fwd, 0.3 * g);
+      } else if (pose === 'float') {
+        // hovering in a tractor beam: arms loosely out, legs dangling
+        rotateBoneWorld(B.RightArm, _fwd, 0.42 * g); rotateBoneWorld(B.LeftArm, _fwd, -0.42 * g);
+        rotateBoneWorld(B.RightForeArm, _fwd, -0.3 * g); rotateBoneWorld(B.LeftForeArm, _fwd, 0.3 * g);
+        rotateBoneWorld(B.RightUpLeg, _right, 0.25 * g); rotateBoneWorld(B.RightLeg, _right, -0.55 * g);
+        rotateBoneWorld(B.LeftUpLeg, _right, -0.08 * g);
+      } else {
+        // hanging from a bar / reins / risers: both hands up and still
+        const up = pose === 'canopy' ? 1.32 : 1.15;
+        rotateBoneWorld(B.RightArm, _fwd, -up * g); rotateBoneWorld(B.LeftArm, _fwd, up * g);
+        rotateBoneWorld(B.RightForeArm, _fwd, -0.12 * g); rotateBoneWorld(B.LeftForeArm, _fwd, 0.12 * g);
+        rotateBoneWorld(B.RightUpLeg, _right, 0.3 * g); rotateBoneWorld(B.LeftUpLeg, _right, 0.15 * g);
+        rotateBoneWorld(B.RightLeg, _right, -0.5 * g);
+      }
     }
     if (mode === 'skydive') {
       rotateBoneWorld(B.RightArm, _fwd, 0.35); rotateBoneWorld(B.LeftArm, _fwd, -0.35);

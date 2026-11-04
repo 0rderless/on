@@ -7,7 +7,7 @@ import { Loot } from './loot.js';
 import { Effects, StormWall } from './effects.js';
 import { PlayerController } from './player.js';
 import { makeGun, makeGrenade, WEAPONS, AMMO_TYPES, DEFAULT_LOADOUT } from '../data/items.js';
-import { SKINS, PICKAXES } from '../data/cosmetics.js';
+import { SKINS, PICKAXES, GLIDERS } from '../data/cosmetics.js';
 import { Audio } from '../core/audio.js';
 import { MAP_HALF, MAX_SHIELD, TEAM_SIZES, PLAYER_COUNTS, SOLO_RESPAWNS, KILLS_PER_RESPAWN } from '../config.js';
 
@@ -93,6 +93,7 @@ export class Match {
       f.char.revive();
       f.char.setSkin(skin);
       f.char.pickaxeId = pick;
+      f.char.gliderId = isPlayer ? (P.locker.glider || 'volt') : GLIDERS[Math.floor(Math.random() * GLIDERS.length)].id;
       f.char.setHeld(null);
       f.char.setGlider(false);
       f.char.setJetpack(false);

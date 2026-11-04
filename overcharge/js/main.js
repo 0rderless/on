@@ -318,7 +318,7 @@ class App {
     document.querySelectorAll('.tabpane').forEach(p => p.classList.toggle('show', p.dataset.pane === tab));
     this.lobbyScene.layout(tab);
     if (tab === 'locker') { this.lockerSel = null; renderLocker(this); }
-    else { this.lobbyScene.setSkin(this.profile.locker.skin); this.lobbyScene.showGun(); }
+    else { this.lobbyScene.showGlider(null); this.lobbyScene.setSkin(this.profile.locker.skin); this.lobbyScene.showGun(); }
     if (tab === 'loadout') { this.lePicked = null; renderLoadout(this); }
     if (tab === 'career') renderCareer(this);
     if (tab === 'settings') renderSettings(this, $('settings'));

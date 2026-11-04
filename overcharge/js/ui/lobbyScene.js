@@ -63,10 +63,17 @@ export class LobbyScene {
   setSkin(id) { this.char.setSkin(id); }
   showPickaxe(id) { this.char.setHeld('pickaxe', id); }
   showGun() { this.char.setHeld('gun', 'ar', 4); }
+  /** Locker glider preview: the character glides in place under the chosen glider (null = back to normal). */
+  showGlider(id) {
+    this.glidePreview = id || null;
+    if (id) { this.char.gliderId = id; this.char.setHeld(null); this.char.setGlider(true); this.layout('glider'); }
+    else if (this.char.glider) { this.char.setGlider(false); if (this.mode === 'glider') this.layout('locker'); }
+  }
 
   layout(mode) {
     // frame the character depending on which tab is open
-    this.target = mode === 'locker' ? { x: 0.9, y: 1.05, z: 5.8, lx: 0.9, ly: 0.95 } : mode === 'play' ? { x: 0.2, y: 1.15, z: 6.3, lx: 0.2, ly: 0.95 } : { x: -1.4, y: 1.1, z: 6.8, lx: -1.4, ly: 0.95 };
+    this.mode = mode;
+    this.target = mode === 'glider' ? { x: 2.3, y: 3.1, z: 13, lx: 2.3, ly: 2.95 } : mode === 'locker' ? { x: 0.9, y: 1.05, z: 5.8, lx: 0.9, ly: 0.95 } : mode === 'play' ? { x: 0.2, y: 1.15, z: 6.3, lx: 0.2, ly: 0.95 } : { x: -1.4, y: 1.1, z: 6.8, lx: -1.4, ly: 0.95 };
   }
 
   resize(w, h) { this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); }
@@ -78,7 +85,8 @@ export class LobbyScene {
     this.dome.material.uniforms.uTime.value = this.time;
     this.spinVel *= Math.pow(0.04, dt);
     this.spin += this.spinVel * dt * 10;
-    this.char.update(dt, { vx: 0, vz: 0, yaw: -0.35 + this.spin, pitch: 0.02, grounded: true, mode: 'ground', reloadFrac: -1, camDist: 3 });
+    this.char.update(dt, { vx: 0, vz: 0, yaw: -0.35 + this.spin + (this.glidePreview ? 0.6 : 0), pitch: 0.02, grounded: !this.glidePreview, mode: this.glidePreview ? 'glide' : 'ground', reloadFrac: -1, camDist: 3 });
+    if (this.glidePreview) this.char.root.position.y = 0.35 + Math.sin(this.time * 1.4) * 0.12; else this.char.root.position.y = 0;
     this.ring2.rotation.z = this.time * 0.3;
     const p = this.particles.geometry.attributes.position;
     for (let i = 0; i < p.count; i++) { let y = p.getY(i) + dt * 0.25; if (y > 7) y = -0.3; p.setY(i, y); }

@@ -9,7 +9,9 @@ const TAU = Math.PI * 2;
 function angDiff(a, b) { let d = (b - a) % TAU; if (d > Math.PI) d -= TAU; if (d < -Math.PI) d += TAU; return d; }
 
 // Over-the-shoulder camera rig (metres): distance behind, offset to the right, extra height.
-export const CAMERA_RIG = { hip: { dist: 4.6, right: 0.85, up: 0.42 }, ads: { dist: 2.2, right: 0.62, up: 0.22 } };
+// Framing measured from Fortnite Mobile (docs/fortnite-mobile-camera-notes.md): body ~41 % across,
+// head ~43 % and feet ~85 % down the screen, so the camera sits at chest height just over the right shoulder.
+export const CAMERA_RIG = { hip: { dist: 4.5, right: 0.64, up: -0.08 }, ads: { dist: 2.1, right: 0.6, up: 0.0 } };
 
 /** Where the third-person camera sits for a character (no wall collision). Used by the game and the FOV preview. */
 export function rigPose(pos, yaw, pitch, crouch, rig, outPos, outTarget) {
@@ -346,7 +348,8 @@ export class PlayerController {
       return;
     }
     const yaw = f === g.player ? this.yaw : f.yaw, pitch = f === g.player ? this.pitch : f.pitch * 0.5;
-    if (f.mode === 'skydive' || f.mode === 'glide') { dist = 6.5; right = 0; up = 1.2; fov = this.fovBase * 1.12; }
+    if (f.mode === 'skydive') { dist = 6.5; right = 0; up = 1.2; fov = this.fovBase * 1.12; }
+    else if (f.mode === 'glide') { dist = 7.6; right = 0; up = 0.05; fov = this.fovBase * 1.12; }   // you and the whole glider in frame
     else if (ads) {
       const w = f.weapon;
       if (w.scope) { dist = -0.2; right = 0.0; up = 0; fov = this.fovBase / w.zoom; }

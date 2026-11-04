@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { CollisionWorld } from './collision.js';
 import { MAP_HALF } from '../config.js';
 import { buildWarehouse, animateWarehouse } from './warehouse.js';
+import { buildVulcan, animateVulcan } from './vulcan.js';
 
 const CHUNKS = 3;
 const CHUNK_SIZE = (MAP_HALF * 2) / CHUNKS;
@@ -331,6 +332,12 @@ export class World {
       buildWarehouse(this);
       this.finalize();
       animateWarehouse(this);
+      return this;
+    }
+    if (this.mapId === 'vulcan') {
+      buildVulcan(this);
+      this.finalize();
+      animateVulcan(this);
       return this;
     }
     // ground
