@@ -43,6 +43,10 @@ export function initAuth(app) {
     $('auth-note').textContent = mode === 'create' ? 'Your progress, ranks, locker and HUD layout are saved to the cloud.' : 'Sign in with the username and PIN you created.';
     $('auth-err').textContent = '';
   }));
+  if (window.OC_PREVIEW) {
+    $('auth-note').textContent = 'Preview build: your progress is saved on this device.';
+    document.querySelector('[data-auth="signin"]').style.display = 'none';
+  }
   $('auth-name').addEventListener('input', () => {
     const v = $('auth-name').value;
     $('auth-err').textContent = v.length >= 3 && mode === 'create' ? (validateUsername(v) || '') : '';
@@ -218,7 +222,7 @@ export function renderSettings(app, container, inGame = false) {
   const hudBtn = container.querySelector('#set-hud');
   if (hudBtn) hudBtn.addEventListener('click', () => { click(); app.openHudEditor(inGame); });
   const so = container.querySelector('#set-signout');
-  if (so) so.addEventListener('click', () => { if (confirm('Sign out of ' + app.profile.username + '? You can sign back in with your username and PIN.')) { Store.signOut(); location.reload(); } });
+  if (so) so.addEventListener('click', () => { if (window.OC_PREVIEW || confirm('Sign out of ' + app.profile.username + '? You can sign back in with your username and PIN.')) { Store.signOut(); location.reload(); } });
   const done = container.querySelector('#set-done');
   if (done) done.addEventListener('click', () => { click(); $('settings-modal').classList.remove('show'); });
 }

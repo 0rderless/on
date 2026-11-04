@@ -4,12 +4,14 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { makeTextures } from './textures.js';
 import { Audio } from './audio.js';
 
+// The hosted preview build ships the same models as glTF JSON with embedded buffers.
+const EXT = window.OC_PREVIEW ? '.gltf.json' : '.glb';
 const MODELS = {
-  soldier: 'assets/models/soldier.glb',
-  run: 'assets/models/run_anim.glb',
-  rifle: 'assets/models/rifle.glb',
-  shotgun: 'assets/models/shotgun.glb',
-  blaster: 'assets/models/blaster.glb',
+  soldier: 'assets/models/soldier' + EXT,
+  run: 'assets/models/run_anim' + EXT,
+  rifle: 'assets/models/rifle' + EXT,
+  shotgun: 'assets/models/shotgun' + EXT,
+  blaster: 'assets/models/blaster' + EXT,
 };
 // Rough byte weights so the progress bar moves smoothly.
 const WEIGHTS = { soldier: 3.1, run: 0.36, rifle: 0.88, shotgun: 0.6, blaster: 0.47 };
