@@ -21,7 +21,7 @@ export function newRank() { return { div: 0, rp: 0, matches: 0, wins: 0 }; }
  * @param {'br'|'reload'} mode
  * @param {{div:number, rp:number}} rank current rank
  * @param {number} placement 1 = winner
- * @param {number} total number of players (br) or teams (reload)
+ * @param {number} total number of teams in the lobby (players in solo)
  * @param {number} elims eliminations by the player
  */
 export function rankedDelta(mode, rank, placement, total, elims) {
@@ -29,9 +29,10 @@ export function rankedDelta(mode, rank, placement, total, elims) {
   const tierScale = [1, 0.85, 0.72][tierIdx];
   const entry = [0, 5, 10][tierIdx];
   let place = 0;
-  if (mode === 'br') {
+  if (total > 12) {
+    // big lobbies (solo, BR duos): percentile based
     const pct = (placement - 1) / Math.max(1, total - 1);
-    if (placement === 1) place = 42;
+    if (placement === 1) place = mode === 'br' ? 42 : 40;
     else if (placement <= 3) place = 28;
     else if (placement <= 5) place = 20;
     else if (pct <= 0.34) place = 12;
@@ -39,7 +40,8 @@ export function rankedDelta(mode, rank, placement, total, elims) {
     else if (pct <= 0.7) place = 2;
     else place = -2;
   } else {
-    place = [0, 40, 22, 12, 5, 0, -2, -2, -2][Math.min(placement, 8)] ?? -2;
+    // a handful of teams (squads, Reload duos): every spot matters
+    place = [0, mode === 'br' ? 42 : 40, 22, 12, 5, 0, -2, -2, -2][Math.min(placement, 8)] ?? -2;
   }
   if (tierIdx === 0) place = Math.max(0, place); // Bronze is a no-loss tier
   const perElim = mode === 'br' ? [6, 5, 4][tierIdx] : [5, 4, 3][tierIdx];

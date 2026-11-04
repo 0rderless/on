@@ -327,7 +327,8 @@ export class PlayerController {
     if (!f.alive && this.spectating && !this.spectating.alive) {
       // follow whoever took out the player we were watching, or anyone still standing
       const next = this.spectating.eliminatedBy;
-      this.spectating = next && next.alive ? next : g.fighters.find(o => o.alive && (g.mode !== 'reload' || o.team === g.player.team)) || g.fighters.find(o => o.alive) || null;
+      const mate = g.teamSize > 1 ? g.fighters.find(o => o.alive && o.team === g.player.team) : null;
+      this.spectating = mate || (next && next.alive ? next : g.fighters.find(o => o.alive) || null);
     }
     if (!f.alive && this.spectating && this.spectating.alive) f = this.spectating;
     const cam = this.cam;

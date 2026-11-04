@@ -9,7 +9,7 @@ import { PlayerController } from './player.js';
 import { makeGun, makeGrenade, WEAPONS, AMMO_TYPES, DEFAULT_LOADOUT } from '../data/items.js';
 import { SKINS, PICKAXES } from '../data/cosmetics.js';
 import { Audio } from '../core/audio.js';
-import { MAP_HALF, MAX_SHIELD } from '../config.js';
+import { MAP_HALF, MAX_SHIELD, TEAM_SIZES, PLAYER_COUNTS } from '../config.js';
 
 const BR_PHASES = [
   { wait: 70, shrink: 50, r: 118, dps: 1 },
@@ -28,6 +28,7 @@ const RELOAD_PHASES = [
   { wait: 10, shrink: 20, r: 0, dps: 14 },
 ];
 const RELOAD_CLOSE_PHASE = 3;
+export { TEAM_SIZES, PLAYER_COUNTS };
 const WEAPON_NAMES = { ar: 'Assault Rifle', shotgun: 'Pump Shotgun', smg: 'Volt SMG', sniper: 'Arc Sniper', pickaxe: 'Pickaxe', overdrive: 'Overdrive Grenade' };
 
 export class Match {
@@ -39,6 +40,9 @@ export class Match {
     this.app = app;
     this.opts = opts;
     this.mode = opts.mode;
+    this.team = TEAM_SIZES[opts.team] ? opts.team : 'solo';
+    this.teamSize = TEAM_SIZES[this.team];
+    this.teamMode = this.teamSize > 1 || this.mode === 'reload'; // placement counts teams (or respawning players)
     this.ranked = opts.ranked;
     this.scene = app.gameScene;
     this.world = app.world; this.col = app.world.col; this.nav = app.nav;
@@ -71,8 +75,8 @@ export class Match {
   setup() {
     const P = this.opts.profile;
     const reload = this.mode === 'reload';
-    const total = reload ? 24 : 30;
-    const teamSize = reload ? 4 : 1;
+    const total = PLAYER_COUNTS[this.mode][this.team];
+    const teamSize = this.teamSize;
     const used = new Set([P.username.toLowerCase()]);
     this.loot.populate(this.world, reload ? 0.95 : 0.8);
     // everyone already wears a jetpack unless it's switched off in the Loadout tab
@@ -101,13 +105,24 @@ export class Match {
       this.fighters.push(f);
     }
     this.player = this.fighters[0];
-    this.teams = reload ? 6 : total;
-    if (reload) for (const f of this.fighters) if (f.team === 0 && f.bot) { f.bot.followLeader = this.player; this.addNameTag(f); }
+    this.teams = Math.ceil(total / teamSize);
+    if (teamSize > 1) {
+      for (const f of this.fighters) if (f.team === 0 && f.bot) { f.bot.followLeader = this.player; this.addNameTag(f); }
+      // bot squads stick together: everyone follows the first member of their team
+      for (let t = 1; t < this.teams; t++) this.assignLeader(t);
+    }
     // reload: start with a common pistol-equivalent so fights start quickly
     this.setupBus();
     this.initStorm();
     this.hud.matchStart(this);
     Audio.loop('engine', 0.35);
+  }
+
+  assignLeader(team) {
+    if (team === this.player.team) return;
+    const mates = this.fighters.filter(f => f.team === team && f.alive && f.bot);
+    const lead = mates[0] || null;
+    for (const f of mates) f.bot.followLeader = f === lead ? null : lead;
   }
 
   addNameTag(f) {
@@ -145,6 +160,13 @@ export class Match {
           const p = pois[Math.floor(Math.random() * pois.length)];
           target = this.nav.randomWalkableNear(p.x, p.z, p.r * 0.8);
         } else target = this.nav.randomWalkableNear((Math.random() - 0.5) * 280, (Math.random() - 0.5) * 280, 10);
+        // duos/squads: teammates share their leader's landing spot (spread out a little)
+        const lead = this.teamSize > 1 && f.team !== 0 ? this.fighters.find(o => o.team === f.team && o.bot && o !== f && o.bot.dropTarget) : null;
+        if (lead) {
+          f.bot.dropTarget = this.nav.randomWalkableNear(lead.bot.dropTarget.x, lead.bot.dropTarget.z, 10);
+          f.bot.jumpAt = lead.bot.jumpAt + Math.random() * 3;
+          continue;
+        }
         f.bot.dropTarget = target;
         // jump when the bus is near the closest point to the target (with some variation)
         const rel = new THREE.Vector3(target.x - start.x, 0, target.z - start.z);
@@ -217,7 +239,17 @@ export class Match {
     f.vel.set(this.bus.dir.x * 10, -5, this.bus.dir.z * 10);
     f.char.root.visible = true;
     f.char.setHeld(null);
-    if (f.isPlayer) { Audio.play('deploy', { vol: 0.8 }); Audio.loop('wind', 0.5); this.hud.toast('Dive! Tap JUMP to open your glider early'); }
+    if (f.isPlayer) {
+      Audio.play('deploy', { vol: 0.8 }); Audio.loop('wind', 0.5); this.hud.toast('Dive! Tap JUMP to open your glider early');
+      // your bot teammates jump right after you and land nearby
+      const ahead = this.bus.pos.clone().addScaledVector(this.bus.dir, 35);
+      for (const o of this.fighters) {
+        if (o.bot && o.team === f.team && o.mode === 'bus') {
+          o.bot.jumpAt = this.bus.t + 8 + Math.random() * 30;
+          o.bot.dropTarget = this.nav.randomWalkableNear(ahead.x, ahead.z, 14);
+        }
+      }
+    }
   }
 
   onDeploy(f) {
@@ -253,6 +285,7 @@ export class Match {
     target.eliminatedBy = attacker || null;
     target.char.die();
     target.char.setGlider(false);
+    if (this.teamSize > 1 && target.team !== this.player.team) this.assignLeader(target.team);
     const dropPos = target.pos.clone();
     setTimeout(() => {
       // the character may have been recycled into a new match by now
@@ -283,13 +316,13 @@ export class Match {
       msg = { a: null, b: target.name, how: how === 'storm' ? 'was lost in the storm' : how === 'fall' ? 'fell to their death' : 'was eliminated', bTeam: target.team };
     }
     this.hud.killfeed(msg, this.player.team);
-    // Reload: respawn while the team still has someone standing and Reload is open
+    // Reload: respawn while Reload is open (in duos/squads, only while a teammate is still standing)
     const reload = this.mode === 'reload';
-    if (reload && this.storm.reloadOpen && this.teamAlive(target.team)) {
+    if (reload && this.storm.reloadOpen && (this.teamSize === 1 || this.teamAlive(target.team))) {
       target.respawnT = 7;
       if (target.isPlayer) this.hud.respawning(7);
     } else {
-      if (reload) this.wipeCheck(target.team);
+      if (this.teamMode) this.wipeCheck(target.team);
       else { target.placement = this.aliveCount() + 1; }
     }
     if (target.isPlayer && !(reload && target.respawnT > 0)) this.playerOut(attacker);
@@ -315,29 +348,34 @@ export class Match {
   playerOut(killer) {
     if (this.result) return;
     const p = this.player;
-    const placement = this.mode === 'reload'
+    // duos/squads: while a teammate is still standing your team is still in it — spectate them
+    if (this.teamSize > 1 && this.teamAlive(p.team)) {
+      this.ctrl.spectating = this.fighters.find(f => f.alive && f.team === p.team) || null;
+      this.hud.playerEliminated(killer, null, { kills: p.kills, damage: Math.round(p.damageDealt), team: this.team });
+      return;
+    }
+    const placement = this.teamMode
       ? (p.placement || (this.teamAlive(p.team) ? this.teamsRemaining() : this.teamsRemaining() + 1))
       : (p.placement || this.aliveCount() + 1);
     this.finish(false, placement);
-    this.ctrl.spectating = killer && killer.alive ? killer : this.fighters.find(f => f.alive && (this.mode !== 'reload' || f.team === p.team)) || null;
+    this.ctrl.spectating = killer && killer.alive ? killer : this.fighters.find(f => f.alive && (this.teamSize === 1 || f.team === p.team)) || null;
     this.hud.playerEliminated(killer, placement, this.result);
   }
 
   finish(won, placement) {
     const p = this.player;
-    const total = this.mode === 'reload' ? this.teams : this.fighters.length;
+    const total = this.teamMode ? this.teams : this.fighters.length;
     this.result = {
-      mode: this.mode, ranked: this.ranked, won, placement, total,
+      mode: this.mode, team: this.team, ranked: this.ranked, won, placement, total,
       kills: p.kills, damage: Math.round(p.damageDealt), timeAlive: Math.round(this.time - this.startTime),
-      squad: this.mode === 'reload' ? this.fighters.filter(f => f.team === p.team).map(f => ({ name: f.name, kills: f.kills })) : null,
+      squad: this.teamSize > 1 ? this.fighters.filter(f => f.team === p.team).map(f => ({ name: f.name, kills: f.kills })) : null,
     };
   }
 
   checkEnd() {
     if (this.over) return;
-    const reload = this.mode === 'reload';
-    const remaining = reload ? this.teamsRemaining() : this.aliveCount();
-    this.hud.setAlive(reload ? this.aliveCount() : remaining, reload ? remaining : null);
+    const remaining = this.teamMode ? this.teamsRemaining() : this.aliveCount();
+    this.hud.setAlive(this.teamMode ? this.aliveCount() : remaining, this.teamSize > 1 ? remaining : null);
     if (remaining <= 1) {
       const winnerTeam = this.fighters.find(f => f.alive)?.team;
       const playerWon = winnerTeam === this.player.team;
@@ -369,6 +407,7 @@ export class Match {
     f.pos.set(p.x, 95, p.z); f.vel.set(0, -10, 0);
     f.char.revive(); f.char.root.visible = true; f.char.setHeld(null);
     if (f.bot) { f.bot.dropTarget = p; f.bot.state = 'drop'; f.bot.target = null; f.bot.goal = null; f.bot.path = null; }
+    if (this.teamSize > 1 && f.team !== this.player.team) this.assignLeader(f.team);
     if (f.isPlayer) { this.hud.toast('REDEPLOYING…', 'cyan'); this.ctrl.spectating = null; Audio.loop('wind', 0.5); }
     this.hud.squadUpdate(this);
   }
@@ -414,7 +453,7 @@ export class Match {
           f.respawnT -= dt;
           if (f.isPlayer) this.hud.respawning(Math.ceil(f.respawnT));
           if (f.respawnT <= 0) {
-            if (this.storm.reloadOpen && this.teamAlive(f.team)) this.respawn(f);
+            if (this.storm.reloadOpen && (this.teamSize === 1 || this.teamAlive(f.team))) this.respawn(f);
             else { f.respawnT = -1; this.wipeCheck(f.team); if (f.isPlayer) this.playerOut(f.eliminatedBy); }
           }
         }
