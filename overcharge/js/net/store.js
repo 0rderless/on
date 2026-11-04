@@ -56,7 +56,7 @@ export function defaultSettings() {
   return {
     sens: 1.0, adsSens: 0.75, invertY: false, fov: 80,
     autoFire: true, aimAssist: true, autoPickup: true, autoSprint: true,
-    quality: 'medium', showFps: false,
+    quality: 'medium', showFps: false, autoRes: true, fpsCap: true,
     master: 0.8, sfx: 1.0, music: 0.5,
     haptics: true,
   };

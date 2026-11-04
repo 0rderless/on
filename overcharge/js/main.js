@@ -127,6 +127,9 @@ class App {
     r.shadowMap.enabled = Q.shadows;
     r.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer = r;
+    // iOS can drop the WebGL context after the app is backgrounded: offer a clean reload instead of a frozen screen
+    r.domElement.addEventListener('webglcontextlost', e => { e.preventDefault(); $('ctxlost').classList.add('show'); if (this.state === 'match') this.paused = true; });
+    $('ctx-reload').addEventListener('click', () => { try { Store.saveLocalOnly(); } catch { /* best effort */ } location.reload(); });
     const pm = new THREE.PMREMGenerator(r);
     this.env = pm.fromScene(new RoomEnvironment(), 0.04).texture;
     pm.dispose();
@@ -359,6 +362,38 @@ class App {
     for (const c of staged) { this.gameScene.remove(c.root); c.root.visible = false; }
   }
 
+  /** Keep matches smooth: drop the render resolution when the frame rate sags, raise it when there is headroom. */
+  adaptResolution(dt) {
+    const S = this.profile.settings;
+    if (S.autoRes === false) return;
+    const now = performance.now();
+    if (!this.fpsT0) { this.fpsT0 = now + 4000; this.fpsFrames = 0; return; } // let shaders warm up first
+    if (now < this.fpsT0) return;
+    this.fpsFrames = (this.fpsFrames || 0) + 1;
+    const elapsed = (now - this.fpsT0) / 1000;
+    if (elapsed < 2) return;
+    const fps = this.fpsFrames / elapsed; this.fpsT0 = now; this.fpsFrames = 0;
+    const maxPr = Math.min(window.devicePixelRatio || 1, QUALITY[S.quality].pixelRatio);
+    let pr = this.renderer.getPixelRatio();
+    if (fps < 42 && pr > 0.6) pr = Math.max(0.6, pr - 0.15);
+    else if (fps > 56 && pr < maxPr - 0.01) pr = Math.min(maxPr, pr + 0.1);
+    else return;
+    this.renderer.setPixelRatio(pr);
+    this.resize();
+  }
+
+  showHowTo(firstTime = false) {
+    this.howtoOpen = true;
+    $('howto').classList.add('show');
+    $('howto-ok').querySelector('span').textContent = firstTime ? "GOT IT — LET'S DROP" : 'GOT IT';
+    $('howto-ok').onclick = () => {
+      Audio.play('click', { vol: 0.5 });
+      $('howto').classList.remove('show'); this.howtoOpen = false;
+      if (!this.profile.tutorialDone) { this.profile.tutorialDone = true; Store.save(); }
+      this.clock.getDelta();
+    };
+  }
+
   // ================================================================ match flow
   startMatchmaking() {
     if (this.state !== 'lobby') return;
@@ -393,6 +428,9 @@ class App {
     applyLayout(this.profile.hud);
     this.camera.fov = vfovFromH(this.profile.settings.fov || FORTNITE_FOV); this.camera.updateProjectionMatrix();
     this.clock.getDelta();
+    this.fpsT0 = 0; this.fpsFrames = 0;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, QUALITY[this.profile.settings.quality].pixelRatio)); this.resize();
+    if (!this.profile.tutorialDone) this.showHowTo(true);
   }
 
   endMatch(result) {
@@ -441,13 +479,17 @@ class App {
   }
 
   // ================================================================ loop
-  loop() {
-    requestAnimationFrame(() => this.loop());
+  loop(now) {
+    requestAnimationFrame(t => this.loop(t));
+    // 60 FPS cap: ProMotion iPhones run requestAnimationFrame at 120 Hz
+    if (this.profile && this.profile.settings.fpsCap !== false && now && this.lastFrameAt && now - this.lastFrameAt < 15.2) return;
+    this.lastFrameAt = now;
     const dt = Math.min(0.05, this.clock.getDelta());
     if (this.state === 'match' && this.match) {
-      if (!this.paused && !$('hud').classList.contains('editing')) {
+      if (!this.paused && !this.howtoOpen && !$('hud').classList.contains('editing')) {
         this.match.update(dt);
         this.world.update(this.match.time);
+        this.adaptResolution(dt);
       }
       // shadow camera follows the camera focus
       const f = this.match.player;
