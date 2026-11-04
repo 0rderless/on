@@ -121,6 +121,40 @@ export function poseEmote(id, t, B, ax, rot, model, k) {
       r(B.Head, F, s * 0.1);
       break;
     }
+    case 'idle': {
+      // lobby stance: relaxed, arms down at the sides, breathing
+      const br = Math.sin(t * 1.7);
+      aimBone(rot, B.RightArm, B.RightForeArm, dirOf(R, U, F, 0.2, -1, 0.04, _d), k);
+      aimBone(rot, B.LeftArm, B.LeftForeArm, dirOf(R, U, F, -0.2, -1, 0.04, _d), k);
+      aimBone(rot, B.RightForeArm, B.RightHand, dirOf(R, U, F, 0.1, -1, 0.22, _d), k);
+      aimBone(rot, B.LeftForeArm, B.LeftHand, dirOf(R, U, F, -0.1, -1, 0.22, _d), k);
+      r(B.Spine1, R, -br * 0.015); r(B.Head, R, br * 0.01);
+      r(B.LeftUpLeg, F, 0.05); r(B.RightUpLeg, F, -0.05);
+      break;
+    }
+    case 'idlef': {
+      // lobby stance for the female line: weight on the right leg, hips tilted, right hand on the hip,
+      // left knee bent and turned in a little, shoulders and head tilted against the hips
+      const br = Math.sin(t * 1.7), sway = Math.sin(t * 0.8);
+      const tilt = 0.11 + sway * 0.015;
+      r(B.Hips, F, -tilt);                 // right hip up
+      r(B.Spine, F, tilt * 1.25); r(B.Spine1, F, tilt * 0.35); r(B.Head, F, -tilt * 0.6);
+      r(B.Spine1, R, -br * 0.015);
+      // legs: standing leg straight under the body, free leg relaxed
+      r(B.RightUpLeg, F, tilt * 0.9); r(B.LeftUpLeg, F, tilt * 0.55);
+      r(B.LeftUpLeg, R, 0.16); r(B.LeftLeg, R, -0.34); r(B.LeftUpLeg, U, -0.18); r(B.LeftFoot, R, 0.12);
+      // right hand on the hip
+      aimBone(rot, B.RightArm, B.RightForeArm, dirOf(R, U, F, 0.78, -0.55, -0.22, _d), k);
+      B.Hips.getWorldPosition(_h).addScaledVector(R, 0.15).addScaledVector(U, 0.07).addScaledVector(F, 0.02);
+      B.RightForeArm.getWorldPosition(_a);
+      aimBone(rot, B.RightForeArm, B.RightHand, _d.subVectors(_h, _a), k);
+      r(B.RightHand, F, -0.3);
+      // left arm hangs relaxed
+      aimBone(rot, B.LeftArm, B.LeftForeArm, dirOf(R, U, F, -0.16, -1, 0.02, _d), k);
+      aimBone(rot, B.LeftForeArm, B.LeftHand, dirOf(R, U, F, -0.06, -1, 0.2, _d), k);
+      r(B.Head, U, 0.12);
+      break;
+    }
   }
 }
 

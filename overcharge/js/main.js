@@ -250,6 +250,13 @@ class App {
       if (document.hidden) { Audio.ctx.suspend(); if (this.state === 'match' && !this.paused) this.pause(true); }
       else Audio.ctx.resume();
     });
+    // updates: a home-screen app can sit suspended for days, so look for a newer version whenever it comes
+    // back to the front (and every few minutes in the lobby). Coming back to the lobby reloads straight away;
+    // otherwise an UPDATE banner waits in the lobby.
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) this.checkForUpdate(true); });
+    setInterval(() => { if (this.state === 'lobby') this.checkForUpdate(false); }, 4 * 60 * 1000);
+    setTimeout(() => this.checkForUpdate(false), 8000);
+    $('update-go').addEventListener('click', () => this.applyUpdate());
     $('p-resume').addEventListener('click', () => this.pause(false));
     $('p-leave').addEventListener('click', () => {
       if (!this.match) return;
@@ -303,6 +310,33 @@ class App {
   }
 
   // ================================================================ screens
+  async checkForUpdate(resumed) {
+    if (window.OC_PREVIEW || this.updating) return;
+    let latest = null;
+    try {
+      const r = await fetch('js/config.js', { cache: 'no-store' });   // the service worker fetches code network-first
+      const m = r.ok && (await r.text()).match(/GAME_VERSION = '([^']+)'/);
+      latest = m ? m[1] : null;
+    } catch { return; }   // offline
+    if (!latest || latest === GAME_VERSION) return;
+    this.updateTo = latest;
+    if (resumed && this.state === 'lobby') { this.applyUpdate(); return; }
+    this.showUpdateBar();
+  }
+
+  showUpdateBar() {
+    if (!this.updateTo || this.state !== 'lobby') return;
+    $('update-v').textContent = 'v' + GAME_VERSION + '  →  v' + this.updateTo;
+    $('update-bar').classList.add('show');
+  }
+
+  async applyUpdate() {
+    this.updating = true;
+    $('update-bar').classList.remove('show');
+    try { const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration(); if (reg) await reg.update(); } catch { /* no service worker */ }
+    location.reload();
+  }
+
   enterLobby(notice) {
     this.profile = Store.profile;
     if (!this.profile) { $('auth').classList.add('show'); return; }
@@ -313,11 +347,13 @@ class App {
     this.applySettings();
     applyLayout(this.profile.hud);
     this.lobbyScene.setSkin(this.profile.locker.skin);
-    this.lobbyScene.showGun();
+    this.lobbyScene.showIdle();
     refreshMe(this); refreshModeCard(this);
     this.showTab('play');
     Audio.stopAllLoops();
     Audio.loop('music', 0.8, true);
+    $('lobby-ver').textContent = 'v' + GAME_VERSION;
+    this.showUpdateBar();
     if (notice) setTimeout(() => alert(notice), 50);
   }
 
@@ -343,7 +379,7 @@ class App {
     document.querySelectorAll('.tabpane').forEach(p => p.classList.toggle('show', p.dataset.pane === tab));
     this.lobbyScene.layout(tab);
     if (tab === 'locker') { this.lockerSel = null; renderLocker(this); }
-    else { this.lobbyScene.showGlider(null); this.lobbyScene.setSkin(this.profile.locker.skin); this.lobbyScene.showGun(); }
+    else { this.lobbyScene.showGlider(null); this.lobbyScene.setSkin(this.profile.locker.skin); this.lobbyScene.showIdle(); }
     if (tab === 'loadout') { this.lePicked = null; renderLoadout(this); }
     if (tab === 'career') renderCareer(this);
     if (tab === 'settings') renderSettings(this, $('settings'));

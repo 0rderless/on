@@ -16,8 +16,8 @@ export function femaleOffset(x, y, z, out) {
   const torso = smooth01((0.28 - ax) / 0.08);     // 1 on the body, fading out along the arms
   // slimmer ribcage, chest and back (everything above the hips)
   const upper = smooth01((y - 0.98) / 0.1) * smooth01((1.68 - y) / 0.06);
-  out.x -= x * 0.2 * upper * torso;
-  out.z -= (z - zc) * 0.15 * upper * torso;
+  out.x -= x * 0.24 * upper * torso;
+  out.z -= (z - zc) * 0.18 * upper * torso;
   // waist: pulled in hard between the ribs and the hips
   const waist = gauss(y - 1.165, 0.06) * torso;
   out.x -= x * 0.3 * waist;
@@ -29,7 +29,7 @@ export function femaleOffset(x, y, z, out) {
     const front = smooth01((z - zc - 0.02) / 0.1);
     for (const s of [-1, 1]) {
       const w = gauss(x - s * 0.08, 0.058) * gauss(y - 1.335, 0.058);
-      out.z += 0.09 * w * front * torso;
+      out.z += 0.1 * w * front * torso;
       out.y -= 0.014 * w * front * torso;
       out.x += s * 0.008 * w * front * torso;
     }
@@ -37,31 +37,33 @@ export function femaleOffset(x, y, z, out) {
   // hips: flare out just below the waist
   const hip = gauss(y - 0.97, 0.08) * smooth01((0.32 - ax) / 0.08);
   out.x += sx * Math.min(ax, 0.2) * 0.15 * hip;   // capped so the belt flaps don't fan out
+  // the armour flaps that hang off the belt: tucked in towards the hips
+  if (ax > 0.17) out.x -= sx * (ax - 0.17) * 0.4 * smooth01((y - 0.84) / 0.06) * smooth01((1.08 - y) / 0.05);
   // glutes: two rounded shapes on the back
   if (z < zc) {
     const back = smooth01((zc - z - 0.01) / 0.09);
     for (const s of [-1, 1]) {
       const w = gauss(x - s * 0.08, 0.07) * gauss(y - 0.935, 0.075);
-      out.z -= 0.08 * w * back;
+      out.z -= 0.09 * w * back;
       out.y -= 0.01 * w * back;
     }
   }
   // legs: slimmer round each leg's own axis (thigh gap), a soft curve kept on the outer thigh
   if (y < 0.95 && ax < 0.3) {
-    const k = 0.2 * smooth01((0.93 - y) / 0.1) * smooth01((y - 0.5) / 0.1) + 0.27 * gauss(y - 0.4, 0.12);
+    const k = 0.3 * smooth01((0.93 - y) / 0.1) * smooth01((y - 0.5) / 0.1) + 0.36 * gauss(y - 0.4, 0.12);
     out.x += (sx * 0.105 - x) * k; out.z += (0.0 - z) * k;
     out.x += sx * 0.014 * gauss(y - 0.82, 0.09) * smooth01((ax - 0.05) / 0.05);
   }
   // shoulder pads: shrink towards the shoulder joint and bring the shoulders in
   if (y > 1.36 && y < 1.68 && ax > 0.1 && ax < 0.36) {
     const k = smooth01((ax - 0.1) / 0.06) * smooth01((0.36 - ax) / 0.06) * gauss(y - 1.5, 0.075);
-    out.x += (sx * 0.19 - x) * 0.48 * k - sx * 0.05 * k;
-    out.y += (1.48 - y) * 0.48 * k;
-    out.z += (-0.05 - z) * 0.48 * k;
+    out.x += (sx * 0.19 - x) * 0.55 * k - sx * 0.055 * k;
+    out.y += (1.48 - y) * 0.55 * k;
+    out.z += (-0.05 - z) * 0.55 * k;
   }
   // arms (T-pose, along X): slimmer round the arm axis, hands a little less
   if (ax > 0.25 && y > 1.33 && y < 1.66) {
-    const k = 0.38 * smooth01((ax - 0.25) / 0.08) * (1 - 0.55 * smooth01((ax - 0.7) / 0.08));
+    const k = 0.46 * smooth01((ax - 0.25) / 0.08) * (1 - 0.6 * smooth01((ax - 0.7) / 0.08));
     out.y += (1.48 - y) * k; out.z += (-0.065 - z) * k;
   }
   // slimmer neck
