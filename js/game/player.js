@@ -19,7 +19,7 @@ export class PlayerController {
     this.fovBase = 78;
     this.zoom = 1;
     this.interactTarget = null;
-    this.autoFireT = 0;
+    this.autoScanT = 0; this.autoTarget = null; this.autoUntil = 0; this.autoStart = 0; this.autoFiring = false;
     this.assistTarget = null;
     this.spectating = null;
     this.busOrbit = 0;
@@ -124,22 +124,24 @@ export class PlayerController {
         if (input.firePressed) { this.cam.getWorldDirection(_dir); g.combat.throwGrenade(f, _dir.clone()); }
       } else if (it.kind === 'gun') {
         const w = WEAPONS[it.id];
-        let wantFire = w.auto ? input.fire : input.firePressed || (input.fire && f.fireCd <= 0 && w.id !== 'sniper' && false);
+        let wantFire = w.auto ? input.fire : input.firePressed;
         if (!w.auto && input.fire && f.fireCd <= 0 && it.mag > 0 && !f.reloading) wantFire = true; // hold-to-fire for semi autos
-        // mobile auto-fire
-        if (S.autoFire && w.autoRange > 0 && !wantFire) {
-          this.autoFireT -= dt;
-          if (this.autoFireT <= 0) {
-            this.autoFireT = 0.05;
-            this.aimRay(_o, _dir);
-            const hit = g.combat.rayFighters(f, _o.x, _o.y, _o.z, _dir.x, _dir.y, _dir.z, w.autoRange);
-            if (hit) {
-              const w2 = g.col.raycast(_o.x, _o.y, _o.z, _dir.x, _dir.y, _dir.z, hit.t);
-              if (!w2) { this.autoTarget = hit.f; this.autoUntil = g.time + 0.25; }
+        // ---- AUTO SHOOT: fires for you whenever the crosshair is over an enemy (like Fortnite mobile)
+        let autoNow = false;
+        if (S.autoFire && !wantFire) {
+          this.autoScanT -= dt;
+          if (this.autoScanT <= 0) {
+            this.autoScanT = 0.04;
+            const t = this.findAutoTarget(f, w);
+            if (t) {
+              if (t !== this.autoTarget || g.time > this.autoUntil) this.autoStart = g.time + 0.07; // tiny human-like delay
+              this.autoTarget = t; this.autoUntil = g.time + 0.14;
             }
           }
-          if (this.autoTarget && g.time < this.autoUntil && this.autoTarget.alive) wantFire = true;
+          if (this.autoTarget && this.autoTarget.alive && g.time < this.autoUntil && g.time >= this.autoStart && !f.reloading) autoNow = true;
         }
+        this.autoFiring = autoNow;
+        if (autoNow) { f.sprint = false; wantFire = true; }
         if (wantFire && !f.sprint) {
           this.aimRay(_o, _dir);
           if (g.combat.fireGun(f, _o, _dir)) {
@@ -154,6 +156,37 @@ export class PlayerController {
     }
     input.firePressed = false;
     this.updateCamera(dt);
+  }
+
+  /** Enemy currently under the crosshair (any part of the body), with line of sight. */
+  findAutoTarget(f, w) {
+    const g = this.g;
+    if (w.id === 'sniper' && !this.scoped) return null; // snipers only auto-shoot through the scope
+    const range = w.autoRange;
+    const cp = this.cam.position;
+    const fwd = this.cam.getWorldDirection(new THREE.Vector3());
+    const spread = (f.ads ? w.ads : w.hip) + f.bloom;
+    let best = null, bestAng = Infinity;
+    for (const o of g.fighters) {
+      if (!o.alive || o.team === f.team || o.mode === 'bus') continue;
+      const dist = o.pos.distanceTo(f.pos);
+      if (dist > range) continue;
+      // must be in front of the player, not between the camera and the player
+      if ((o.pos.x - f.pos.x) * fwd.x + (o.pos.z - f.pos.z) * fwd.z < 0.3) continue;
+      const crouch = o.crouch && o.mode === 'ground';
+      const parts = crouch ? [[0.85, 0.45], [1.2, 0.26], [0.4, 0.4]] : [[1.15, 0.45], [1.62, 0.26], [0.55, 0.4]];
+      for (const [hy, r] of parts) {
+        _t.set(o.pos.x, o.pos.y + hy, o.pos.z);
+        _v.copy(_t).sub(cp);
+        const d = _v.length(); _v.divideScalar(d);
+        const ang = Math.acos(Math.min(1, _v.dot(fwd)));
+        if (ang > Math.atan2(r, d) + spread * 0.35 || ang >= bestAng) continue;
+        if (!g.col.clear(cp.x, cp.y, cp.z, _t.x, _t.y, _t.z)) continue;
+        if (!g.col.clear(f.pos.x, f.eyeY, f.pos.z, _t.x, _t.y, _t.z)) continue;
+        best = o; bestAng = ang;
+      }
+    }
+    return best;
   }
 
   findAssist(f) {
