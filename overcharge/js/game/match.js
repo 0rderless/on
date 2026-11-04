@@ -425,7 +425,10 @@ export class Match {
         if (prevMode === 'glide' || prevMode === 'skydive') {
           f.char.setGlider(false);
           this.effects.landingDust(f.pos);
-          if (f.isPlayer) { Audio.stopLoop('wind'); Audio.play('land', { vol: 0.8 }); if (!this.startTime) this.startTime = this.time; }
+          if (f.isPlayer) {
+            Audio.stopLoop('wind'); Audio.play('land', { vol: 0.8 }); if (!this.startTime) this.startTime = this.time;
+            if (f.jetpack && !this.jetHintShown) { this.jetHintShown = true; this.hud.toast('JETPACK READY · HOLD JUMP TO FLY', 'yellow'); }
+          }
           if (f.bot) { f.bot.state = 'loot'; f.bot.thinkT = 0; }
           f.selected = f.slotOf(s => s.kind === 'gun') > 0 ? f.slotOf(s => s.kind === 'gun') : 0;
         } else if (f.isPlayer) Audio.play('land', { vol: 0.5 });
