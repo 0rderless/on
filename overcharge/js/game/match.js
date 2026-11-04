@@ -96,12 +96,25 @@ export class Match {
     }
     this.player = this.fighters[0];
     this.teams = reload ? 6 : total;
-    if (reload) for (const f of this.fighters) if (f.team === 0 && f.bot) f.bot.followLeader = this.player;
+    if (reload) for (const f of this.fighters) if (f.team === 0 && f.bot) { f.bot.followLeader = this.player; this.addNameTag(f); }
     // reload: start with a common pistol-equivalent so fights start quickly
     this.setupBus();
     this.initStorm();
     this.hud.matchStart(this);
     Audio.loop('engine', 0.35);
+  }
+
+  addNameTag(f) {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 48;
+    const x = c.getContext('2d');
+    x.font = 'bold 30px Rajdhani, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.lineWidth = 6; x.strokeStyle = 'rgba(0,0,0,0.75)'; x.strokeText(f.name, 128, 24);
+    x.fillStyle = '#4ff2ff'; x.fillText(f.name, 128, 24);
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true, toneMapped: false }));
+    s.scale.set(1.6, 0.3, 1); s.position.y = 2.25; s.renderOrder = 20;
+    f.char.root.add(s);
+    f.nameTag = s;
   }
 
   setupBus() {
@@ -439,6 +452,8 @@ export class Match {
       ch.root.position.copy(f.pos);
       const d = f.pos.distanceTo(camPos);
       ch.root.visible = d < this.app.drawDist || f.isPlayer;
+      const shadow = d < 38;
+      if (ch.castsShadow !== shadow) { ch.castsShadow = shadow; for (const mesh of ch.meshes) mesh.castShadow = shadow; }
       if (f.isPlayer && this.ctrl.scoped) ch.root.visible = false;
       // held item
       const it = f.item;
@@ -511,7 +526,10 @@ export class Match {
     this.effects.clear();
     this.loot.clear();
     if (this.bus.mesh.parent) this.scene.remove(this.bus.mesh);
-    for (const f of this.fighters) { f.char.root.visible = false; f.char.setGlider(false); this.scene.remove(f.char.root); }
+    for (const f of this.fighters) {
+      if (f.nameTag) { f.char.root.remove(f.nameTag); f.nameTag.material.map.dispose(); f.nameTag.material.dispose(); }
+      f.char.root.visible = false; f.char.setGlider(false); this.scene.remove(f.char.root);
+    }
     this.fighters = [];
   }
 }

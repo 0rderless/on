@@ -159,6 +159,7 @@ export const Store = {
     }
     const p = defaultProfile(uid, username.trim());
     p.pinHash = pinHash;
+    p.nameClaimed = this.cloudOk;
     this.profile = p;
     lsSet(LS_UID, uid);
     this.saveLocalOnly();
@@ -209,10 +210,21 @@ export const Store = {
       try {
         await withTimeout(this.ref(`players/${this.profile.uid}`).set(this.profile), 8000, 'save');
         this.cloudOk = true;
+        if (!this.profile.nameClaimed) this.claimLater();
       } catch (e) { console.warn('[store] cloud save failed:', e.message); this.cloudOk = false; }
     };
     if (immediate) return doSave();
     return new Promise(res => { this._saveTimer = setTimeout(() => doSave().then(res), 1200); });
+  },
+
+  /** Accounts created while offline reserve their username the first time the cloud is reachable. */
+  async claimLater() {
+    const p = this.profile; if (!db || !p) return;
+    try {
+      const uid = p.uid, name = p.username;
+      await withTimeout(this.ref(`usernames/${usernameKey(name)}`).transaction(cur => (cur === null || cur.uid === uid) ? { uid, name } : undefined), 8000, 'claim');
+      p.nameClaimed = true; this.saveLocalOnly();
+    } catch { /* try again next save */ }
   },
 
   async pushLeaderboard() {

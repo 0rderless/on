@@ -164,7 +164,7 @@ export class Hud {
 
   killfeed(msg, myTeam) {
     const kf = $('killfeed');
-    const name = (n, team) => `<b class="${n === this.m.player.name ? 'me' : team === myTeam ? 'mate' : ''}">${esc(n)}</b>`;
+    const name = (n, team) => `<b class="${n === this.m.player.name ? 'kf-me' : team === myTeam ? 'kf-mate' : ''}">${esc(n)}</b>`;
     const d = document.createElement('div'); d.className = 'kf';
     d.innerHTML = msg.a ? `${name(msg.a, msg.aTeam)} <em>${msg.head ? '🎯 ' : ''}eliminated</em> ${name(msg.b, msg.bTeam)} <em>· ${msg.how}</em>` : `${name(msg.b, msg.bTeam)} <em>${msg.how}</em>`;
     kf.appendChild(d);
@@ -257,6 +257,7 @@ export class Hud {
 
   victory() {
     $('death').classList.remove('show');
+    $('elimpop').classList.remove('show');
     $('victory').classList.add('show');
   }
 

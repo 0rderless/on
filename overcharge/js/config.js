@@ -28,7 +28,7 @@ export const SHIELD_REGEN_RATE = 12;   // per second
 export const SIPHON = 50;              // health/shield restored on elimination
 
 export const QUALITY = {
-  low:    { pixelRatio: 1.0, shadows: false, shadowSize: 0,    drawDist: 130, antialias: false },
-  medium: { pixelRatio: 1.5, shadows: true,  shadowSize: 1024, drawDist: 170, antialias: true },
-  high:   { pixelRatio: 2.0, shadows: true,  shadowSize: 2048, drawDist: 220, antialias: true },
+  low:    { pixelRatio: 1.0, shadows: false, shadowSize: 0,    drawDist: 95, antialias: false },
+  medium: { pixelRatio: 1.5, shadows: true,  shadowSize: 1024, drawDist: 125, antialias: true },
+  high:   { pixelRatio: 2.0, shadows: true,  shadowSize: 2048, drawDist: 155, antialias: true },
 };

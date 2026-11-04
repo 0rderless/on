@@ -169,7 +169,7 @@ input { font-family: inherit; }
 .board-row .br-n { width: 22px; color: var(--muted); font-family: var(--head); font-size: 13px; }
 .board-row .br-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .board-row .br-rank { font-size: 13px; }
-.board-row.me { background: rgba(255, 225, 77, 0.1); border-radius: 6px; }
+.board-row.br-me { background: rgba(255, 225, 77, 0.1); border-radius: 6px; }
 
 /* settings */
 .settings { position: absolute; left: 50%; top: calc(62px + var(--st)); bottom: calc(14px + var(--sb)); transform: translateX(-50%); width: min(760px, 94vw); padding: 14px 18px; overflow: auto; }
@@ -307,8 +307,8 @@ input { font-family: inherit; }
 #killfeed { position: absolute; right: calc(64px + var(--sr)); top: calc(10px + var(--st)); display: flex; flex-direction: column; align-items: flex-end; gap: 3px; pointer-events: none; max-width: 36vw; }
 .kf { font-size: 13px; padding: 2px 8px; border-radius: 4px; background: rgba(10, 6, 30, 0.55); animation: kfIn 0.25s ease-out; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kf b { color: #fff; }
-.kf .me { color: var(--y); }
-.kf .mate { color: var(--c); }
+.kf .kf-me { color: var(--y); }
+.kf .kf-mate { color: var(--c); }
 .kf em { color: var(--muted); font-style: normal; }
 @keyframes kfIn { from { transform: translateX(20px); opacity: 0; } }
 #banner { position: absolute; left: 50%; top: calc(18% + var(--st)); transform: translateX(-50%); text-align: center; pointer-events: none; opacity: 0; transition: opacity 0.4s; }
@@ -421,3 +421,5 @@ input { font-family: inherit; }
   .mode-btn small { font-size: 11px; }
   .res-tiles .stat b { font-size: 18px; }
 }
+/* keep menu lists scrollable on touch screens */
+.settings, .locker-grid, .career, .career-board, .career-stats, #results, .auth-card { touch-action: pan-y; -webkit-overflow-scrolling: touch; }

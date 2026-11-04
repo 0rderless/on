@@ -163,7 +163,7 @@ export async function renderCareer(app) {
   if (!rows.length) { board.innerHTML = '<div class="rank-sub">No ranked players yet — be the first!</div>'; return; }
   board.innerHTML = rows.map((r, i) => {
     const d = divInfo(r.div || 0);
-    return `<div class="board-row ${r.uid === p.uid ? 'me' : ''}"><span class="br-n">${i + 1}</span>${rankBadge(r.div || 0, 26)}<span class="br-name">${esc(r.name)}</span><span class="br-rank" style="color:${d.tier.color}">${d.name} · ${Math.floor(r.rp || 0)}%</span></div>`;
+    return `<div class="board-row ${r.uid === p.uid ? 'br-me' : ''}"><span class="br-n">${i + 1}</span>${rankBadge(r.div || 0, 26)}<span class="br-name">${esc(r.name)}</span><span class="br-rank" style="color:${d.tier.color}">${d.name} · ${Math.floor(r.rp || 0)}%</span></div>`;
   }).join('');
 }
 
@@ -195,6 +195,12 @@ export function renderSettings(app, container, inGame = false) {
     </div>
     <div class="set-sec"><h3>ACCOUNT</h3>
       <div class="set-row"><div>${esc(app.profile.username)}<small>${Store.isConnected() ? 'Synced to the cloud' : 'Offline — saved on this device'}</small></div>${inGame ? '' : '<button class="btn danger sm" id="set-signout"><span>SIGN OUT</span></button>'}</div>
+    </div>
+    <div class="set-sec"><h3>ABOUT</h3>
+      <div class="set-row"><div>OVERCHARGE v${'1.0.0'}<small>Map: Reversal Compound · Engine: three.js · Data: Firebase Realtime Database</small></div></div>
+      <div class="set-row"><div>Credits<small>Soldier model &amp; animations: Mixamo (Adobe), via the open-source “Dive” project by Mugen87 (MIT).
+        Sci-Fi Assault Rifle by Ptis (CC BY-NC 4.0) · Shotgun by Harry_L (CC BY 4.0) · SciFi Blaster by Feche Pedroza (CC BY 4.0), all from Sketchfab.
+        Gunshot/footstep sounds from Dive (MIT). Everything else made for this game.</small></div></div>
     </div>
     ${inGame ? '<div class="set-close"><button class="btn primary" id="set-done"><span>DONE</span></button></div>' : ''}`;
   container.querySelectorAll('input[type=range]').forEach(r => r.addEventListener('input', () => {
@@ -252,6 +258,7 @@ export class HudEditor {
     $('hud-editor').classList.remove('show');
     this.app.hudPreview(false);
     if (!this.fromGame) { $('hud').classList.remove('show'); $('lobby').classList.add('show'); }
+    else $('pause').classList.add('show');
   }
 
   get(id) { return { ...HUD_DEFAULTS[id], ...(this.layout[id] || {}) }; }
@@ -299,7 +306,7 @@ export class HudEditor {
 export function showResults(app, r, rewards) {
   $('results').classList.add('show');
   $('res-place').textContent = '#' + r.placement;
-  $('res-title').textContent = r.won ? 'VICTORY ROYALE' : r.placement <= (r.mode === 'br' ? 10 : 3) ? 'SO CLOSE!' : 'MATCH COMPLETE';
+  $('res-title').textContent = r.won ? 'OVERCHARGED VICTORY' : r.placement <= (r.mode === 'br' ? 10 : 3) ? 'SO CLOSE!' : 'MATCH COMPLETE';
   $('res-mode').textContent = `${r.mode === 'br' ? 'BATTLE ROYALE' : 'RELOAD'} · ${r.ranked ? 'RANKED' : 'UNRANKED'} · REVERSAL COMPOUND`;
   const mins = Math.floor(r.timeAlive / 60), secs = String(r.timeAlive % 60).padStart(2, '0');
   $('res-tiles').innerHTML = `

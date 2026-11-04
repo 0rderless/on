@@ -10,7 +10,7 @@ export const HUD_DEFAULTS = {
   ads:      { x: 0.765, y: 0.66, s: 1, o: 0.9 },
   jump:     { x: 0.945, y: 0.36, s: 1, o: 0.9 },
   crouch:   { x: 0.945, y: 0.85, s: 1, o: 0.9 },
-  reload:   { x: 0.79,  y: 0.42, s: 0.85, o: 0.9 },
+  reload:   { x: 0.775, y: 0.38, s: 0.85, o: 0.9 },
   interact: { x: 0.62,  y: 0.63, s: 1, o: 1 },
   map:      { x: 0.5,   y: 0.08, s: 1, o: 0.9 },
 };

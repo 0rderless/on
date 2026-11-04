@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { RARITIES, AMMO_TYPES, FLOOR_RARITY, CHEST_RARITY, rollRarity, rollWeapon, makeGun, makeGrenade, WEAPONS } from '../data/items.js';
 import { Audio } from '../core/audio.js';
 
-const SHOW_DIST = 46;
+const SHOW_DIST = 40;
 let NEXT = 1;
 
 export class Loot {
