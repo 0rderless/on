@@ -25,7 +25,7 @@ export const MAX_HEALTH = 100;
 export const MAX_SHIELD = 50;          // Zero Build overshield
 export const SHIELD_REGEN_DELAY = 5;   // seconds without damage
 export const SHIELD_REGEN_RATE = 12;   // per second
-export const SIPHON = 50;              // health/shield restored on elimination
+export const SIPHON = 'full';          // eliminations fully restore health and shield
 
 export const QUALITY = {
   low:    { pixelRatio: 1.0, shadows: false, shadowSize: 0,    drawDist: 95, antialias: false },

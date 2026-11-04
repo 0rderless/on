@@ -57,6 +57,10 @@ export class Hud {
     $('sh-fill').style.width = (f.shield / MAX_SHIELD * 100) + '%';
     $('hp-num').textContent = Math.ceil(f.health);
     $('sh-num').textContent = Math.ceil(f.shield);
+    const jet = $('jet');
+    if (f.jetpack) { jet.classList.add('show'); jet.classList.toggle('low', f.fuel < 25); $('jet-fill').style.width = f.fuel + '%'; } else jet.classList.remove('show');
+    const hasJet = !!(f.jetpack && f === p);
+    if (hasJet !== this._hasJet) { this._hasJet = hasJet; $('b-jump').classList.toggle('has-jet', hasJet); }
     const od = $('od');
     if (f.overdriveT > 0) { od.classList.add('show'); $('od-fill').style.width = (f.overdriveT / GRENADES.overdrive.buffTime * 100) + '%'; } else od.classList.remove('show');
     // slots

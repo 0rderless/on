@@ -75,6 +75,7 @@ export class Match {
     const teamSize = reload ? 4 : 1;
     const used = new Set([P.username.toLowerCase()]);
     this.loot.populate(this.world, reload ? 0.95 : 0.8);
+    this.loot.spawnJetpacks(this.world);
     const pool = this.app.charPool;
     for (let i = 0; i < total; i++) {
       const isPlayer = i === 0;
@@ -88,6 +89,7 @@ export class Match {
       f.char.pickaxeId = pick;
       f.char.setHeld(null);
       f.char.setGlider(false);
+      f.char.setJetpack(false);
       f.char.root.visible = false;
       f.char.root.position.set(0, -50, 0);
       this.scene.add(f.char.root);
@@ -258,6 +260,7 @@ export class Match {
     }, 1700);
     // drop everything
     const drops = target.slots.filter(Boolean);
+    if (target.jetpack) { drops.push({ kind: 'jetpack', id: 'jetpack' }); target.jetpack = false; target.thrusting = false; }
     for (const k in target.ammo) if (target.ammo[k] > 0) drops.push({ kind: 'ammo', id: k, count: Math.min(target.ammo[k], AMMO_TYPES[k].pickup * 2) });
     this.loot.drop(drops, dropPos, 1.2);
     target.slots = [null, null, null, null, null]; target.selected = 0;
@@ -439,6 +442,14 @@ export class Match {
         }
       }
       if (f.overdriveT > 0 && Math.random() < 0.6) this.effects.overdriveAura(f.pos);
+      // jetpack exhaust + sound
+      if (f.thrusting) {
+        const bx = f.pos.x - Math.sin(f.yaw) * 0.3, bz = f.pos.z - Math.cos(f.yaw) * 0.3;
+        this.effects.emit(bx, f.pos.y + 0.75, bz, (Math.random() - 0.5) * 0.6, -6 - Math.random() * 3, (Math.random() - 0.5) * 0.6, 0xff9a3c, 0.22, 0.25, 0, 1.5);
+        if (Math.random() < 0.5) this.effects.emit(bx, f.pos.y + 0.6, bz, (Math.random() - 0.5), -2, (Math.random() - 0.5), 0x9a92b8, 0.4, 0.8, -0.5, 2, 0.3);
+        if (!f.isPlayer) { f.jetSndT = (f.jetSndT || 0) - dt; if (f.jetSndT <= 0) { f.jetSndT = 0.3; Audio.play('jet', { pos: f.pos, vol: 0.5, range: 70, rate: 1.1 }); } }
+      }
+      if (f.isPlayer) { if (f.thrusting) { Audio.loop('jet', 0.5); } else Audio.stopLoop('jet'); }
       if (f.justHealed) {
         f.justHealed = false;
         this.effects.burst(f.pos.x, f.pos.y + 1, f.pos.z, 24, 0x5ff4c8, 3, 0.14, 0.8, -2, 0.6);
@@ -473,9 +484,10 @@ export class Match {
         else ch.setHeld('grenade', it.id);
       } else ch.setHeld(null);
       if (!ch.root.visible) continue;
+      ch.setJetpack(f.jetpack);
       ch.update(dt, {
         vx: f.vel.x, vz: f.vel.z, yaw: f.yaw, pitch: f.pitch, grounded: f.phys.grounded, crouch: f.crouch,
-        sprint: f.sprint, mode: f.mode, reloadFrac: f.reloadT > 0 ? 1 - f.reloadT / f.reloadDur : -1, camDist: d,
+        sprint: f.sprint, mode: f.mode, reloadFrac: f.reloadT > 0 ? 1 - f.reloadT / f.reloadDur : -1, camDist: d, thrusting: f.thrusting,
       });
     }
     this.effects.update(dt);

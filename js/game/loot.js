@@ -73,6 +73,22 @@ export class Loot {
     }
   }
 
+  /** A couple of jetpacks at every named location, plus a few out in the open. */
+  spawnJetpacks(world, rng = Math.random) {
+    const free = s => world.col.isFree(s.x, s.y + 0.05, s.z, 0.45, 1.2);
+    for (const poi of world.pois) {
+      const spots = world.lootSpots.filter(s => Math.hypot(s.x - poi.x, s.z - poi.z) < poi.r && free(s));
+      for (let i = 0; i < 2 && spots.length; i++) {
+        const s = spots.splice(Math.floor(rng() * spots.length), 1)[0];
+        this.spawn({ kind: 'jetpack', id: 'jetpack' }, { x: s.x + 0.6, y: s.y, z: s.z - 0.6 }, false);
+      }
+    }
+    for (let i = 0; i < 6; i++) {
+      const s = world.lootSpots[Math.floor(rng() * world.lootSpots.length)];
+      if (s && free(s)) this.spawn({ kind: 'jetpack', id: 'jetpack' }, { x: s.x - 0.6, y: s.y, z: s.z + 0.6 }, false);
+    }
+  }
+
   ammoFor(gunId) { const t = WEAPONS[gunId].ammo; return { kind: 'ammo', id: t, count: AMMO_TYPES[t].pickup }; }
   randomAmmo(rng = Math.random) { const ks = Object.keys(AMMO_TYPES); const t = ks[Math.floor(rng() * ks.length)]; return { kind: 'ammo', id: t, count: AMMO_TYPES[t].pickup }; }
 
@@ -82,13 +98,14 @@ export class Loot {
     if (item.kind === 'gun') { model = this.g.factory.gunModel(item.id, item.rarity); model.rotation.y = Math.PI / 2; model.position.y = 0.42; }
     else if (item.kind === 'grenade') { model = this.g.factory.grenadeModel(item.id); model.scale.setScalar(1.8); model.position.y = 0.35; }
     else if (item.kind === 'heal') { model = this.g.factory.medkitModel(); model.scale.setScalar(1.5); model.position.y = 0.3; }
+    else if (item.kind === 'jetpack') { model = this.g.factory.jetpackModel(); model.scale.setScalar(1.6); model.position.y = 0.55; }
     else { model = new THREE.Mesh(this.ammoGeo, this.ammoMats[item.id]); model.position.y = 0.2; }
     g.add(model);
     g.userData.model = model;
-    const rar = item.kind === 'gun' ? item.rarity : item.kind === 'grenade' || item.kind === 'heal' ? 2 : 1;
+    const rar = item.kind === 'gun' ? item.rarity : item.kind === 'jetpack' ? 4 : item.kind === 'grenade' || item.kind === 'heal' ? 2 : 1;
     const ring = new THREE.Mesh(this.ringGeo, this.ringMats[rar]); ring.position.y = 0.03; ring.renderOrder = 4;
     g.add(ring);
-    if (item.kind === 'gun' && item.rarity >= 2) { const b = new THREE.Mesh(this.beamGeo, this.beamMats[item.rarity]); b.renderOrder = 5; g.add(b); }
+    if ((item.kind === 'gun' && item.rarity >= 2) || item.kind === 'jetpack') { const b = new THREE.Mesh(this.beamGeo, this.beamMats[item.kind === 'jetpack' ? 4 : item.rarity]); b.renderOrder = 5; g.add(b); }
     return g;
   }
 
@@ -150,7 +167,7 @@ export class Loot {
     Audio.play('chest', { pos: c.pos, vol: 0.9, range: 50 });
     const id = rollWeapon();
     const r = Math.random();
-    const extra = r < 0.4 ? makeGrenade(Math.random() < 0.4 ? 'shockwave' : 'overdrive', 1 + Math.floor(Math.random() * 2)) : r < 0.7 ? makeHeal('medkit', 1) : this.randomAmmo();
+    const extra = r < 0.15 ? { kind: 'jetpack', id: 'jetpack' } : r < 0.45 ? makeGrenade(Math.random() < 0.4 ? 'shockwave' : 'overdrive', 1 + Math.floor(Math.random() * 2)) : r < 0.7 ? makeHeal('medkit', 1) : this.randomAmmo();
     const items = [makeGun(id, rollRarity(CHEST_RARITY)), this.ammoFor(id), extra];
     this.drop(items, c.pos, 0.9);
     this.g.noise(f, c.pos, 25);
@@ -220,7 +237,7 @@ export class Loot {
       if (vis) {
         const m = it.mesh.userData.model;
         m.rotation.y = (it.item.kind === 'gun' ? Math.PI / 2 : 0) + Math.sin(t * 0.8 + it.id) * 0.35;
-        m.position.y = (it.item.kind === 'ammo' ? 0.2 : 0.4) + Math.sin(t * 2 + it.id) * 0.05;
+        m.position.y = (it.item.kind === 'ammo' ? 0.2 : it.item.kind === 'jetpack' ? 0.55 : 0.4) + Math.sin(t * 2 + it.id) * 0.05;
       }
     }
     for (const c of this.chests) {

@@ -265,6 +265,14 @@ class AudioEngine {
       for (let i = 0; i < n; i++) { const t = i / sr; lp += (rnd() - lp) * (0.05 + 0.03 * Math.sin(2 * Math.PI * t / 3)); d[i] = lp * 1.6; }
       fadeLoop(d, sr);
     });
+    this.buffers.jet = mk(1.5, (d, sr, n) => {
+      let lp = 0, lp2 = 0;
+      for (let i = 0; i < n; i++) {
+        const t = i / sr; lp += (rnd() - lp) * 0.22; lp2 += (rnd() - lp2) * 0.03;
+        d[i] = (lp * 0.55 + lp2 * 1.6) * (0.85 + 0.15 * Math.sin(2 * Math.PI * 9 * t)) + Math.sin(2 * Math.PI * 70 * t) * 0.08;
+      }
+      fadeLoop(d, sr);
+    });
     this.buffers.engine = mk(2.0, (d, sr, n) => {
       let lp = 0;
       for (let i = 0; i < n; i++) {
@@ -317,7 +325,7 @@ class AudioEngine {
 }
 
 // Loops crossfade their head into their tail, so they must loop back to `sec`, not 0.
-const LOOP_STARTS = { storm: 0.05, wind: 0.05, engine: 0.05, music: 0.02, chesthum: 0 };
+const LOOP_STARTS = { storm: 0.05, wind: 0.05, engine: 0.05, music: 0.02, chesthum: 0, jet: 0.05 };
 function fadeLoop(d, sr, sec = 0.05) {
   const n = Math.floor(sr * sec);
   for (let i = 0; i < n; i++) {
