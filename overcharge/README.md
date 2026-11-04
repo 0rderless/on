@@ -23,7 +23,7 @@ For local testing: `python3 -m http.server` in the repository root, then open `h
 - **Overdrive Grenade:** an electric blast that damages enemies and supercharges you and allies (+25% speed, +30% fire rate, faster reloads, faster shield regen).
 - **Mobile controls:** joystick; two fire buttons that also steer the camera while held; swipe to look; **Auto Fire**; aim assist; auto-sprint; auto pick-up.
 - **Field of View:** defaults to Fortnite mobile's 80° and is adjustable from 60° to 120° in Settings, with a live preview of the game view.
-- **Auto Shoot:** fires for you whenever your crosshair is on an enemy. It's separate from Aim Assist and can be toggled with the AUTO button in a match.
+- **Auto Shoot:** locks onto enemies near your crosshair (the closer they are, the wider it grabs), tracks them as they move and fires accurately for you. Swipe hard to break the lock. It's separate from Aim Assist and can be toggled with the AUTO button in a match.
 - **HUD editor** (Settings → Edit HUD): drag any control, inventory or panel, and set its size and opacity per element.
 - **Locker:** outfits *Default*, *Shock Trooper* and *Platinum Boy*, and pickaxes *Standard Issue*, *Volt Splitter*, *Platinum Pick* and *Neon Reaper*. All are free while the game is in testing.
 - **Bots** have imperfect, reaction-limited aim, choose weapons by range, strafe and jump, loot chests, rotate with the storm, retreat to cover to recharge shields, use grenades, investigate gunfire, and have player-style names.

@@ -24,7 +24,7 @@ export const WEAPONS = {
     hip: 0.024, ads: 0.006, moveSpread: 0.014, bloom: 0.005, bloomMax: 0.045,
     range: 220, falloffStart: 50, falloffMin: 0.7, reload: [2.5, 2.4, 2.3, 2.2, 2.1],
     zoom: 1.35, recoil: 0.012, sound: 'ar', tracer: 0xfff2b0, crosshair: 'cross',
-    autoRange: 140, botRange: [12, 75],
+    autoRange: 140, lockRange: 65, botRange: [12, 75],
   },
   shotgun: {
     id: 'shotgun', name: 'Pump Shotgun', short: 'PUMP', model: 'shotgun', ammo: 'shells',
@@ -33,7 +33,7 @@ export const WEAPONS = {
     hip: 0.085, ads: 0.06, moveSpread: 0.01, bloom: 0, bloomMax: 0,
     range: 45, falloffStart: 7, falloffMin: 0.25, reload: [5.0, 4.7, 4.4, 4.1, 3.8],
     zoom: 1.15, recoil: 0.05, sound: 'shotgun', tracer: 0xffd0a0, crosshair: 'circle',
-    autoRange: 24, botRange: [2, 12],
+    autoRange: 24, lockRange: 22, botRange: [2, 12],
   },
   smg: {
     id: 'smg', name: 'Volt SMG', short: 'SMG', model: 'blaster', ammo: 'light',
@@ -42,7 +42,7 @@ export const WEAPONS = {
     hip: 0.045, ads: 0.022, moveSpread: 0.012, bloom: 0.004, bloomMax: 0.06,
     range: 120, falloffStart: 22, falloffMin: 0.55, reload: [2.2, 2.1, 2.0, 1.9, 1.8],
     zoom: 1.2, recoil: 0.007, sound: 'smg', tracer: 0x9ff0ff, crosshair: 'cross',
-    autoRange: 70, botRange: [5, 28],
+    autoRange: 70, lockRange: 45, botRange: [5, 28],
   },
   sniper: {
     id: 'sniper', name: 'Arc Sniper', short: 'SNIPER', model: 'rifle', ammo: 'heavy',
@@ -51,7 +51,7 @@ export const WEAPONS = {
     hip: 0.09, ads: 0.0, moveSpread: 0.03, bloom: 0, bloomMax: 0,
     range: 400, falloffStart: 400, falloffMin: 1, reload: [3.0, 2.85, 2.7, 2.55, 2.4],
     zoom: 4.0, scope: true, recoil: 0.06, sound: 'sniper', tracer: 0xff6bff, crosshair: 'dot',
-    autoRange: 240, botRange: [40, 160],
+    autoRange: 240, lockRange: 140, botRange: [40, 160],
   },
 };
 

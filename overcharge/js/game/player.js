@@ -34,6 +34,7 @@ export class PlayerController {
     this.zoom = 1;
     this.interactTarget = null;
     this.autoScanT = 0; this.autoTarget = null; this.autoUntil = 0; this.autoStart = 0; this.autoFiring = false;
+    this.lock = null; this.lockF = null; this.lockTarget = null; this.lockAge = 0; this.lockCd = 0; this.brokeFrom = null;
     this.assistTarget = null;
     this.spectating = null;
     this.busOrbit = 0;
@@ -60,12 +61,17 @@ export class PlayerController {
     // aim assist slowdown
     const assist = S.aimAssist && f.alive && f.mode === 'ground' && f.weapon ? this.findAssist(f) : null;
     if (assist && assist.ang < 0.07) sens *= 0.62;
+    if (this.lock) sens *= 0.75; // slightly steadier while locked on
     this.yaw -= input.look.dx * sens;
     this.pitch -= input.look.dy * sens * (S.invertY ? -1 : 1);
     input.look.dx = 0; input.look.dy = 0;
     this.pitch = Math.max(-1.35, Math.min(1.2, this.pitch));
+    // AUTO SHOOT lock-on: snaps onto nearby enemies and tracks them (Fortnite-mobile style)
+    const lockable = S.autoFire && f.alive && f.mode === 'ground' && f.weapon;
+    if (lockable) this.updateLock(dt, f, f.weapon); else { this.lock = null; this.lockF = null; }
+    this.lockTarget = this.lock ? this.lock.f : null;
     // aim assist pull (only while moving or shooting, like console/mobile assist)
-    if (assist && (Math.hypot(input.move.x, input.move.y) > 0.2 || input.fire)) {
+    if (assist && !this.lock && (Math.hypot(input.move.x, input.move.y) > 0.2 || input.fire)) {
       const k = Math.min(1, dt * (assist.ang < 0.03 ? 3.5 : 2));
       this.yaw += angDiff(this.yaw, assist.yaw) * k * 0.55;
       this.pitch += (assist.pitch - this.pitch) * k * 0.35;
@@ -142,13 +148,15 @@ export class PlayerController {
         if (!w.auto && input.fire && f.fireCd <= 0 && it.mag > 0 && !f.reloading) wantFire = true; // hold-to-fire for semi autos
         // ---- AUTO SHOOT: fires for you whenever the crosshair is over an enemy (like Fortnite mobile)
         let autoNow = false;
+        const L = this.lock;
+        const onLock = L && L.ang < Math.atan2(0.55, L.dist) + 0.03; // crosshair is on the locked enemy
         if (S.autoFire && !wantFire) {
           this.autoScanT -= dt;
           if (this.autoScanT <= 0) {
             this.autoScanT = 0.04;
-            const t = this.findAutoTarget(f, w);
+            const t = onLock ? L.f : this.findAutoTarget(f, w);
             if (t) {
-              if (t !== this.autoTarget || g.time > this.autoUntil) this.autoStart = g.time + 0.07; // tiny human-like delay
+              if (t !== this.autoTarget || g.time > this.autoUntil) this.autoStart = g.time + 0.06; // tiny human-like delay
               this.autoTarget = t; this.autoUntil = g.time + 0.14;
             }
           }
@@ -158,8 +166,14 @@ export class PlayerController {
         if (autoNow) { f.sprint = false; wantFire = true; }
         if (wantFire && !f.sprint) {
           this.aimRay(_o, _dir);
-          if (g.combat.fireGun(f, _o, _dir)) {
-            const k = w.recoil * (f.ads ? 0.6 : 1);
+          // locked on: shots go to the target's centre mass with tightened spread
+          let spreadMul = 1;
+          if (onLock && S.autoFire) {
+            _dir.copy(L.pt).sub(_o).normalize();
+            spreadMul = w.id === 'shotgun' ? 0.65 : w.id === 'sniper' ? 1 : 0.35;
+          }
+          if (g.combat.fireGun(f, _o, _dir, 0, spreadMul)) {
+            const k = w.recoil * (f.ads ? 0.6 : 1) * (onLock ? 0.3 : 1);
             this.pitch += k * (0.6 + Math.random() * 0.4);
             this.yaw += (Math.random() - 0.5) * k * 0.6;
             this.shake = Math.max(this.shake, w.id === 'shotgun' || w.id === 'sniper' ? 0.5 : 0.12);
@@ -170,6 +184,55 @@ export class PlayerController {
     }
     input.firePressed = false;
     this.updateCamera(dt);
+  }
+
+  /**
+   * Lock-on for Auto Shoot: acquires the best enemy near the crosshair (wider window when close),
+   * then pulls the aim onto their centre mass and keeps tracking. Swiping away breaks the lock.
+   */
+  updateLock(dt, f, w) {
+    const g = this.g;
+    if (w.id === 'sniper' && !this.scoped) { this.lock = null; this.lockF = null; return; }
+    const range = w.lockRange || 40;
+    const cp = this.cam.position, fwd = this.cam.getWorldDirection(new THREE.Vector3());
+    const evalT = o => {
+      if (!o || !o.alive || o.team === f.team || o.mode === 'bus') return null;
+      const dist = o.pos.distanceTo(f.pos);
+      if (dist > range) return null;
+      if ((o.pos.x - f.pos.x) * fwd.x + (o.pos.z - f.pos.z) * fwd.z < 0.5) return null; // must be in front of you
+      const crouch = o.crouch && o.mode === 'ground';
+      for (const hy of crouch ? [0.85, 1.15] : [1.2, 1.58]) { // centre mass, then head if the body is covered
+        const pt = new THREE.Vector3(o.pos.x, o.pos.y + hy, o.pos.z);
+        if (!g.col.clear(cp.x, cp.y, cp.z, pt.x, pt.y, pt.z)) continue;
+        if (!g.col.clear(f.pos.x, f.eyeY, f.pos.z, pt.x, pt.y, pt.z)) continue;
+        const v = pt.clone().sub(cp); const d = v.length(); v.divideScalar(d);
+        return { f: o, dist, pt, ang: Math.acos(Math.min(1, v.dot(fwd))), yaw: Math.atan2(v.x, v.z), pitch: Math.asin(Math.max(-1, Math.min(1, v.y))) };
+      }
+      return null;
+    };
+    const cone = d => Math.min(0.62, Math.max(0.08, Math.atan2(3.5, d))); // acquisition cone (rad): big up close
+    if (this.lockCd > 0) this.lockCd -= dt;
+    let cur = evalT(this.lockF);
+    if (cur && cur.ang > cone(cur.dist) * 1.9 + 0.06) { this.brokeFrom = cur.f; this.lockCd = 0.6; cur = null; } // you swiped away
+    if (!cur) {
+      let best = null, bestScore = Infinity;
+      for (const o of g.fighters) {
+        if (o === this.brokeFrom && this.lockCd > 0) continue;
+        const t = evalT(o);
+        if (!t || t.ang > cone(t.dist)) continue;
+        const score = t.ang / cone(t.dist) + (t.dist / range) * 0.35;
+        if (score < bestScore) { bestScore = score; best = t; }
+      }
+      if (best) this.lockAge = 0;
+      cur = best;
+    }
+    this.lock = cur; this.lockF = cur ? cur.f : null;
+    if (!cur) return;
+    this.lockAge = (this.lockAge || 0) + dt;
+    // fast snap when first acquired, then tight tracking
+    const k = 1 - Math.exp(-dt * (this.lockAge < 0.25 ? 16 : 11));
+    this.yaw += angDiff(this.yaw, cur.yaw) * k;
+    this.pitch += (cur.pitch - this.pitch) * k;
   }
 
   /** Enemy currently under the crosshair (any part of the body), with line of sight. */
