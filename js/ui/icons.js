@@ -1,6 +1,6 @@
 // Renders inventory icons and locker portraits from the real 3D models.
 import * as THREE from 'three';
-import { SKINS, PICKAXES, RARITY_COLORS } from '../data/cosmetics.js';
+import { SKINS, PICKAXES, GLIDERS, RARITY_COLORS } from '../data/cosmetics.js';
 
 function rtToDataURL(renderer, rt, w, h, bg) {
   const buf = new Uint8Array(w * h * 4);
@@ -52,6 +52,7 @@ export function renderIcons(renderer, factory, envTex) {
   shoot(factory.medkitModel(), 'heal_medkit', { dir: new THREE.Vector3(0.25, 0.35, 1) });
   { const jp = factory.jetpackModel(); for (const fl of jp.userData.flames) jp.remove(fl); shoot(jp, 'jetpack', { dir: new THREE.Vector3(0.7, 0.25, -1) }); }
   for (const p of PICKAXES) { const g = factory.pickaxeModel(p.id); g.rotation.z = -0.7; shoot(g, 'pick_' + p.id, { dir: new THREE.Vector3(0, 0, 1) }); }
+  for (const gl of GLIDERS) { const g = factory.gliderModel(gl.id); if (g.userData.anim) g.userData.anim(0.6, 0); shoot(g, 'glider_' + gl.id, { dir: new THREE.Vector3(0.55, 0.42, 1) }); }
 
   // Skin portraits (locker cards) — taller render target
   const PW = 224, PH = 292;
@@ -78,15 +79,15 @@ export function renderIcons(renderer, factory, envTex) {
     icons['skin_' + s.id] = out.toDataURL('image/png');
     scene.remove(ch.root); ch.dispose();
   }
-  // Pickaxe cards
-  for (const p of PICKAXES) {
+  // Pickaxe + glider cards (rarity backgrounds; the item icon is overlaid in the locker)
+  for (const p of [...PICKAXES.map(x => ({ ...x, key: 'pickcard_' })), ...GLIDERS.map(x => ({ ...x, key: 'glidercard_' }))]) {
     const out = document.createElement('canvas'); out.width = PW; out.height = PH;
     const x = out.getContext('2d');
     const g = x.createRadialGradient(PW / 2, PH * 0.45, 10, PW / 2, PH * 0.45, PH * 0.8);
     g.addColorStop(0, RARITY_COLORS[p.rarity]); g.addColorStop(1, '#120a30');
     x.fillStyle = g; x.fillRect(0, 0, PW, PH);
     const img = new Image(); img.src = icons['pick_' + p.id];
-    icons['pickcard_' + p.id + '_bg'] = out.toDataURL('image/png');
+    icons[p.key + p.id + '_bg'] = out.toDataURL('image/png');
   }
   renderer.setRenderTarget(prevTarget);
   renderer.setClearColor(0x000000, prevClear);

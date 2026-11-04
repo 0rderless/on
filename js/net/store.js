@@ -69,7 +69,7 @@ export function defaultProfile(uid, username) {
     level: 1, xp: 0,
     stats: { matches: 0, wins: 0, kills: 0, deaths: 0, top10: 0, damage: 0 },
     ranked: { br: newRank(), reload: newRank() },
-    locker: { skin: 'default', pickaxe: 'standard' },
+    locker: { skin: 'default', pickaxe: 'standard', glider: 'volt' },
     settings: defaultSettings(),
     hud: {},
     loadout: [...DEFAULT_LOADOUT],

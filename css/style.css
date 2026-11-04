@@ -115,10 +115,11 @@ input { font-family: inherit; }
 .mode-btn small { color: var(--muted); font-size: 13px; }
 .mode-btn.active { background: rgba(138, 92, 255, 0.3); border-color: rgba(185, 140, 255, 0.7); }
 .map-tabs { display: flex; gap: 4px; margin-top: 8px; }
-.m-btn { flex: 1; display: flex; align-items: center; gap: 6px; padding: 5px 7px; border-radius: 9px; font-family: var(--head); font-size: 11.5px; letter-spacing: 0.04em; color: var(--muted); background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); text-align: left; white-space: nowrap; overflow: hidden; }
+.m-btn { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 3px 5px; border-radius: 9px; font-family: var(--head); font-size: 10.5px; letter-spacing: 0.02em; color: var(--muted); background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); white-space: nowrap; overflow: hidden; }
 .m-btn span { overflow: hidden; text-overflow: ellipsis; }
-.m-btn .m-sw { flex: none; width: 18px; height: 18px; border-radius: 5px; border: 1px solid rgba(255, 255, 255, 0.35); }
+.m-btn .m-sw { flex: none; width: 26px; height: 9px; border-radius: 5px; border: 1px solid rgba(255, 255, 255, 0.35); }
 .sw-compound { background: linear-gradient(135deg, #b9a8ff 0 45%, #6a4fd0 45% 70%, #5ff4ff 70%); }
+.sw-vulcan { background: radial-gradient(circle at 50% 60%, #ff8a22 0 22%, transparent 24%), repeating-linear-gradient(0deg, #2c3244 0 2px, #4b546c 2px 4px); }
 .sw-warehouse { background: repeating-linear-gradient(90deg, #cf3329 0 3px, #9aa1b4 3px 7px), #9aa1b4; }
 .m-btn.active { background: rgba(255, 201, 40, 0.14); border-color: rgba(255, 201, 40, 0.8); color: #fff; }
 .team-tabs { display: flex; gap: 4px; margin-top: 8px; }
@@ -455,7 +456,7 @@ input { font-family: inherit; }
   .mode-btn { padding: 7px 9px; }
   .team-tabs { margin-top: 6px; }
   .map-tabs { margin-top: 6px; }
-  .m-btn { padding: 4px 6px; font-size: 10.5px; }
+  .m-btn { padding: 3px 2px 4px; font-size: 10px; }
   .t-btn { padding: 4px 3px 5px; font-size: 12px; }
   .mode-btn b { font-size: 13px; }
   .mode-btn small { font-size: 11px; }

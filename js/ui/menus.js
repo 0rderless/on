@@ -1,6 +1,6 @@
 // Menus: auth, lobby tabs, locker, career, settings, HUD editor, results.
 import { Store, validateUsername } from '../net/store.js';
-import { SKINS, PICKAXES, RARITY_COLORS, RARITY_NAMES } from '../data/cosmetics.js';
+import { SKINS, PICKAXES, GLIDERS, RARITY_COLORS, RARITY_NAMES } from '../data/cosmetics.js';
 import { divInfo, MAX_DIV, TIERS } from '../data/ranks.js';
 import { HUD_DEFAULTS, HUD_NAMES, applyLayout } from './controls.js';
 import { Audio } from '../core/audio.js';
@@ -112,9 +112,11 @@ export function refreshModeCard(app) {
   $('mode-rank').innerHTML = lm.ranked ? rankBlock(p.ranked[lm.mode], lm.mode === 'br' ? 'Battle Royale' : 'Reload')
     : `<div class="rank-sub" style="padding:4px 2px">Casual playlist — practice with chill bots. Your rank isn't affected.</div>`;
   const sk = SKINS.find(s => s.id === p.locker.skin), pk = PICKAXES.find(s => s.id === p.locker.pickaxe);
+  const gl = GLIDERS.find(s => s.id === p.locker.glider) || GLIDERS[0];
   $('lobby-loadout').innerHTML = `
     <div class="lo-row"><span>OUTFIT</span><b style="color:${RARITY_COLORS[sk.rarity]}">${sk.name}</b></div>
     <div class="lo-row"><span>PICKAXE</span><b style="color:${RARITY_COLORS[pk.rarity]}">${pk.name}</b></div>
+    <div class="lo-row"><span>GLIDER</span><b style="color:${RARITY_COLORS[gl.rarity]}">${gl.name}</b></div>
     <div class="lo-row"><span>LOADOUT</span><span class="lo-icons">${normalizeLoadout(p.loadout).map(id => `<img src="${loadoutIcon(app, id)}" alt="">`).join('')}</span></div>
     <div class="lo-row"><span>BACK</span><b style="color:#ff9a3c">${p.jetpackStart !== false ? 'Jetpack' : 'None'}</b></div>
     <div class="lo-row"><span>BR RANK</span><b style="color:${divInfo(p.ranked.br.div).tier.color}">${divInfo(p.ranked.br.div).name}</b></div>
@@ -129,16 +131,25 @@ export function refreshMe(app) {
 }
 
 // ------------------------------------------------------------------ locker
+const LOCKER_CATS = {
+  skins: { list: SKINS, key: 'skin', label: 'OUTFIT' },
+  pickaxes: { list: PICKAXES, key: 'pickaxe', label: 'PICKAXE' },
+  gliders: { list: GLIDERS, key: 'glider', label: 'GLIDER' },
+};
+
 export function renderLocker(app) {
   const p = app.profile;
-  const cat = app.lockerCat || 'skins';
-  const list = cat === 'skins' ? SKINS : PICKAXES;
-  const equipped = cat === 'skins' ? p.locker.skin : p.locker.pickaxe;
+  const cat = LOCKER_CATS[app.lockerCat] ? app.lockerCat : 'skins';
+  const C = LOCKER_CATS[cat], list = C.list;
+  const equipped = p.locker[C.key] || list[0].id;
   if (!app.lockerSel || !list.find(x => x.id === app.lockerSel)) app.lockerSel = equipped;
+  // preview: gliders show you gliding with the selected one
+  if (cat === 'gliders') app.lobbyScene.showGlider(app.lockerSel); else app.lobbyScene.showGlider(null);
   const grid = $('locker-grid');
   grid.innerHTML = list.map(it => {
-    const img = cat === 'skins' ? app.icons['skin_' + it.id] : app.icons['pickcard_' + it.id + '_bg'];
-    const overlay = cat === 'pickaxes' ? `<img src="${app.icons['pick_' + it.id]}" style="object-fit:contain;padding:16px">` : '';
+    const img = cat === 'skins' ? app.icons['skin_' + it.id] : cat === 'pickaxes' ? app.icons['pickcard_' + it.id + '_bg'] : app.icons['glidercard_' + it.id + '_bg'];
+    const ov = cat === 'pickaxes' ? app.icons['pick_' + it.id] : cat === 'gliders' ? app.icons['glider_' + it.id] : null;
+    const overlay = ov ? `<img src="${ov}" style="object-fit:contain;padding:${cat === 'gliders' ? 10 : 16}px">` : '';
     return `<button class="card ${app.lockerSel === it.id ? 'sel' : ''}" data-id="${it.id}" style="border-color:${RARITY_COLORS[it.rarity]}">
       <img src="${img}">${overlay}<span class="c-tag" style="color:${RARITY_COLORS[it.rarity]}">${RARITY_NAMES[it.rarity].toUpperCase()}</span>
       ${equipped === it.id ? '<span class="c-eq" title="Equipped">✓</span>' : ''}<span class="c-name">${it.name}</span></button>`;
@@ -146,12 +157,12 @@ export function renderLocker(app) {
   grid.querySelectorAll('.card').forEach(c => c.addEventListener('click', () => {
     click(); app.lockerSel = c.dataset.id; renderLocker(app);
     if (cat === 'skins') { app.lobbyScene.setSkin(c.dataset.id); app.lobbyScene.showGun(); }
-    else app.lobbyScene.showPickaxe(c.dataset.id);
+    else if (cat === 'pickaxes') app.lobbyScene.showPickaxe(c.dataset.id);
   }));
   const it = list.find(x => x.id === app.lockerSel);
   const isEq = equipped === it.id;
   $('locker-info').innerHTML = `
-    <div class="li-rar" style="color:${RARITY_COLORS[it.rarity]}">${RARITY_NAMES[it.rarity].toUpperCase()} ${cat === 'skins' ? 'OUTFIT' : 'PICKAXE'}</div>
+    <div class="li-rar" style="color:${RARITY_COLORS[it.rarity]}">${RARITY_NAMES[it.rarity].toUpperCase()} ${C.label}</div>
     <div class="li-name">${it.name}</div>
     ${it.series ? `<div class="li-series">${it.series}</div>` : ''}
     <div class="li-desc">${it.desc}</div>
@@ -160,7 +171,7 @@ export function renderLocker(app) {
   $('equip-btn').addEventListener('click', () => {
     if (isEq) return;
     Audio.play('equip', { vol: 0.8 });
-    if (cat === 'skins') p.locker.skin = it.id; else p.locker.pickaxe = it.id;
+    p.locker[C.key] = it.id;
     Store.save(); renderLocker(app); refreshModeCard(app);
   });
 }

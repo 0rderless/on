@@ -1,6 +1,6 @@
 # OVERCHARGE
 
-A mobile **zero-build battle royale** built for phones in landscape. Guns, **Shockwave** and **Overdrive** grenades, realistic bots, ranked play and a fully customizable HUD. Drop into **Reversal Compound** or the **Warehouse**.
+A mobile **zero-build battle royale** built for phones in landscape. Guns, **Shockwave** and **Overdrive** grenades, realistic bots, ranked play and a fully customizable HUD. Drop into **Reversal Compound**, the **Warehouse** or **Vulcan Garrison**.
 
 ## Play
 
@@ -19,6 +19,15 @@ For local testing: `python3 -m http.server` in the repository root, then open `h
 - **Maps** (pick one in the lobby):
   - **Reversal Compound:** an open industrial compound around a reactor core.
   - **Warehouse:** a giant distribution centre under an open steel-truss roof. Nine zones are joined by wide doorways: Dispatch, High Racks, Offices, Loading Docks, Cold Storage, Container Stacks, The Red Room, Conveyor Line and Forklift Bay.
+  - **Vulcan Garrison:** a sci-fi fortress deck floating over a pale plain at night, built around a molten forge under a blue-lit spire. Its zones are Vulcan Core, Hangar Bay, Command Spire, Fuel Depot, Armory, Landing Pads, Shield Generators, Rampart and Barracks.
+- **Gliders** (Locker → GLIDERS), each with its own riding pose and animation:
+  - Volt Wing
+  - Airborne Canopy, a military round parachute
+  - Sky Surfer, where you stand on a surfboard
+  - Sky Serpent, a slithering snake
+  - Red Dragon, with flapping wings and claws that hold you
+  - Close Encounter, a flying saucer with a tractor beam
+- **Camera:** matched to Fortnite Mobile's third-person framing. See `docs/fortnite-mobile-camera-notes.md`.
 - **Queues:** Unranked for casual play with easier bots; Ranked with **Bronze I → Gold III**. Everyone starts at Bronze I and climbs with placement and eliminations. Bronze never loses progress, and you can't be demoted out of a division you've earned. Bots get tougher as you rank up.
 - **Zero Build:** 100 health and a 50 overshield that regenerates after 5 s out of combat. Every elimination fully restores your health and shield.
 - **Jetpacks:** everyone drops in wearing one by default. If you switch that off in the LOADOUT tab, jetpacks spawn around the map and in chests instead. A jetpack sits on your back without using a slot. Hold JUMP in the air to fly, up to about 24 m. Fuel refills on the ground, and you take no fall damage while wearing one. Bots use them too.

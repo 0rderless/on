@@ -40,3 +40,12 @@ export const PICKAXES = [
 
 export const RARITY_COLORS = ['#8a93a3', '#3fbf5c', '#2f8cff', '#a64dff', '#ff9d1c'];
 export const RARITY_NAMES = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'];
+
+export const GLIDERS = [
+  { id: 'volt',     name: 'Volt Wing',        rarity: 2, desc: 'The standard-issue OVERCHARGE glider. Purple, fast, reliable.' },
+  { id: 'military', name: 'Airborne Canopy',  rarity: 1, desc: 'A classic round military parachute. Lines, risers and an olive-drab canopy.' },
+  { id: 'surf',     name: 'Sky Surfer',       rarity: 3, desc: 'Stand up and ride the wind down on a surfboard.' },
+  { id: 'snake',    name: 'Sky Serpent',      rarity: 3, desc: 'A giant serpent slithers through the sky with you hanging from its reins.' },
+  { id: 'dragon',   name: 'Red Dragon',       rarity: 4, desc: 'A crimson dragon grabs you in its claws and flaps you down to the fight.' },
+  { id: 'saucer',   name: 'Close Encounter',  rarity: 4, desc: 'Beamed down from a flying saucer. They come in peace. Probably.' },
+];
