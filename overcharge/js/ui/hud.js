@@ -1,7 +1,9 @@
 // In-game HUD: all DOM overlays driven by the match.
 import * as THREE from 'three';
 import { WEAPONS, GRENADES, HEALS, RARITIES, itemName, itemColor } from '../data/items.js';
-import { MAP_HALF, MAX_HEALTH, MAX_SHIELD } from '../config.js';
+import { MAP_HALF, MAX_HEALTH, MAX_SHIELD, SOLO_RESPAWNS, KILLS_PER_RESPAWN } from '../config.js';
+
+const RESPAWN_SVG = '<svg viewBox="0 0 24 24"><path d="M12 4a8 8 0 1 0 7.75 10h-2.1A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35A7.96 7.96 0 0 0 12 4z"/></svg>';
 
 const $ = id => document.getElementById(id);
 const _p = new THREE.Vector3();
@@ -42,6 +44,7 @@ export class Hud {
     const rt = $('reload-tag');
     rt.textContent = m.mode === 'reload' ? 'RELOAD ACTIVE' : ''; rt.className = 'reload-tag' + (m.mode === 'reload' ? ' open' : '');
     this.squadUpdate(m);
+    this.respawnUpdate(m);
     $('fps').style.display = this.app.settings().showFps ? 'block' : 'none';
   }
 
@@ -252,15 +255,18 @@ export class Hud {
 
   respawning(sec) {
     const r = $('respawn');
-    if (sec > 0 && this.m && !this.m.player.alive) { r.classList.add('show'); r.innerHTML = `REDEPLOYING IN ${sec}<small>Your squad is still in the fight</small>`; }
+    if (sec > 0 && this.m && !this.m.player.alive) {
+      const n = this.m.player.respawns;
+      const sub = this.m.respawnTokens ? (n > 0 ? `${n} respawn${n === 1 ? '' : 's'} left after this one` : 'Last respawn — earn more with eliminations') : 'Your squad is still in the fight';
+      r.classList.add('show'); r.innerHTML = `REDEPLOYING IN ${sec}<small>${sub}</small>`;
+    }
     else r.classList.remove('show');
     if (sec <= 0) r.classList.remove('show');
   }
 
   squadUpdate(m) {
     const sq = $('squad');
-    if (m.teamSize <= 1) { sq.innerHTML = ''; return; }
-    sq.innerHTML = m.fighters.filter(f => f.team === m.player.team).map(f =>
+    sq.innerHTML = m.teamSize <= 1 ? '' : m.fighters.filter(f => f.team === m.player.team).map(f =>
       `<div class="sq ${f.alive ? '' : 'dead'}" data-id="${f.id}"><span class="sq-n" style="color:${f.isPlayer ? 'var(--y)' : 'var(--c)'}">${esc(f.name)}</span><div class="sq-b"><i style="width:${f.alive ? f.health : 0}%"></i></div></div>`).join('');
     clearTimeout(this._sqT);
     this._sqT = setTimeout(() => { if (this.m === m && !m.ended) this.squadUpdate(m); }, 1000);
@@ -271,6 +277,22 @@ export class Hud {
     }
   }
 
+  /** Reload Solo respawn counter beside the minimap. */
+  respawnUpdate(m) {
+    const box = $('resp-box');
+    if (!m.respawnTokens) { box.className = 'resp-box'; box.innerHTML = ''; return; }
+    const p = m.player, n = p.respawns;
+    let icons = '';
+    for (let i = 0; i < SOLO_RESPAWNS; i++) icons += `<i class="${i < n ? 'on' : ''}">${RESPAWN_SVG}</i>`;
+    let pips = '';
+    for (let i = 0; i < KILLS_PER_RESPAWN; i++) pips += `<b class="${i < p.respawnKills ? 'on' : ''}"></b>`;
+    const prog = !m.storm.reloadOpen ? '<div class="rb-k">NO RESPAWNS</div>'
+      : n >= SOLO_RESPAWNS ? '<div class="rb-k">MAXED</div>'
+      : `<div class="rb-k">${pips}<span>${p.respawnKills}/${KILLS_PER_RESPAWN} ELIMS</span></div>`;
+    box.className = 'resp-box show' + (m.storm.reloadOpen ? '' : ' closed') + (n === 0 ? ' empty' : '');
+    box.innerHTML = `<div class="rb-t">RESPAWNS <em>${n}</em></div><div class="rb-i">${icons}</div>${prog}`;
+  }
+
   playerEliminated(killer, placement, result) {
     const d = $('death');
     $('respawn').classList.remove('show');
@@ -278,7 +300,7 @@ export class Hud {
     const teamUp = placement === null;
     $('death-place').textContent = teamUp ? `${result.team === 'duo' ? 'DUO' : 'SQUAD'} STILL IN` : '#' + placement;
     $('death-place').classList.toggle('team-up', teamUp);
-    $('death-stats').textContent = `${result.kills} eliminations · ${result.damage} damage`;
+    $('death-stats').textContent = `${result.kills} eliminations · ${result.damage} damage` + (this.m.respawnTokens && this.m.storm.reloadOpen ? ' · out of respawns' : '');
     d.classList.remove('spectating');
     d.classList.add('show');
     $('death-spec').style.display = this.m.ctrl.spectating ? '' : 'none';

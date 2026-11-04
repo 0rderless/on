@@ -9,7 +9,7 @@ import { PlayerController } from './player.js';
 import { makeGun, makeGrenade, WEAPONS, AMMO_TYPES, DEFAULT_LOADOUT } from '../data/items.js';
 import { SKINS, PICKAXES } from '../data/cosmetics.js';
 import { Audio } from '../core/audio.js';
-import { MAP_HALF, MAX_SHIELD, TEAM_SIZES, PLAYER_COUNTS } from '../config.js';
+import { MAP_HALF, MAX_SHIELD, TEAM_SIZES, PLAYER_COUNTS, SOLO_RESPAWNS, KILLS_PER_RESPAWN } from '../config.js';
 
 const BR_PHASES = [
   { wait: 70, shrink: 50, r: 118, dps: 1 },
@@ -43,6 +43,7 @@ export class Match {
     this.team = TEAM_SIZES[opts.team] ? opts.team : 'solo';
     this.teamSize = TEAM_SIZES[this.team];
     this.teamMode = this.teamSize > 1 || this.mode === 'reload'; // placement counts teams (or respawning players)
+    this.respawnTokens = this.mode === 'reload' && this.teamSize === 1; // Reload Solo: limited respawns, earned back with elims
     this.ranked = opts.ranked;
     this.scene = app.gameScene;
     this.world = app.world; this.col = app.world.col; this.nav = app.nav;
@@ -99,6 +100,7 @@ export class Match {
       f.char.root.position.set(0, -50, 0);
       this.scene.add(f.char.root);
       if (!isPlayer) f.bot = new BotBrain(f, this, this.opts.skill);
+      f.respawns = SOLO_RESPAWNS; f.respawnKills = 0;
       f.loadoutOrder = isPlayer ? P.loadout : DEFAULT_LOADOUT;
       f.giveLoadout(f.loadoutOrder);
       if (P.jetpackStart !== false) { f.jetpack = true; f.fuel = 100; }
@@ -310,23 +312,36 @@ export class Match {
       attacker.kills++;
       this.combat.siphon(attacker);
       if (attacker.bot) attacker.bot.onKill(target);
+      if (this.respawnTokens) this.creditRespawnKill(attacker);
       msg = { a: attacker.name, b: target.name, how: WEAPON_NAMES[how] || 'Eliminated', aTeam: attacker.team, bTeam: target.team, head: !!info.head };
       if (attacker.isPlayer) { this.hud.elimPopup(target.name); Audio.play('elim', { vol: 0.8 }); }
     } else {
       msg = { a: null, b: target.name, how: how === 'storm' ? 'was lost in the storm' : how === 'fall' ? 'fell to their death' : 'was eliminated', bTeam: target.team };
     }
     this.hud.killfeed(msg, this.player.team);
-    // Reload: respawn while Reload is open (in duos/squads, only while a teammate is still standing)
+    // Reload: respawn while Reload is open. Solo spends a respawn; duos/squads need a teammate still standing
     const reload = this.mode === 'reload';
-    if (reload && this.storm.reloadOpen && (this.teamSize === 1 || this.teamAlive(target.team))) {
+    if (reload && this.storm.reloadOpen && (this.respawnTokens ? target.respawns > 0 : this.teamAlive(target.team))) {
+      if (this.respawnTokens) target.respawns--;
       target.respawnT = 7;
-      if (target.isPlayer) this.hud.respawning(7);
+      if (target.isPlayer) { this.hud.respawning(7); this.hud.respawnUpdate(this); }
     } else {
       if (this.teamMode) this.wipeCheck(target.team);
       else { target.placement = this.aliveCount() + 1; }
     }
     if (target.isPlayer && !(reload && target.respawnT > 0)) this.playerOut(attacker);
     this.checkEnd();
+  }
+
+  /** Reload Solo: every KILLS_PER_RESPAWN eliminations earns a respawn back, never above SOLO_RESPAWNS. */
+  creditRespawnKill(f) {
+    if (!this.storm.reloadOpen) return;
+    if (f.respawns >= SOLO_RESPAWNS) f.respawnKills = 0; // at the cap: kills don't bank
+    else if (++f.respawnKills >= KILLS_PER_RESPAWN) {
+      f.respawnKills = 0; f.respawns++;
+      if (f.isPlayer) { setTimeout(() => this.hud.toast('+1 RESPAWN EARNED', 'cyan'), 1300); Audio.play('chest', { vol: 0.6 }); }
+    }
+    if (f.isPlayer) this.hud.respawnUpdate(this);
   }
 
   teamAlive(team) { return this.fighters.some(f => f.team === team && f.alive); }
@@ -560,6 +575,7 @@ export class Match {
         if (this.mode === 'reload' && S.phase >= RELOAD_CLOSE_PHASE && S.reloadOpen) {
           S.reloadOpen = false;
           this.hud.banner('RELOAD CLOSED', 'No more respawns — survive!');
+          this.hud.respawnUpdate(this);
         }
       } else if (S.shrinking) {
         const k = 1 - Math.max(0, S.timeLeft) / ph.shrink;
