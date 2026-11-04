@@ -1,0 +1,11 @@
+{
+  "name": "OVERCHARGE",
+  "short_name": "OVERCHARGE",
+  "description": "Mobile zero-build battle royale",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0b0820",
+  "theme_color": "#0b0820",
+  "icons": [{ "src": "assets/icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }]
+}

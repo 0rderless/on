@@ -1,0 +1,354 @@
+// Menus: auth, lobby tabs, locker, career, settings, HUD editor, results.
+import { Store, validateUsername } from '../net/store.js';
+import { SKINS, PICKAXES, RARITY_COLORS, RARITY_NAMES } from '../data/cosmetics.js';
+import { divInfo, MAX_DIV, TIERS } from '../data/ranks.js';
+import { HUD_DEFAULTS, HUD_NAMES, applyLayout } from './controls.js';
+import { Audio } from '../core/audio.js';
+import { esc } from './hud.js';
+import { xpForLevel } from '../data/ranks.js';
+
+const $ = id => document.getElementById(id);
+const click = () => Audio.play('click', { vol: 0.5 });
+
+// ------------------------------------------------------------------ rank badge
+export function rankBadge(div, size = 54) {
+  const d = divInfo(div);
+  const t = d.tier;
+  const gid = 'g' + Math.random().toString(36).slice(2, 8);
+  return `<div class="rank-badge" style="width:${size}px;height:${size}px"><svg viewBox="0 0 100 100">
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t.light}"/><stop offset="0.55" stop-color="${t.color}"/><stop offset="1" stop-color="${t.dark}"/></linearGradient></defs>
+    <path d="M50 3 L92 22 L92 62 Q92 84 50 97 Q8 84 8 62 L8 22 Z" fill="url(#${gid})" stroke="rgba(255,255,255,0.75)" stroke-width="3"/>
+    <path d="M50 14 L82 28 L82 60 Q82 77 50 87 Q18 77 18 60 L18 28 Z" fill="none" stroke="rgba(0,0,0,0.25)" stroke-width="3"/>
+    ${d.tierIndex === 2 ? '<path d="M30 20 L40 30 L50 14 L60 30 L70 20 L68 36 L32 36 Z" fill="#fff6c0" stroke="#8a5a00" stroke-width="2"/>' : ''}
+  </svg><b>${['I', 'II', 'III'][d.div % 3]}</b></div>`;
+}
+
+export function rankBlock(rank, label) {
+  const d = divInfo(rank.div);
+  const max = rank.div >= MAX_DIV;
+  return `<div class="rank">${rankBadge(rank.div)}<div class="rank-txt">
+    <div class="rank-name" style="color:${d.tier.color}">${d.name.toUpperCase()}</div>
+    <div class="rank-sub">${label ? label + ' · ' : ''}${max ? 'Highest rank reached' : Math.floor(rank.rp) + '% to next rank'}</div>
+    <div class="rank-bar"><div style="width:${Math.min(100, rank.rp)}%;background:linear-gradient(90deg, ${d.tier.dark}, ${d.tier.color})"></div></div>
+  </div></div>`;
+}
+
+// ------------------------------------------------------------------ auth
+export function initAuth(app) {
+  let mode = 'create';
+  document.querySelectorAll('[data-auth]').forEach(b => b.addEventListener('click', () => {
+    mode = b.dataset.auth; click();
+    document.querySelectorAll('[data-auth]').forEach(x => x.classList.toggle('active', x === b));
+    $('auth-go').querySelector('span').textContent = mode === 'create' ? 'CREATE PLAYER' : 'SIGN IN';
+    $('auth-note').textContent = mode === 'create' ? 'Your progress, ranks, locker and HUD layout are saved to the cloud.' : 'Sign in with the username and PIN you created.';
+    $('auth-err').textContent = '';
+  }));
+  $('auth-name').addEventListener('input', () => {
+    const v = $('auth-name').value;
+    $('auth-err').textContent = v.length >= 3 && mode === 'create' ? (validateUsername(v) || '') : '';
+  });
+  $('auth-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    Audio.unlock();
+    const name = $('auth-name').value.trim(), pin = $('auth-pin').value.trim();
+    const btn = $('auth-go');
+    $('auth-err').textContent = '';
+    btn.disabled = true; btn.querySelector('span').textContent = 'CONNECTING…';
+    const res = mode === 'create' ? await Store.createAccount(name, pin) : await Store.signIn(name, pin);
+    btn.disabled = false; btn.querySelector('span').textContent = mode === 'create' ? 'CREATE PLAYER' : 'SIGN IN';
+    if (!res.ok) { $('auth-err').textContent = res.error; return; }
+    document.activeElement && document.activeElement.blur();
+    app.enterLobby(res.offline ? 'Cloud unreachable — playing offline. Progress will sync when it reconnects.' : null);
+  });
+}
+
+// ------------------------------------------------------------------ lobby
+export function initLobby(app) {
+  document.querySelectorAll('.navtab').forEach(b => b.addEventListener('click', () => { click(); app.showTab(b.dataset.tab); }));
+  document.querySelectorAll('.mode-btn').forEach(b => b.addEventListener('click', () => {
+    click(); app.profile.lastMode.mode = b.dataset.mode; Store.save(); refreshModeCard(app);
+  }));
+  document.querySelectorAll('.q-btn').forEach(b => b.addEventListener('click', () => {
+    click(); app.profile.lastMode.ranked = b.dataset.ranked === '1'; Store.save(); refreshModeCard(app);
+  }));
+  $('btn-play').addEventListener('click', () => { Audio.unlock(); Audio.play('uiopen', { vol: 0.7 }); app.startMatchmaking(); });
+  document.querySelectorAll('.ltab').forEach(b => b.addEventListener('click', () => {
+    click(); document.querySelectorAll('.ltab').forEach(x => x.classList.toggle('active', x === b));
+    app.lockerCat = b.dataset.cat; renderLocker(app);
+  }));
+  // drag to spin the lobby character
+  let last = null;
+  const lobby = $('lobby');
+  lobby.addEventListener('pointerdown', e => { if (!e.target.closest('button, .panel, .card, input')) last = e.clientX; });
+  window.addEventListener('pointermove', e => { if (last !== null) { app.lobbyScene.drag(e.clientX - last); last = e.clientX; } });
+  window.addEventListener('pointerup', () => { last = null; });
+}
+
+export function refreshModeCard(app) {
+  const p = app.profile, lm = p.lastMode;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === lm.mode));
+  document.querySelectorAll('.q-btn').forEach(b => b.classList.toggle('active', (b.dataset.ranked === '1') === !!lm.ranked));
+  $('mode-rank').innerHTML = lm.ranked ? rankBlock(p.ranked[lm.mode], lm.mode === 'br' ? 'Battle Royale' : 'Reload')
+    : `<div class="rank-sub" style="padding:4px 2px">Casual playlist — practice with chill bots. Your rank isn't affected.</div>`;
+  const sk = SKINS.find(s => s.id === p.locker.skin), pk = PICKAXES.find(s => s.id === p.locker.pickaxe);
+  $('lobby-loadout').innerHTML = `
+    <div class="lo-row"><span>OUTFIT</span><b style="color:${RARITY_COLORS[sk.rarity]}">${sk.name}</b></div>
+    <div class="lo-row"><span>PICKAXE</span><b style="color:${RARITY_COLORS[pk.rarity]}">${pk.name}</b></div>
+    <div class="lo-row"><span>BR RANK</span><b style="color:${divInfo(p.ranked.br.div).tier.color}">${divInfo(p.ranked.br.div).name}</b></div>
+    <div class="lo-row"><span>RELOAD RANK</span><b style="color:${divInfo(p.ranked.reload.div).tier.color}">${divInfo(p.ranked.reload.div).name}</b></div>`;
+}
+
+export function refreshMe(app) {
+  const p = app.profile;
+  $('me-name').textContent = p.username;
+  $('me-lvl').innerHTML = `<span style="transform:rotate(-45deg)">${p.level}</span>`;
+  $('me-xpbar').style.width = (p.xp / xpForLevel(p.level) * 100) + '%';
+}
+
+// ------------------------------------------------------------------ locker
+export function renderLocker(app) {
+  const p = app.profile;
+  const cat = app.lockerCat || 'skins';
+  const list = cat === 'skins' ? SKINS : PICKAXES;
+  const equipped = cat === 'skins' ? p.locker.skin : p.locker.pickaxe;
+  if (!app.lockerSel || !list.find(x => x.id === app.lockerSel)) app.lockerSel = equipped;
+  const grid = $('locker-grid');
+  grid.innerHTML = list.map(it => {
+    const img = cat === 'skins' ? app.icons['skin_' + it.id] : app.icons['pickcard_' + it.id + '_bg'];
+    const overlay = cat === 'pickaxes' ? `<img src="${app.icons['pick_' + it.id]}" style="object-fit:contain;padding:16px">` : '';
+    return `<button class="card ${app.lockerSel === it.id ? 'sel' : ''}" data-id="${it.id}" style="border-color:${RARITY_COLORS[it.rarity]}">
+      <img src="${img}">${overlay}<span class="c-tag" style="color:${RARITY_COLORS[it.rarity]}">${RARITY_NAMES[it.rarity].toUpperCase()}</span>
+      ${equipped === it.id ? '<span class="c-eq" title="Equipped">✓</span>' : ''}<span class="c-name">${it.name}</span></button>`;
+  }).join('');
+  grid.querySelectorAll('.card').forEach(c => c.addEventListener('click', () => {
+    click(); app.lockerSel = c.dataset.id; renderLocker(app);
+    if (cat === 'skins') { app.lobbyScene.setSkin(c.dataset.id); app.lobbyScene.showGun(); }
+    else app.lobbyScene.showPickaxe(c.dataset.id);
+  }));
+  const it = list.find(x => x.id === app.lockerSel);
+  const isEq = equipped === it.id;
+  $('locker-info').innerHTML = `
+    <div class="li-rar" style="color:${RARITY_COLORS[it.rarity]}">${RARITY_NAMES[it.rarity].toUpperCase()} ${cat === 'skins' ? 'OUTFIT' : 'PICKAXE'}</div>
+    <div class="li-name">${it.name}</div>
+    ${it.series ? `<div class="li-series">${it.series}</div>` : ''}
+    <div class="li-desc">${it.desc}</div>
+    <div class="li-free">FREE · TESTING</div>
+    <button class="btn ${isEq ? 'ghost' : 'primary'} wide" id="equip-btn"><span>${isEq ? 'EQUIPPED' : 'EQUIP'}</span></button>`;
+  $('equip-btn').addEventListener('click', () => {
+    if (isEq) return;
+    Audio.play('equip', { vol: 0.8 });
+    if (cat === 'skins') p.locker.skin = it.id; else p.locker.pickaxe = it.id;
+    Store.save(); renderLocker(app); refreshModeCard(app);
+  });
+}
+
+// ------------------------------------------------------------------ career
+export async function renderCareer(app) {
+  const p = app.profile, s = p.stats;
+  $('career-ranks').innerHTML = `
+    <div class="panel"><h3>BATTLE ROYALE <small>Ranked</small></h3>${rankBlock(p.ranked.br)}<div class="rank-sub" style="margin-top:8px">${p.ranked.br.matches} ranked matches · ${p.ranked.br.wins} wins</div></div>
+    <div class="panel"><h3>RELOAD <small>Ranked</small></h3>${rankBlock(p.ranked.reload)}<div class="rank-sub" style="margin-top:8px">${p.ranked.reload.matches} ranked matches · ${p.ranked.reload.wins} wins</div></div>
+    <div class="panel"><h3>LADDER</h3><div style="display:flex;gap:6px;flex-wrap:wrap">${TIERS.map((t, i) => rankBadge(i * 3 + 2, 40)).join('')}</div><div class="rank-sub" style="margin-top:6px">Bronze → Silver → Gold. Gold is the top tier — climb by placing high and getting eliminations.</div></div>`;
+  const kd = (s.kills / Math.max(1, s.deaths)).toFixed(2);
+  const wr = s.matches ? ((s.wins / s.matches) * 100).toFixed(1) : '0.0';
+  $('career-stats').innerHTML = `<h3>CAREER <small style="color:var(--muted);font-family:var(--ui);font-size:12px">Level ${p.level}</small></h3><div class="stat-grid">
+    <div class="stat"><b>${s.matches}</b><span>MATCHES</span></div><div class="stat"><b>${s.wins}</b><span>VICTORIES</span></div>
+    <div class="stat"><b>${wr}%</b><span>WIN RATE</span></div><div class="stat"><b>${s.kills}</b><span>ELIMINATIONS</span></div>
+    <div class="stat"><b>${kd}</b><span>K/D</span></div><div class="stat"><b>${s.top10}</b><span>TOP 10s</span></div>
+    <div class="stat"><b>${Math.round(s.damage / 1000 * 10) / 10}k</b><span>DAMAGE</span></div><div class="stat"><b>${p.level}</b><span>LEVEL</span></div></div>`;
+  const board = $('board');
+  board.textContent = 'Loading…';
+  const rows = await Store.fetchLeaderboard();
+  if (!rows) { board.innerHTML = '<div class="rank-sub">Leaderboard needs a cloud connection.</div>'; return; }
+  if (!rows.length) { board.innerHTML = '<div class="rank-sub">No ranked players yet — be the first!</div>'; return; }
+  board.innerHTML = rows.map((r, i) => {
+    const d = divInfo(r.div || 0);
+    return `<div class="board-row ${r.uid === p.uid ? 'me' : ''}"><span class="br-n">${i + 1}</span>${rankBadge(r.div || 0, 26)}<span class="br-name">${esc(r.name)}</span><span class="br-rank" style="color:${d.tier.color}">${d.name} · ${Math.floor(r.rp || 0)}%</span></div>`;
+  }).join('');
+}
+
+// ------------------------------------------------------------------ settings
+export function renderSettings(app, container, inGame = false) {
+  const S = app.profile.settings;
+  const slider = (key, label, min, max, step, sub = '', fmt = v => v) => `<div class="set-row"><div>${label}<small>${sub}</small></div><input type="range" data-k="${key}" min="${min}" max="${max}" step="${step}" value="${S[key]}"><span data-v="${key}" style="width:42px;text-align:right">${fmt(S[key])}</span></div>`;
+  const toggle = (key, label, sub = '') => `<div class="set-row"><div>${label}<small>${sub}</small></div><button class="toggle ${S[key] ? 'on' : ''}" data-t="${key}"></button></div>`;
+  container.innerHTML = `
+    <div class="set-sec"><h3>CONTROLS</h3>
+      ${slider('sens', 'Look Sensitivity', 0.3, 2.5, 0.05, 'How fast swiping turns the camera', v => (+v).toFixed(2))}
+      ${slider('adsSens', 'Aim (ADS) Sensitivity', 0.3, 1.5, 0.05, 'Multiplier while aiming down sights', v => (+v).toFixed(2))}
+      ${toggle('autoFire', 'Auto Fire', 'Fires automatically when your crosshair is on an enemy in range')}
+      ${toggle('aimAssist', 'Aim Assist', 'Slows and gently pulls your aim onto nearby targets')}
+      ${toggle('autoSprint', 'Auto Sprint', 'Sprint when the joystick is pushed all the way')}
+      ${toggle('autoPickup', 'Auto Pick Up', 'Grab ammo, grenades and guns into empty slots')}
+      ${toggle('invertY', 'Invert Look')}
+      ${toggle('haptics', 'Vibration', 'Buzz when you take damage')}
+      <div class="set-row"><div>HUD Layout<small>Move and resize every button and panel</small></div><button class="btn ghost sm" id="set-hud"><span>EDIT HUD</span></button></div>
+    </div>
+    <div class="set-sec"><h3>GRAPHICS</h3>
+      <div class="set-row"><div>Quality<small>Lower = smoother on older phones (full effect after restart)</small></div><div class="seg" data-seg="quality">${['low', 'medium', 'high'].map(q => `<button class="${S.quality === q ? 'on' : ''}" data-q="${q}">${q.toUpperCase()}</button>`).join('')}</div></div>
+      ${toggle('showFps', 'Show FPS')}
+    </div>
+    <div class="set-sec"><h3>AUDIO</h3>
+      ${slider('master', 'Master Volume', 0, 1, 0.05, '', v => Math.round(v * 100) + '%')}
+      ${slider('sfx', 'Effects', 0, 1, 0.05, '', v => Math.round(v * 100) + '%')}
+      ${slider('music', 'Lobby Music', 0, 1, 0.05, '', v => Math.round(v * 100) + '%')}
+    </div>
+    <div class="set-sec"><h3>ACCOUNT</h3>
+      <div class="set-row"><div>${esc(app.profile.username)}<small>${Store.isConnected() ? 'Synced to the cloud' : 'Offline — saved on this device'}</small></div>${inGame ? '' : '<button class="btn danger sm" id="set-signout"><span>SIGN OUT</span></button>'}</div>
+    </div>
+    ${inGame ? '<div class="set-close"><button class="btn primary" id="set-done"><span>DONE</span></button></div>' : ''}`;
+  container.querySelectorAll('input[type=range]').forEach(r => r.addEventListener('input', () => {
+    const k = r.dataset.k; S[k] = +r.value;
+    const v = container.querySelector(`[data-v="${k}"]`);
+    v.textContent = k === 'sens' || k === 'adsSens' ? (+r.value).toFixed(2) : Math.round(r.value * 100) + '%';
+    app.applySettings(); Store.save();
+  }));
+  container.querySelectorAll('[data-t]').forEach(t => t.addEventListener('click', () => {
+    click(); const k = t.dataset.t; S[k] = !S[k]; t.classList.toggle('on', S[k]); app.applySettings(); Store.save();
+  }));
+  container.querySelectorAll('[data-q]').forEach(b => b.addEventListener('click', () => {
+    click(); S.quality = b.dataset.q; container.querySelectorAll('[data-q]').forEach(x => x.classList.toggle('on', x === b)); app.applySettings(); Store.save();
+  }));
+  const hudBtn = container.querySelector('#set-hud');
+  if (hudBtn) hudBtn.addEventListener('click', () => { click(); app.openHudEditor(inGame); });
+  const so = container.querySelector('#set-signout');
+  if (so) so.addEventListener('click', () => { if (confirm('Sign out of ' + app.profile.username + '? You can sign back in with your username and PIN.')) { Store.signOut(); location.reload(); } });
+  const done = container.querySelector('#set-done');
+  if (done) done.addEventListener('click', () => { click(); $('settings-modal').classList.remove('show'); });
+}
+
+// ------------------------------------------------------------------ HUD editor
+export class HudEditor {
+  constructor(app) {
+    this.app = app;
+    this.sel = null; this.layout = null; this.drag = null;
+    const hud = $('hud');
+    hud.addEventListener('pointerdown', e => this.down(e));
+    window.addEventListener('pointermove', e => this.move(e));
+    window.addEventListener('pointerup', () => { this.drag = null; });
+    $('he-size').addEventListener('input', () => this.setProp('s', $('he-size').value / 100));
+    $('he-op').addEventListener('input', () => this.setProp('o', $('he-op').value / 100));
+    $('he-reset').addEventListener('click', () => { click(); this.layout = {}; applyLayout(this.layout); this.select(null); });
+    $('he-cancel').addEventListener('click', () => { click(); this.close(false); });
+    $('he-save').addEventListener('click', () => { Audio.play('equip', { vol: 0.8 }); this.close(true); });
+  }
+
+  open(fromGame) {
+    this.fromGame = fromGame;
+    this.layout = JSON.parse(JSON.stringify(this.app.profile.hud || {}));
+    this.original = JSON.parse(JSON.stringify(this.layout));
+    $('hud').classList.add('show', 'editing');
+    $('hud-editor').classList.add('show');
+    if (!fromGame) $('lobby').classList.remove('show');
+    this.app.hudPreview(true);
+    applyLayout(this.layout);
+    this.select(null);
+  }
+
+  close(save) {
+    if (save) { this.app.profile.hud = this.layout; Store.save(); }
+    applyLayout(this.app.profile.hud);
+    $('hud').classList.remove('editing');
+    $('hud-editor').classList.remove('show');
+    this.app.hudPreview(false);
+    if (!this.fromGame) { $('hud').classList.remove('show'); $('lobby').classList.add('show'); }
+  }
+
+  get(id) { return { ...HUD_DEFAULTS[id], ...(this.layout[id] || {}) }; }
+
+  select(id) {
+    this.sel = id;
+    document.querySelectorAll('.hud-el').forEach(e => e.classList.toggle('he-active', e.dataset.hud === id));
+    if (!id) { $('he-sel').textContent = 'Tap a control to select it, drag to move'; return; }
+    const L = this.get(id);
+    $('he-sel').textContent = HUD_NAMES[id];
+    $('he-size').value = Math.round(L.s * 100); $('he-size-v').textContent = Math.round(L.s * 100) + '%';
+    $('he-op').value = Math.round(L.o * 100); $('he-op-v').textContent = Math.round(L.o * 100) + '%';
+  }
+
+  setProp(k, v) {
+    if (!this.sel) return;
+    this.layout[this.sel] = { ...this.get(this.sel), [k]: v };
+    $('he-size-v').textContent = $('he-size').value + '%'; $('he-op-v').textContent = $('he-op').value + '%';
+    applyLayout(this.layout);
+  }
+
+  down(e) {
+    if (!$('hud').classList.contains('editing')) return;
+    const el = e.target.closest('.hud-el');
+    if (!el) { this.select(null); return; }
+    e.preventDefault();
+    const id = el.dataset.hud;
+    this.select(id);
+    const L = this.get(id);
+    this.drag = { id, sx: e.clientX, sy: e.clientY, x0: L.x, y0: L.y };
+  }
+
+  move(e) {
+    if (!this.drag) return;
+    const d = this.drag;
+    let x = d.x0 + (e.clientX - d.sx) / innerWidth, y = d.y0 + (e.clientY - d.sy) / innerHeight;
+    // snap to a 1% grid, keep on screen
+    x = Math.max(0.02, Math.min(0.98, Math.round(x * 200) / 200)); y = Math.max(0.03, Math.min(0.97, Math.round(y * 200) / 200));
+    this.layout[d.id] = { ...this.get(d.id), x, y };
+    applyLayout(this.layout);
+  }
+}
+
+// ------------------------------------------------------------------ results
+export function showResults(app, r, rewards) {
+  $('results').classList.add('show');
+  $('res-place').textContent = '#' + r.placement;
+  $('res-title').textContent = r.won ? 'VICTORY ROYALE' : r.placement <= (r.mode === 'br' ? 10 : 3) ? 'SO CLOSE!' : 'MATCH COMPLETE';
+  $('res-mode').textContent = `${r.mode === 'br' ? 'BATTLE ROYALE' : 'RELOAD'} · ${r.ranked ? 'RANKED' : 'UNRANKED'} · REVERSAL COMPOUND`;
+  const mins = Math.floor(r.timeAlive / 60), secs = String(r.timeAlive % 60).padStart(2, '0');
+  $('res-tiles').innerHTML = `
+    <div class="stat"><b>${r.kills}</b><span>ELIMINATIONS</span></div>
+    <div class="stat"><b>${r.damage}</b><span>DAMAGE DEALT</span></div>
+    <div class="stat"><b>${mins}:${secs}</b><span>TIME SURVIVED</span></div>
+    <div class="stat"><b>${r.placement}/${r.total}</b><span>${r.mode === 'br' ? 'PLACEMENT' : 'SQUAD PLACEMENT'}</span></div>`;
+  // XP
+  const p = app.profile;
+  $('res-lvl').textContent = rewards.levelBefore;
+  $('res-xpgain').textContent = '+' + rewards.xp + ' XP';
+  const fill = $('res-xpfill');
+  fill.style.transition = 'none'; fill.style.width = (rewards.xpBefore / xpForLevel(rewards.levelBefore) * 100) + '%';
+  void fill.offsetWidth; fill.style.transition = '';
+  setTimeout(() => {
+    if (p.level > rewards.levelBefore) {
+      fill.style.width = '100%';
+      setTimeout(() => { $('res-lvl').textContent = p.level; fill.style.transition = 'none'; fill.style.width = '0%'; void fill.offsetWidth; fill.style.transition = ''; fill.style.width = (p.xp / xpForLevel(p.level) * 100) + '%'; Audio.play('chest', { vol: 0.7 }); }, 1450);
+    } else fill.style.width = (p.xp / xpForLevel(p.level) * 100) + '%';
+  }, 400);
+  // Rank
+  const rr = $('res-rank');
+  if (!r.ranked) {
+    rr.innerHTML = `<div class="res-lbl">UNRANKED</div><div class="rank-sub" style="margin-top:4px">Casual match — switch to Ranked in the lobby to climb from Bronze to Gold.</div>`;
+  } else {
+    const rk = rewards.rank;
+    const before = rewards.rankBefore;
+    rr.innerHTML = `<div class="res-lbl">RANKED PROGRESS <span class="rp-delta ${rk.delta >= 0 ? 'up' : 'down'}" style="float:right">${rk.delta >= 0 ? '+' : ''}${rk.delta}%</span></div>
+      <div id="rr-block" style="margin-top:6px">${rankBlock(before)}</div>
+      <div class="rank-sub" style="margin-top:6px">Placement ${rk.place >= 0 ? '+' : ''}${rk.place} · Eliminations +${rk.elimPts}${rk.entry ? ` · Entry −${rk.entry}` : ''}</div>
+      <div id="rr-promo"></div>`;
+    setTimeout(() => {
+      const block = $('rr-block');
+      if (!block) return;
+      if (rewards.promoted) {
+        const bar = block.querySelector('.rank-bar > div');
+        if (bar) bar.style.width = '100%';
+        setTimeout(() => {
+          block.innerHTML = rankBlock(p.ranked[r.mode]);
+          $('rr-promo').innerHTML = `<div class="promo">RANK UP! ${divInfo(p.ranked[r.mode].div).name.toUpperCase()}</div>`;
+          Audio.play('elim', { vol: 1 });
+        }, 1300);
+      } else {
+        const bar = block.querySelector('.rank-bar > div');
+        if (bar) bar.style.width = Math.min(100, p.ranked[r.mode].rp) + '%';
+        const sub = block.querySelector('.rank-sub');
+        if (sub) sub.textContent = p.ranked[r.mode].div >= MAX_DIV ? 'Highest rank reached' : Math.floor(p.ranked[r.mode].rp) + '% to next rank';
+      }
+    }, 700);
+  }
+  $('res-continue').onclick = () => { click(); $('results').classList.remove('show'); app.enterLobby(); };
+}
