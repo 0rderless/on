@@ -3,8 +3,7 @@ import * as THREE from 'three';
 import { WEAPONS, GRENADES, AMMO_TYPES, HEALS, JETPACK, LOADOUT_ITEMS, LOADOUT_AMMO, normalizeLoadout } from '../data/items.js';
 import {
   GRAVITY, PLAYER_RADIUS, PLAYER_HEIGHT, CROUCH_HEIGHT, STEP_HEIGHT,
-  MAX_HEALTH, MAX_SHIELD, SHIELD_REGEN_DELAY, SHIELD_REGEN_RATE,
-} from '../config.js';
+  MAX_HEALTH, MAX_SHIELD, SHIELD_REGEN_DELAY, SHIELD_REGEN_RATE, MAP_HALF } from '../config.js';
 
 export const SPEED = { run: 5.6, sprint: 7.3, crouch: 2.7, ads: 3.4, air: 0.35 };
 const JUMP_V = 8.2;
@@ -239,7 +238,7 @@ export class Fighter {
       this.vel.z += (tz - this.vel.z) * k;
       this.vel.y += (-fall * dive - this.vel.y) * Math.min(1, dt * 2.5);
       this.pos.addScaledVector(this.vel, dt);
-      const lim = world.half - 3;
+      const lim = Math.min(world.half - 3, MAP_HALF - 1.5);   // never above the perimeter wall
       this.pos.x = Math.max(-lim, Math.min(lim, this.pos.x)); this.pos.z = Math.max(-lim, Math.min(lim, this.pos.z));
       const g = groundAt(this.pos.x, this.pos.z, this.pos.y);
       if (!glide && this.pos.y - g < 42) { this.mode = 'glide'; ev.deploy = true; }

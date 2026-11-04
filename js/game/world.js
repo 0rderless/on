@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { CollisionWorld } from './collision.js';
 import { MAP_HALF } from '../config.js';
+import { buildWarehouse, animateWarehouse } from './warehouse.js';
 
 const CHUNKS = 3;
 const CHUNK_SIZE = (MAP_HALF * 2) / CHUNKS;
@@ -13,11 +14,15 @@ function seeded(seed) {
 }
 
 export class World {
-  constructor(textures, quality = 'medium') {
+  constructor(textures, quality = 'medium', mapId = 'compound') {
     this.T = textures;
     this.quality = quality;
+    this.mapId = mapId;
+    this.layer = '';          // 'roof' pieces go to their own group (hidden on the map render)
     this.col = new CollisionWorld(MAP_HALF + 4, 8);
     this.group = new THREE.Group();
+    this.roof = new THREE.Group();
+    this.group.add(this.roof);
     this.buckets = new Map();
     this.mats = {};
     this.animated = [];       // {mesh, update(t)}
@@ -95,9 +100,9 @@ export class World {
   bucket(matKey, x, z) {
     const cx = Math.max(0, Math.min(CHUNKS - 1, Math.floor((x + MAP_HALF) / CHUNK_SIZE)));
     const cz = Math.max(0, Math.min(CHUNKS - 1, Math.floor((z + MAP_HALF) / CHUNK_SIZE)));
-    const key = `${matKey}|${cx},${cz}`;
+    const key = `${this.layer}${matKey}|${cx},${cz}`;
     let b = this.buckets.get(key);
-    if (!b) { b = { matKey, pos: [], nor: [], uv: [], idx: [] }; this.buckets.set(key, b); }
+    if (!b) { b = { matKey, layer: this.layer, pos: [], nor: [], uv: [], idx: [] }; this.buckets.set(key, b); }
     return b;
   }
 
@@ -117,7 +122,9 @@ export class World {
     ];
     const q = rot ? new THREE.Quaternion().setFromEuler(rot) : null;
     const v = new THREE.Vector3(), n = new THREE.Vector3();
+    const onFloor = !q && cy - hh <= 0.02;   // the underside of a box resting on the floor is never seen
     for (const [nrm, corners, ua, va, flip] of faces) {
+      if (onFloor && nrm[1] === -1) continue;
       const base = b.pos.length / 3;
       n.set(nrm[0], nrm[1], nrm[2]); if (q) n.applyQuaternion(q);
       corners.forEach((c, i) => {
@@ -320,6 +327,12 @@ export class World {
 
   // ---------------------------------------------------------------- build
   build() {
+    if (this.mapId === 'warehouse') {
+      buildWarehouse(this);
+      this.finalize();
+      animateWarehouse(this);
+      return this;
+    }
     // ground
     this.box(0, -1, 0, MAP_HALF * 2 + 8, 1, MAP_HALF * 2 + 8, 'floor', { noCol: true });
     this.perimeter();
@@ -730,7 +743,9 @@ export class World {
       mesh.receiveShadow = m.shadow;
       mesh.castShadow = m.shadow && b.matKey !== 'floor';
       if (b.matKey === 'beam' || b.matKey === 'beamCyan') mesh.renderOrder = 5;
-      this.group.add(mesh);
+      if (b.matKey === 'glass') mesh.renderOrder = 4;
+      if (b.layer === 'roof') { mesh.receiveShadow = false; this.roof.add(mesh); }
+      else this.group.add(mesh);
     }
     this.buckets.clear();
     // clamp loot spots to valid ground

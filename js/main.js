@@ -1,7 +1,7 @@
 // OVERCHARGE — app bootstrap and state machine.
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { QUALITY, GAME_VERSION, MAP_HALF, FORTNITE_FOV, vfovFromH, TEAM_LABELS } from './config.js';
+import { QUALITY, GAME_VERSION, MAP_HALF, FORTNITE_FOV, vfovFromH, TEAM_LABELS, MAPS, DEFAULT_MAP } from './config.js';
 import { Store } from './net/store.js';
 import { Assets } from './core/assets.js';
 import { Audio } from './core/audio.js';
@@ -64,12 +64,13 @@ class App {
     try {
       await Assets.load((f, l) => progress(f * 0.62, l));
       this.textures = Assets.tex;
-      progress(0.64, 'Building Reversal Compound…'); await frame();
-      this.world = new World(this.textures, this.quality).build();
-      progress(0.72, 'Mapping routes…'); await frame();
-      this.nav = new NavGrid(this.world.col, MAP_HALF, 2, 0.45);
+      const startMap = MAPS[saved?.lastMode?.map] ? saved.lastMode.map : DEFAULT_MAP;
+      progress(0.64, `Building ${MAPS[startMap].name}…`); await frame();
+      this.maps = {};
+      const first = this.buildMap(startMap);
       progress(0.76, 'Suiting up soldiers…'); await frame();
       this.setupGameScene();
+      this.useMap(startMap, first);
       this.factory = new CharacterFactory(Assets, this.renderer);
       this.charPool = [];
       for (let i = 0; i < 32; i++) {
@@ -79,7 +80,7 @@ class App {
       this.effects = new Effects(this.gameScene, this.textures, this.quality);
       this.loot = new Loot({ scene: this.gameScene, factory: this.factory, textures: this.textures, time: 0, col: this.world.col, noise() {} });
       progress(0.88, 'Drawing the map…'); await frame();
-      this.mapImage = renderMapImage(this.renderer, this.world, 1024);
+      this.mapImage = this.maps[this.mapId].image = renderMapImage(this.renderer, this.world, 1024, MAPS[this.mapId].mapBg);
       this.icons = renderIcons(this.renderer, this.factory, this.env);
       progress(0.93, 'Warming up…'); await frame();
       this.lobbyScene = new LobbyScene(this.factory, this.env, this.textures);
@@ -136,20 +137,51 @@ class App {
     this.camera = new THREE.PerspectiveCamera(vfovFromH(FORTNITE_FOV), innerWidth / innerHeight, 0.08, 900);
   }
 
+  /** Build a map (world geometry + bot navigation) once and cache it. */
+  buildMap(id) {
+    if (this.maps[id]) return this.maps[id];
+    const world = new World(this.textures, this.quality, id).build();
+    const nav = new NavGrid(world.col, MAP_HALF, 2, 0.45);
+    return (this.maps[id] = { world, nav, image: null });
+  }
+
+  /** Swap the active map: world in the scene, navigation, minimap image and atmosphere. */
+  useMap(id, entry) {
+    if (!MAPS[id]) id = DEFAULT_MAP;
+    const e = entry || this.buildMap(id);
+    if (this.world && this.world !== e.world && this.world.group.parent) this.world.group.parent.remove(this.world.group);
+    this.world = e.world; this.nav = e.nav; this.mapId = id;
+    if (this.gameScene) {
+      this.gameScene.add(e.world.group);
+      const A = MAPS[id], s = this.gameScene;
+      s.fog.color.setHex(A.fog); s.fog.density = A.fogDensity * (this.quality === 'low' ? 1.32 : 1);
+      s.background.setHex(A.fog);
+      this.sky.material.uniforms.uHor.value.fromArray(A.skyHorizon);
+      this.sky.material.uniforms.uTop.value.fromArray(A.skyTop);
+      this.hemi.color.setHex(A.hemi[0]); this.hemi.groundColor.setHex(A.hemi[1]); this.hemi.intensity = A.hemi[2];
+      this.sun.color.setHex(A.sun[0]); this.sun.intensity = A.sun[1];
+    }
+    if (this.renderer && this.icons && !e.image) e.image = renderMapImage(this.renderer, e.world, 1024, MAPS[id].mapBg);
+    if (e.image) this.mapImage = e.image;
+    return e;
+  }
+
   setupGameScene() {
     const s = new THREE.Scene();
-    const fogC = 0x8f8ad6;
+    const fogC = MAPS[DEFAULT_MAP].fog;
     s.fog = new THREE.FogExp2(fogC, this.quality === 'low' ? 0.0135 : 0.0102);
     s.background = new THREE.Color(fogC);
     s.environment = this.env; s.environmentIntensity = 0.35;
     const sky = new THREE.Mesh(new THREE.SphereGeometry(700, 32, 16), new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false,
+      uniforms: { uHor: { value: new THREE.Vector3(0.56, 0.54, 0.84) }, uTop: { value: new THREE.Vector3(0.24, 0.18, 0.55) } },
       vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-      fragmentShader: 'varying vec3 vP; void main(){ float h = clamp(vP.y, 0.0, 1.0); vec3 hor = vec3(0.56,0.54,0.84); vec3 top = vec3(0.24,0.18,0.55); gl_FragColor = vec4(mix(hor, top, pow(h, 0.6)), 1.0); }',
+      fragmentShader: 'uniform vec3 uHor; uniform vec3 uTop; varying vec3 vP; void main(){ float h = clamp(vP.y, 0.0, 1.0); gl_FragColor = vec4(mix(uHor, uTop, pow(h, 0.6)), 1.0); }',
     }));
     sky.renderOrder = -10; sky.frustumCulled = false;
     this.sky = sky; s.add(sky);
-    s.add(new THREE.HemisphereLight(0xcfc6ff, 0x4a3f7a, 1.75));
+    this.hemi = new THREE.HemisphereLight(0xcfc6ff, 0x4a3f7a, 1.75);
+    s.add(this.hemi);
     const sun = new THREE.DirectionalLight(0xfff1e0, 1.65);
     sun.position.set(40, 80, 25);
     const Q = QUALITY[this.quality];
@@ -161,7 +193,6 @@ class App {
     }
     s.add(sun); s.add(sun.target);
     this.sun = sun;
-    s.add(this.world.group);
     this.gameScene = s;
     this.drawDist = Q.drawDist;
   }
@@ -402,7 +433,7 @@ class App {
     const lm = this.profile.lastMode;
     const team = TEAM_SIZES[lm.team] ? lm.team : 'solo';
     const total = PLAYER_COUNTS[lm.mode][team];
-    $('mm-mode').textContent = (lm.mode === 'br' ? 'BATTLE ROYALE' : 'RELOAD') + ' · ' + TEAM_LABELS[team].toUpperCase() + (lm.ranked ? ' · RANKED' : '');
+    $('mm-mode').textContent = (lm.mode === 'br' ? 'BATTLE ROYALE' : 'RELOAD') + ' · ' + TEAM_LABELS[team].toUpperCase() + (lm.ranked ? ' · RANKED' : '') + ' · ' + (MAPS[lm.map] || MAPS[DEFAULT_MAP]).name.toUpperCase();
     $('mm').classList.add('show');
     $('mm-status').textContent = 'Finding players…';
     let n = 1;
@@ -412,7 +443,13 @@ class App {
     this.mmTimer = setInterval(() => {
       n = Math.min(total, n + 1 + Math.floor(Math.random() * 4));
       $('mm-count').textContent = n;
-      if (n >= total) { clearInterval(this.mmTimer); $('mm-status').textContent = 'Loading Reversal Compound…'; this.mmDone = setTimeout(() => this.startMatch(), 500); }
+      if (n >= total) {
+        clearInterval(this.mmTimer);
+        const map = MAPS[lm.map] ? lm.map : DEFAULT_MAP;
+        $('mm-status').textContent = `Loading ${MAPS[map].name}…`;
+        // let the status paint before a (possibly first-time) map build blocks the thread
+        this.mmDone = setTimeout(() => { this.useMap(map); this.startMatch(); }, 500);
+      }
     }, 140);
   }
 
@@ -441,7 +478,7 @@ class App {
     m.ended = true;
     this.controls.enabled = false;
     if (document.pointerLockElement) document.exitPointerLock();
-    const r = result || m.result || { mode: m.mode, ranked: m.ranked, won: false, team: m.team, placement: m.teamMode ? m.teamsRemaining() : m.aliveCount(), total: m.teamMode ? m.teams : m.fighters.length, kills: m.player.kills, damage: Math.round(m.player.damageDealt), timeAlive: Math.round(m.time) };
+    const r = result || m.result || { mode: m.mode, ranked: m.ranked, won: false, team: m.team, map: m.mapId, placement: m.teamMode ? m.teamsRemaining() : m.aliveCount(), total: m.teamMode ? m.teams : m.fighters.length, kills: m.player.kills, damage: Math.round(m.player.damageDealt), timeAlive: Math.round(m.time) };
     const rewards = this.applyRewards(r);
     m.dispose();
     this.match = null;

@@ -46,7 +46,7 @@ export class Match {
     this.respawnTokens = this.mode === 'reload' && this.teamSize === 1; // Reload Solo: limited respawns, earned back with elims
     this.ranked = opts.ranked;
     this.scene = app.gameScene;
-    this.world = app.world; this.col = app.world.col; this.nav = app.nav;
+    this.world = app.world; this.col = app.world.col; this.nav = app.nav; this.mapId = app.mapId;
     this.factory = app.factory; this.textures = app.textures;
     this.hud = app.hud;
     this.time = 0;
@@ -381,7 +381,7 @@ export class Match {
     const p = this.player;
     const total = this.teamMode ? this.teams : this.fighters.length;
     this.result = {
-      mode: this.mode, team: this.team, ranked: this.ranked, won, placement, total,
+      mode: this.mode, team: this.team, map: this.mapId, ranked: this.ranked, won, placement, total,
       kills: p.kills, damage: Math.round(p.damageDealt), timeAlive: Math.round(this.time - this.startTime),
       squad: this.teamSize > 1 ? this.fighters.filter(f => f.team === p.team).map(f => ({ name: f.name, kills: f.kills })) : null,
     };

@@ -12,7 +12,7 @@ export const firebaseConfig = {
 // All game data lives under this root so it never collides with other apps on the same database.
 export const DB_ROOT = 'overcharge';
 
-export const GAME_VERSION = '1.4.3';
+export const GAME_VERSION = '1.5.0';
 
 export const MAP_HALF = 160;          // map spans -160..160 on X and Z (metres)
 export const GRAVITY = 24;
@@ -47,3 +47,18 @@ export const PLAYER_COUNTS = { br: { solo: 30, duo: 30, squad: 32 }, reload: { s
 // Reload Solo: everyone starts with 2 respawns (also the cap) and earns one back every 3 eliminations
 export const SOLO_RESPAWNS = 2;
 export const KILLS_PER_RESPAWN = 3;
+
+// Maps: id -> display name + atmosphere (fog/sky/light colours)
+export const MAPS = {
+  compound: {
+    name: 'Reversal Compound', short: 'Compound',
+    fog: 0x8f8ad6, fogDensity: 0.0102, skyHorizon: [0.56, 0.54, 0.84], skyTop: [0.24, 0.18, 0.55],
+    hemi: [0xcfc6ff, 0x4a3f7a, 1.75], sun: [0xfff1e0, 1.65], mapBg: 0x8f86c9,
+  },
+  warehouse: {
+    name: 'Warehouse', short: 'Warehouse',
+    fog: 0x9ea6ba, fogDensity: 0.0088, skyHorizon: [0.6, 0.63, 0.72], skyTop: [0.22, 0.25, 0.33],
+    hemi: [0xe6ecff, 0x4f566c, 1.7], sun: [0xf2f5ff, 1.35], mapBg: 0x8a91a6,
+  },
+};
+export const DEFAULT_MAP = 'compound';

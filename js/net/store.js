@@ -74,7 +74,7 @@ export function defaultProfile(uid, username) {
     hud: {},
     loadout: [...DEFAULT_LOADOUT],
     jetpackStart: true,
-    lastMode: { mode: 'br', ranked: false, team: 'solo' },
+    lastMode: { mode: 'br', ranked: false, team: 'solo', map: 'compound' },
   };
 }
 

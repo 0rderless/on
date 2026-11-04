@@ -6,7 +6,7 @@ import { HUD_DEFAULTS, HUD_NAMES, applyLayout } from './controls.js';
 import { Audio } from '../core/audio.js';
 import { esc } from './hud.js';
 import { xpForLevel } from '../data/ranks.js';
-import { GAME_VERSION, TEAM_SIZES, TEAM_LABELS, PLAYER_COUNTS } from '../config.js';
+import { GAME_VERSION, TEAM_SIZES, TEAM_LABELS, PLAYER_COUNTS, MAPS, DEFAULT_MAP } from '../config.js';
 import { LOADOUT_ITEMS, DEFAULT_LOADOUT, normalizeLoadout, itemColor, HEALS, GRENADES, WEAPONS } from '../data/items.js';
 
 const $ = id => document.getElementById(id);
@@ -74,6 +74,9 @@ export function initLobby(app) {
   document.querySelectorAll('.mode-btn').forEach(b => b.addEventListener('click', () => {
     click(); app.profile.lastMode.mode = b.dataset.mode; Store.save(); refreshModeCard(app);
   }));
+  document.querySelectorAll('.m-btn').forEach(b => b.addEventListener('click', () => {
+    click(); app.profile.lastMode.map = b.dataset.map; Store.save(); refreshModeCard(app);
+  }));
   document.querySelectorAll('.t-btn').forEach(b => b.addEventListener('click', () => {
     click(); app.profile.lastMode.team = b.dataset.team; Store.save(); refreshModeCard(app);
   }));
@@ -103,6 +106,8 @@ export function refreshModeCard(app) {
     b.querySelector('small').textContent = b.dataset.mode === 'reload' ? (team === 'solo' ? 'Solo · 2 Respawns' : `${teamLabel} · Respawns`) : `${teamLabel} · ${n} players`;
   });
   document.querySelectorAll('.t-btn').forEach(b => b.classList.toggle('active', b.dataset.team === team));
+  const map = MAPS[lm.map] ? lm.map : DEFAULT_MAP;
+  document.querySelectorAll('.m-btn').forEach(b => b.classList.toggle('active', b.dataset.map === map));
   document.querySelectorAll('.q-btn').forEach(b => b.classList.toggle('active', (b.dataset.ranked === '1') === !!lm.ranked));
   $('mode-rank').innerHTML = lm.ranked ? rankBlock(p.ranked[lm.mode], lm.mode === 'br' ? 'Battle Royale' : 'Reload')
     : `<div class="rank-sub" style="padding:4px 2px">Casual playlist — practice with chill bots. Your rank isn't affected.</div>`;
@@ -355,7 +360,7 @@ export function showResults(app, r, rewards) {
   $('res-place').textContent = '#' + r.placement;
   const team = TEAM_SIZES[r.team] ? r.team : 'solo';
   $('res-title').textContent = r.won ? 'OVERCHARGED VICTORY' : r.placement <= (r.total > 12 ? 10 : 3) ? 'SO CLOSE!' : 'MATCH COMPLETE';
-  $('res-mode').textContent = `${r.mode === 'br' ? 'BATTLE ROYALE' : 'RELOAD'} · ${TEAM_LABELS[team].toUpperCase()} · ${r.ranked ? 'RANKED' : 'UNRANKED'} · REVERSAL COMPOUND`;
+  $('res-mode').textContent = `${r.mode === 'br' ? 'BATTLE ROYALE' : 'RELOAD'} · ${TEAM_LABELS[team].toUpperCase()} · ${r.ranked ? 'RANKED' : 'UNRANKED'} · ${(MAPS[r.map] || MAPS[DEFAULT_MAP]).name.toUpperCase()}`;
   const mins = Math.floor(r.timeAlive / 60), secs = String(r.timeAlive % 60).padStart(2, '0');
   $('res-tiles').innerHTML = `
     <div class="stat"><b>${r.kills}</b><span>ELIMINATIONS</span></div>
