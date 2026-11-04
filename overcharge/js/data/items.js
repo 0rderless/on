@@ -67,6 +67,9 @@ export const GRENADES = {
   },
 };
 
+export const JETPACK = { fuel: 100, burn: 30, regen: 24, regenDelay: 0.8, thrust: 44, maxUp: 9.5,
+  desc: 'Hold JUMP in the air to fly. Fuel refills while you are on the ground.' };
+
 export const HEALS = {
   medkit: { id: 'medkit', name: 'Medkit', short: 'MEDKIT', stack: 3, useTime: 5, heal: 100, color: 0x5ff4c8,
     desc: 'Restores health to full after 5 seconds. You can walk slowly while healing.' },
@@ -127,6 +130,7 @@ export function itemName(item) {
   if (item.kind === 'gun') return `${RARITIES[item.rarity].name} ${WEAPONS[item.id].name}`;
   if (item.kind === 'grenade') return GRENADES[item.id].name;
   if (item.kind === 'heal') return HEALS[item.id].name;
+  if (item.kind === 'jetpack') return 'Jetpack';
   if (item.kind === 'ammo') return AMMO_TYPES[item.id].name;
   return '';
 }
@@ -135,6 +139,7 @@ export function itemColor(item) {
   if (item.kind === 'gun') return RARITIES[item.rarity].color;
   if (item.kind === 'grenade') return item.id === 'shockwave' ? '#4fb6ff' : '#ffe14d';
   if (item.kind === 'heal') return '#5ff4c8';
+  if (item.kind === 'jetpack') return '#ff9a3c';
   if (item.kind === 'ammo') return AMMO_TYPES[item.id].color;
   return '#fff';
 }

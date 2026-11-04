@@ -17,13 +17,14 @@ For local testing: `python3 -m http.server` in the repository root, then open `h
 
 - **Modes:** Battle Royale (solo, 30 players) and Reload (squads of 4, 24 players, respawn while a squadmate is alive until the storm closes Reload).
 - **Queues:** Unranked for casual play with easier bots; Ranked with **Bronze I → Gold III**. Everyone starts at Bronze I and climbs with placement and eliminations. Bronze never loses progress, and you can't be demoted out of a division you've earned. Bots get tougher as you rank up.
-- **Zero Build:** 100 health and a 50 overshield that regenerates after 5 s out of combat. Eliminations restore 50.
+- **Zero Build:** 100 health and a 50 overshield that regenerates after 5 s out of combat. Every elimination fully restores your health and shield.
+- **Jetpacks:** two spawn at every named location, more are scattered around, and chests can drop them. A jetpack sits on your back without using a slot. Hold JUMP in the air to fly, up to about 24 m. Fuel refills on the ground, and you take no fall damage while wearing one. Bots use them too.
 - **Weapons:** Assault Rifle, Pump Shotgun, Volt SMG and Arc Sniper, in Common → Legendary rarities.
 - **Shockwave Grenade:** launches everyone in the blast, with no fall damage until you land.
 - **Overdrive Grenade:** an electric blast that damages enemies and supercharges you and allies (+25% speed, +30% fire rate, faster reloads, faster shield regen).
 - **Mobile controls:** joystick; two fire buttons that also steer the camera while held; swipe to look; **Auto Fire**; aim assist; auto-sprint; auto pick-up.
 - **Field of View:** defaults to Fortnite mobile's 80° and is adjustable from 60° to 120° in Settings, with a live preview of the game view.
-- **Auto Shoot:** locks onto enemies near your crosshair (the closer they are, the wider it grabs), tracks them as they move and fires accurately for you. Swipe hard to break the lock. It's separate from Aim Assist and can be toggled with the AUTO button in a match.
+- **Auto Shoot:** locks onto enemies near your crosshair (the closer they are, the wider it grabs). It sticks to them while they strafe or briefly duck behind cover, and fires accurately for you. Only a deliberate flick breaks the lock. It's separate from Aim Assist and can be toggled with the AUTO button in a match.
 - **HUD editor** (Settings → Edit HUD): drag any control, inventory or panel, and set its size and opacity per element.
 - **Locker:** outfits *Default*, *Shock Trooper* and *Platinum Boy*, and pickaxes *Standard Issue*, *Volt Splitter*, *Platinum Pick* and *Neon Reaper*. All are free while the game is in testing.
 - **Bots** have imperfect, reaction-limited aim, choose weapons by range, strafe and jump, loot chests, rotate with the storm, retreat to cover to recharge shields, use grenades, investigate gunfire, and have player-style names.

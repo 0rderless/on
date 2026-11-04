@@ -282,6 +282,38 @@ export class CharacterFactory {
     return grp;
   }
 
+  jetpackModel() {
+    if (!this._jet) {
+      const flameTex = (() => {
+        const c = document.createElement('canvas'); c.width = 32; c.height = 128;
+        const x = c.getContext('2d'); const g = x.createLinearGradient(0, 0, 0, 128);
+        g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.25, 'rgba(255,200,90,0.95)'); g.addColorStop(0.7, 'rgba(255,90,30,0.5)'); g.addColorStop(1, 'rgba(255,60,20,0)');
+        x.fillStyle = g; x.fillRect(0, 0, 32, 128); const t = new THREE.CanvasTexture(c); return t;
+      })();
+      this._jet = {
+        tank: new THREE.CylinderGeometry(0.075, 0.075, 0.4, 14), cap: new THREE.SphereGeometry(0.075, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+        nozzle: new THREE.CylinderGeometry(0.045, 0.065, 0.08, 12), band: new THREE.CylinderGeometry(0.078, 0.078, 0.035, 14),
+        frame: new RoundedBoxGeometry(0.24, 0.3, 0.06, 2, 0.02), flame: new THREE.ConeGeometry(0.085, 0.75, 10, 1, true),
+        tankMat: new THREE.MeshStandardMaterial({ color: 0xd8dbe6, metalness: 0.9, roughness: 0.25 }),
+        darkMat: new THREE.MeshStandardMaterial({ color: 0x23252f, metalness: 0.7, roughness: 0.4 }),
+        bandMat: new THREE.MeshBasicMaterial({ color: 0xff9a3c, toneMapped: false }),
+        flameMat: new THREE.MeshBasicMaterial({ map: flameTex, color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }),
+      };
+    }
+    const J = this._jet, g = new THREE.Group();
+    g.add(new THREE.Mesh(J.frame, J.darkMat));
+    g.userData.flames = [];
+    for (const x of [-0.085, 0.085]) {
+      const t = new THREE.Mesh(J.tank, J.tankMat); t.position.set(x, 0, -0.07); g.add(t);
+      const c = new THREE.Mesh(J.cap, J.tankMat); c.position.set(x, 0.2, -0.07); g.add(c);
+      const b = new THREE.Mesh(J.band, J.bandMat); b.position.set(x, 0.08, -0.07); g.add(b);
+      const n = new THREE.Mesh(J.nozzle, J.darkMat); n.position.set(x, -0.24, -0.07); g.add(n);
+      const fl = new THREE.Mesh(J.flame, J.flameMat); fl.rotation.x = Math.PI; fl.position.set(x, -0.64, -0.07); fl.visible = false; fl.renderOrder = 8;
+      g.add(fl); g.userData.flames.push(fl);
+    }
+    return g;
+  }
+
   medkitModel() {
     if (!this._med) {
       const plus = new THREE.MeshBasicMaterial({ color: 0x5ff4c8, toneMapped: false });
@@ -426,6 +458,7 @@ export class Character {
     this.attachments = [];
     if (id === 'shock') this.addShockGear();
     if (id === 'platinum') this.addPlatinumGear();
+    for (const a of this.attachments) a.visible = !this.jetpackObj;
   }
 
   attachToBone(boneName, obj, localMatrix) {
@@ -492,6 +525,21 @@ export class Character {
     this.heldObj = obj;
   }
 
+  /** Show or hide a jetpack on the character's back. */
+  setJetpack(on) {
+    if (on && !this.jetpackObj) {
+      const m = this.f.jetpackModel();
+      m.position.z = -0.05;
+      this.jetpackObj = this.attachToBone('Spine2', m, this.f.backLocal);
+      this.jetFlames = m.userData.flames;
+    } else if (!on && this.jetpackObj) {
+      this.jetpackObj.parent && this.jetpackObj.parent.remove(this.jetpackObj);
+      this.jetpackObj = null; this.jetFlames = null;
+    }
+    // the Shock Trooper battery pack would clip through the jetpack
+    for (const a of this.attachments) a.visible = !this.jetpackObj;
+  }
+
   setGlider(on) {
     if (on && !this.glider) { this.glider = this.f.gliderModel(); this.root.add(this.glider); }
     if (this.glider) this.glider.visible = on;
@@ -535,6 +583,7 @@ export class Character {
       dt += this._accum || 0; this._accum = 0;
     }
     this.root.rotation.y = s.yaw;
+    if (this.jetFlames) for (const fl of this.jetFlames) { fl.visible = !!s.thrusting && !this.dead; if (fl.visible) fl.scale.set(1, 0.75 + Math.random() * 0.5, 1); }
     if (this.dead) {
       this.deathT += dt;
       this.mixer.update(dt);

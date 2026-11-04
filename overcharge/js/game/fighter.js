@@ -1,6 +1,6 @@
 // A combatant (the player or a bot): health, shield, inventory, weapon state and movement physics.
 import * as THREE from 'three';
-import { WEAPONS, GRENADES, AMMO_TYPES, HEALS, LOADOUT_ITEMS, LOADOUT_AMMO, normalizeLoadout } from '../data/items.js';
+import { WEAPONS, GRENADES, AMMO_TYPES, HEALS, JETPACK, LOADOUT_ITEMS, LOADOUT_AMMO, normalizeLoadout } from '../data/items.js';
 import {
   GRAVITY, PLAYER_RADIUS, PLAYER_HEIGHT, CROUCH_HEIGHT, STEP_HEIGHT,
   MAX_HEALTH, MAX_SHIELD, SHIELD_REGEN_DELAY, SHIELD_REGEN_RATE,
@@ -36,6 +36,7 @@ export class Fighter {
     this.wantJump = false;
     this.overdriveT = 0;
     this.healT = 0; this.healDur = 0;
+    this.jetpack = false; this.fuel = JETPACK.fuel; this.jetHeld = false; this.thrusting = false; this.jetIdle = 0;
     this.noFallDamage = false;
     this.airTime = 0; this.peakFallSpeed = 0;
     this.kills = 0; this.damageDealt = 0; this.placement = 0;
@@ -62,6 +63,7 @@ export class Fighter {
     this.ammo = { light: 0, medium: 0, heavy: 0, shells: 0 };
     this.kills = 0; this.damageDealt = 0; this.placement = 0; this.eliminatedBy = null;
     this.overdriveT = 0; this.reloadT = 0; this.fireCd = 0; this.respawnT = -1; this.healT = 0;
+    this.jetpack = false; this.fuel = JETPACK.fuel; this.thrusting = false;
     this.vel.set(0, 0, 0);
   }
 
@@ -89,6 +91,12 @@ export class Fighter {
   addItem(item, allowSwap = true) {
     const dropped = [];
     if (item.kind === 'ammo') { this.ammo[item.id] = Math.min(AMMO_TYPES[item.id].max, this.ammo[item.id] + item.count); return { ok: true, dropped }; }
+    if (item.kind === 'jetpack') {
+      // worn on your back, not in the hotbar; a second one just refuels
+      if (!this.jetpack) { this.jetpack = true; this.fuel = JETPACK.fuel; return { ok: true, dropped, jetpack: true }; }
+      if (this.fuel < JETPACK.fuel - 1) { this.fuel = JETPACK.fuel; return { ok: true, dropped }; }
+      return { ok: false, dropped };
+    }
     if (item.kind === 'grenade' || item.kind === 'heal') {
       const stackOf = it => (it.kind === 'grenade' ? GRENADES : HEALS)[it.id].stack;
       let left = item.count;
@@ -257,6 +265,25 @@ export class Fighter {
       this.vel.x += (tx - this.vel.x) * k;
       this.vel.z += (tz - this.vel.z) * k;
     }
+    // jetpack: hold jump while airborne to thrust upward
+    this.thrusting = false;
+    if (this.jetpack && this.jetHeld && this.fuel > 0 && (!grounded || this.wantJump)) {
+      if (!grounded) {
+        this.thrusting = true;
+        const alt = this.pos.y - groundAt(this.pos.x, this.pos.z, this.pos.y);
+        const cap = alt > 24 ? 0.5 : JETPACK.maxUp; // flight ceiling ~24 m above the ground
+        this.vel.y = Math.min(cap, this.vel.y + (JETPACK.thrust + (this.vel.y < 0 ? 20 : 0)) * dt);
+        this.fuel = Math.max(0, this.fuel - JETPACK.burn * dt);
+        this.jetIdle = 0; this.crouch = false;
+        this.peakFallSpeed = 0;
+        // better air steering while flying
+        const jk = Math.min(1, dt * 5);
+        this.vel.x += (tx * 1.15 - this.vel.x) * jk; this.vel.z += (tz * 1.15 - this.vel.z) * jk;
+      }
+    } else if (this.jetpack) {
+      this.jetIdle += dt;
+      if (grounded && this.jetIdle > JETPACK.regenDelay) this.fuel = Math.min(JETPACK.fuel, this.fuel + JETPACK.regen * dt);
+    }
     if (this.wantJump && grounded) {
       this.vel.y = JUMP_V; this.phys.grounded = false; ev.jumped = true;
       if (this.crouch) this.crouch = false;
@@ -269,7 +296,7 @@ export class Fighter {
     if (landed) {
       ev.landed = true;
       const v = this.peakFallSpeed;
-      if (v > 17.5 && !this.noFallDamage) ev.fallDamage = Math.round((v - 17.5) * 7);
+      if (v > 17.5 && !this.noFallDamage && !this.jetpack) ev.fallDamage = Math.round((v - 17.5) * 7); // jetpacks soften landings
       this.noFallDamage = false;
       this.peakFallSpeed = 0;
     }

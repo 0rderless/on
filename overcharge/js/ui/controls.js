@@ -45,7 +45,7 @@ export class Controls {
     this.state = {
       move: { x: 0, y: 0 }, look: { dx: 0, dy: 0 },
       fire: false, firePressed: false, adsToggle: false, adsHeld: null,
-      jump: false, crouch: false, reload: false, interact: false, slot: null, sprintKey: false, swap: null,
+      jump: false, jumpHeld: false, crouch: false, reload: false, interact: false, slot: null, sprintKey: false, swap: null,
     };
     this.swapFrom = null; this.holdTimer = 0;
     this.enabled = false;
@@ -61,7 +61,7 @@ export class Controls {
     const s = this.state;
     s.move.x = s.move.y = 0; s.look.dx = s.look.dy = 0;
     s.fire = false; s.firePressed = false; s.adsToggle = false; s.adsHeld = null;
-    s.jump = s.crouch = s.reload = s.interact = false; s.slot = null; s.sprintKey = false; s.swap = null;
+    s.jump = s.crouch = s.reload = s.interact = false; s.jumpHeld = false; s.slot = null; s.sprintKey = false; s.swap = null;
     this.endSwap();
     this.pointers.clear();
     this.knob.style.transform = '';
@@ -131,7 +131,7 @@ export class Controls {
       case 'joy': this.joyUpdate(p, e.clientX, e.clientY); break;
       case 'fire': s.fire = true; s.firePressed = true; break;
       case 'ads': s.adsToggle = true; break;
-      case 'jump': s.jump = true; break;
+      case 'jump': s.jump = true; s.jumpHeld = true; break;
       case 'crouch': s.crouch = true; break;
       case 'reload': s.reload = true; break;
       case 'interact': s.interact = true; break;
@@ -174,6 +174,7 @@ export class Controls {
     this.pointers.delete(e.pointerId);
     if (p.el) p.el.classList.remove('pressed');
     if (p.role === 'slot') clearTimeout(this.holdTimer);
+    if (p.role === 'jump') { let other = false; for (const q of this.pointers.values()) if (q.role === 'jump') other = true; if (!other) this.state.jumpHeld = false; }
     if (p.role === 'joy') { this.state.move.x = 0; this.state.move.y = 0; this.knob.style.transform = ''; }
     if (p.role === 'fire') {
       // stop firing only when no other fire button is held
@@ -222,8 +223,8 @@ export class Controls {
       const l = Math.hypot(s.move.x, s.move.y); if (l > 1) { s.move.x /= l; s.move.y /= l; }
     };
     if ('wasd'.includes(k) && k.length === 1) mv();
-    if (!down) { if (k === 'shift') s.sprintKey = false; return; }
-    if (k === ' ') s.jump = true;
+    if (!down) { if (k === 'shift') s.sprintKey = false; if (k === ' ') s.jumpHeld = false; return; }
+    if (k === ' ') { s.jump = true; s.jumpHeld = true; }
     else if (k === 'c' || k === 'control') s.crouch = true;
     else if (k === 'r') s.reload = true;
     else if (k === 'e' || k === 'f') s.interact = true;

@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { WEAPONS, GRENADES } from '../data/items.js';
 import { Audio } from '../core/audio.js';
-import { SIPHON } from '../config.js';
+import { MAX_SHIELD } from '../config.js';
 
 const _o = new THREE.Vector3(), _d = new THREE.Vector3(), _p = new THREE.Vector3(), _a = new THREE.Vector3(), _b = new THREE.Vector3();
 const _m = new THREE.Vector3(), _hit = new THREE.Vector3();
@@ -159,7 +159,8 @@ export class Combat {
     if (res.killed) g.eliminate(target, attacker, info);
   }
 
-  siphon(f) { if (f && f.alive) f.heal(SIPHON); }
+  // every elimination fully restores health and shield
+  siphon(f) { if (f && f.alive) { f.health = 100; f.shield = MAX_SHIELD; } }
 
   // ------------------------------------------------------------ grenades
   throwGrenade(f, aimDir, power = 1) {

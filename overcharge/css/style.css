@@ -490,3 +490,12 @@ input { font-family: inherit; }
 #lockon i:nth-child(3) { left: 0; bottom: 0; border-right: 0; border-top: 0; }
 #lockon i:nth-child(4) { right: 0; bottom: 0; border-left: 0; border-top: 0; }
 #lockon.firing i { border-color: #ff2d55; border-width: 4px; }
+
+/* jetpack fuel */
+.jet { display: none; align-items: center; gap: 6px; font-family: var(--head); font-size: 11px; color: #ff9a3c; margin-bottom: 2px; }
+.jet.show { display: flex; }
+.jet-bar { flex: 1; height: 6px; background: rgba(255, 154, 60, 0.18); border-radius: 3px; overflow: hidden; }
+#jet-fill { height: 100%; background: linear-gradient(90deg, #ff5a1f, #ffb35a); box-shadow: 0 0 8px #ff9a3c; }
+.jet.low #jet-fill { background: #ff4d6a; }
+#b-jump.has-jet { border-color: #ff9a3c; box-shadow: 0 0 14px rgba(255, 154, 60, 0.55); }
+#b-jump.has-jet::after { content: 'HOLD'; position: absolute; bottom: -15px; left: 50%; transform: translateX(-50%); font-family: var(--head); font-size: 10px; color: #ffb35a; text-shadow: 0 1px 3px #000; }

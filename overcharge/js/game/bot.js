@@ -145,6 +145,7 @@ export class BotBrain {
   wantsItem(item) {
     const f = this.f;
     if (item.kind === 'ammo') return true;
+    if (item.kind === 'jetpack') return !f.jetpack;
     if (item.kind === 'grenade' || item.kind === 'heal') return f.hasEmptySlot() || f.slots.some(s => s && s.kind === item.kind && s.id === item.id && s.count < 3);
     if (f.hasEmptySlot()) return true;
     // swap only for an upgrade of a same-type or worse gun
@@ -157,6 +158,8 @@ export class BotBrain {
     if (!f.alive) return;
     if (f.mode === 'bus') return;
     if (f.mode === 'skydive' || f.mode === 'glide') { this.updateAir(dt); return; }
+    this.jetT = (this.jetT || 0) - dt;
+    f.jetHeld = this.jetT > 0 && f.jetpack;
     this.switchCd -= dt; this.nadeCd -= dt;
 
     // ---- perception
@@ -348,7 +351,7 @@ export class BotBrain {
       const d = it.pos.distanceTo(f.pos);
       if (d > range || Math.abs(it.pos.y - f.pos.y) > 3) continue;
       if (!this.wantsItem(it.item)) continue;
-      let sc = -d + (it.item.kind === 'gun' ? 12 + it.item.rarity * 3 : it.item.kind === 'ammo' ? (this.lowAmmo() ? 10 : -5) : 4);
+      let sc = -d + (it.item.kind === 'gun' ? 12 + it.item.rarity * 3 : it.item.kind === 'jetpack' ? 14 : it.item.kind === 'ammo' ? (this.lowAmmo() ? 10 : -5) : 4);
       if (it.claimedBy && it.claimedBy !== f && it.claimedAt > g.time - 4) sc -= 30;
       if (sc > bestScore) { bestScore = sc; best = { type: 'loot', rec: it }; }
     }
@@ -417,6 +420,7 @@ export class BotBrain {
     if (moved < 0.6) {
       this.stuckT += 0.8;
       f.wantJump = true;
+      if (f.jetpack && f.fuel > 30) this.jetT = 0.8; // fly over whatever we're stuck on
       if (this.stuckT > 2) {
         this.stuckT = 0;
         const p = this.g.nav.randomWalkableNear(f.pos.x, f.pos.z, 6);
@@ -476,7 +480,12 @@ export class BotBrain {
       }
       // habits
       this.jumpT -= dt;
-      if (this.jumpT <= 0) { this.jumpT = rnd(0.8, 3.5) / (0.3 + this.pers.jumpy); if (Math.random() < this.pers.jumpy * 0.8) f.wantJump = true; }
+      if (this.jumpT <= 0) {
+        this.jumpT = rnd(0.8, 3.5) / (0.3 + this.pers.jumpy);
+        if (Math.random() < this.pers.jumpy * 0.8) f.wantJump = true;
+        // jetpack hop to dodge / take high ground
+        if (f.jetpack && f.fuel > 45 && Math.random() < 0.35 + this.pers.jumpy * 0.3) { f.wantJump = true; this.jetT = rnd(0.35, 0.9); }
+      }
       const wantCrouch = w && (w.id === 'sniper' || (w.id === 'ar' && dist > 35)) && Math.random() < this.pers.crouchy;
       this.crouchT -= dt;
       if (this.crouchT <= 0) { this.crouchT = rnd(0.5, 2); f.crouch = wantCrouch || Math.random() < this.pers.crouchy * 0.25; }
