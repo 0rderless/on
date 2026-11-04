@@ -24,7 +24,7 @@ For local testing: `python3 -m http.server` in the repository root, then open `h
   - Volt Wing
   - Airborne Canopy, a military round parachute
   - Sky Surfer, where you stand on a surfboard
-  - Sky Serpent, a slithering snake
+  - Sky Serpent, a giant slithering serpent you ride standing on its back, like the surfboard
   - Red Dragon, with flapping wings and claws that hold you
   - Close Encounter, a flying saucer with a tractor beam
 - **Camera:** matched to Fortnite Mobile's third-person framing. See `docs/fortnite-mobile-camera-notes.md`.
@@ -38,13 +38,15 @@ For local testing: `python3 -m http.server` in the repository root, then open `h
   - Everyone starts at Bronze I and climbs with placement and eliminations. Bronze never loses progress, and you can't be demoted out of a division you've earned.
   - Higher tiers give less RP per match, and bots get tougher as you rank up.
 - **Zero Build:** 100 health and a 50 overshield that regenerates after 5 s out of combat. Every elimination fully restores your health and shield.
-- **Jetpacks:** everyone drops in wearing one by default. If you switch that off in the LOADOUT tab, jetpacks spawn around the map and in chests instead. A jetpack sits on your back without using a slot. Hold JUMP in the air to fly, up to about 24 m. Fuel refills on the ground, and you take no fall damage while wearing one. Bots use them too.
-- **Weapons:** Assault Rifle, Pump Shotgun, Volt SMG and Arc Sniper, in Common → Legendary rarities. Nothing ever lies on the floor. You drop in with your loadout. Chests and ammo boxes put their contents straight into your inventory, and a chest upgrades the matching gun if its rarity is higher. When you eliminate someone, you automatically collect their ammo, grenades and medkits.
+- **Jetpacks:** a turbine jet pack with carbon shell, twin spinning fans, heat-tinted nozzles, shock-diamond exhaust and a live fuel readout. Everyone drops in wearing one by default. If you switch that off in the LOADOUT tab, jetpacks spawn around the map and in chests instead. A jetpack sits on your back without using a slot. Hold JUMP in the air to fly, up to about 24 m. Fuel refills on the ground, and you take no fall damage while wearing one. Bots use them too.
+- **Weapons:** Assault Rifle, Volt SMG and Arc Sniper, in Common → Legendary rarities. The default loadout carries the Arc Sniper where the shotgun used to be (old saved loadouts are switched over automatically). Nothing ever lies on the floor. You drop in with your loadout. Chests and ammo boxes put their contents straight into your inventory, and a chest upgrades the matching gun if its rarity is higher. When you eliminate someone, you automatically collect their ammo, grenades and medkits.
 - **Shockwave Grenade:** works like Fortnite's. Tap fire and it pops at your feet, launching you up and forward (about 30 m) in the direction you're moving, or where you're looking if you're standing still. You can steer in the air, and you take no fall damage. Anyone next to you gets knocked away.
 - **Overdrive Grenade:** an electric blast that damages enemies and supercharges you and allies (+25% speed, +30% fire rate, faster reloads, faster shield regen).
 - **Mobile controls:** joystick; two fire buttons that also steer the camera while held; swipe to look; **Auto Fire**; aim assist; auto-sprint; auto pick-up.
 - **Field of View:** defaults to Fortnite mobile's 80° and is adjustable from 60° to 120° in Settings, with a live preview of the game view.
 - **Auto Shoot:** locks onto enemies near your crosshair (the closer they are, the wider it grabs). It sticks to them while they strafe or briefly duck behind cover, and fires accurately for you. Only a deliberate flick breaks the lock. It's separate from Aim Assist and can be toggled with the AUTO button in a match.
+- **Emotes:** tap the dancer button at the top of the HUD (or press B) for the emote wheel: *Take the L*, *Floss*, *Orange Justice*, *Laugh* and *Default Dance*, each with its own beat. The camera swings round to the front (swipe to orbit), and moving, jumping, shooting or switching items ends the dance. Bots sometimes dance after an elimination.
+- **Icons, not emojis:** the kill feed shows the weapon's icon (or pickaxe, grenade, storm and fall icons) and a headshot marker, and every toast and button uses SVG icons.
 - **HUD editor** (Settings → Edit HUD): drag any control, inventory or panel, and set its size and opacity per element.
 - **Locker:** outfits *Default*, *Shock Trooper*, *Platinum Boy*, *Cursed Trooper* (curse veins, horns, orbiting spirits), *Zombie*, *Red Dragon Trooper* (scale armor, gold horns, wings) and *Frost Trooper* (ice armor and crystals). Pickaxes are *Standard Issue*, *Volt Splitter*, *Platinum Pick* and *Neon Reaper*. All are free while the game is in testing.
 - **Bots** have imperfect, reaction-limited aim, choose weapons by range, strafe and jump, loot chests, rotate with the storm, retreat to cover to recharge shields, use grenades, investigate gunfire, and have player-style names.

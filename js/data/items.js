@@ -78,19 +78,22 @@ export const HEALS = {
 // Starting loadout every fighter drops in with. The player can reorder it in the lobby.
 export const LOADOUT_ITEMS = {
   smg:       { label: 'Volt SMG',          make: () => makeGun('smg', 2) },
-  shotgun:   { label: 'Pump Shotgun',      make: () => makeGun('shotgun', 2) },
+  sniper:    { label: 'Arc Sniper',        make: () => makeGun('sniper', 2) },
   ar:        { label: 'Assault Rifle',     make: () => makeGun('ar', 2) },
   shockwave: { label: 'Shockwave Grenade', make: () => makeGrenade('shockwave', 2) },
   medkit:    { label: 'Medkit',            make: () => makeHeal('medkit', 1) },
 };
-export const DEFAULT_LOADOUT = ['smg', 'shotgun', 'ar', 'shockwave', 'medkit'];
-export const LOADOUT_AMMO = { light: 120, medium: 120, heavy: 0, shells: 20 };
+export const DEFAULT_LOADOUT = ['smg', 'sniper', 'ar', 'shockwave', 'medkit'];
+export const LOADOUT_AMMO = { light: 120, medium: 120, heavy: 24, shells: 0 };
 
 /** Validate a saved loadout order (must contain each loadout item exactly once). */
 export function normalizeLoadout(order) {
   if (!Array.isArray(order)) return [...DEFAULT_LOADOUT];
   const seen = new Set(), out = [];
-  for (const id of order) if (LOADOUT_ITEMS[id] && !seen.has(id)) { seen.add(id); out.push(id); }
+  for (let id of order) {
+    if (id === 'shotgun') id = 'sniper';   // the shotgun was swapped out for the sniper (keeps your slot order)
+    if (LOADOUT_ITEMS[id] && !seen.has(id)) { seen.add(id); out.push(id); }
+  }
   for (const id of DEFAULT_LOADOUT) if (!seen.has(id)) out.push(id);
   return out.slice(0, 5);
 }
@@ -106,7 +109,7 @@ export function rollRarity(table, rng = Math.random) {
   return 0;
 }
 
-const GUN_WEIGHTS = { ar: 34, shotgun: 26, smg: 26, sniper: 14 };
+const GUN_WEIGHTS = { ar: 36, smg: 34, sniper: 30 };   // no shotguns: the sniper replaced it
 export function rollWeapon(rng = Math.random) {
   let r = rng() * 100;
   for (const k in GUN_WEIGHTS) { r -= GUN_WEIGHTS[k]; if (r <= 0) return k; }

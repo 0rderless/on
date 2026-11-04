@@ -7,6 +7,7 @@ import { RARITIES } from '../data/items.js';
 import { makeJetpack } from './jetpack.js';
 import { makeGlider } from './gliders.js';
 import { buildFemaleGeometries } from './femaleBody.js';
+import { poseEmote } from './emotes.js';
 import { SKINS } from '../data/cosmetics.js';
 
 const _q = new THREE.Quaternion(), _qp = new THREE.Quaternion(), _qi = new THREE.Quaternion();
@@ -811,12 +812,17 @@ export class Character {
     return out.set(this.root.position.x, this.root.position.y + 1.4, this.root.position.z);
   }
 
+  /** Start / stop an emote (a dance laid over the T-pose). */
+  playEmote(id) { this.emote = { id, t: 0, k: 0 }; this.setHeld(null); }
+  stopEmote() { this.emote = null; this.model.position.x = 0; }
+
   fire() { this.recoil = Math.min(1, this.recoil + 0.6); }
   swing() { this.swingT = 0; }
   throwAnim() { this.throwT = 0; }
 
   die(seed = Math.random()) {
     if (this.dead) return;
+    this.emote = null; this.model.position.x = 0;
     this.dead = true; this.deathT = 0;
     for (const k in this.weights) this.actions[k].setEffectiveWeight(0);
     const a = this.actions[seed < 0.5 ? 'death1' : 'death2'];
@@ -826,7 +832,7 @@ export class Character {
   }
 
   revive() {
-    this.dead = false;
+    this.dead = false; this.emote = null; this.model.position.x = 0;
     this.actions.death1.stop(); this.actions.death2.stop();
     this.root.visible = true;
   }
@@ -898,6 +904,12 @@ export class Character {
         j.rotation.z = H.swing * (i === 0 ? 1 : 0.4) + Math.sin(H.t * 2.3 - i * 0.6) * 0.06;
       });
     }
+    if (this.jetpackObj && this.jetpackObj.userData.spin) {
+      const near = (s.camDist ?? 0) < 26;
+      if (this.jetNear !== near) { this.jetNear = near; this.jetpackObj.userData.setDetail(near); }
+      if (near) this.jetpackObj.userData.spin(dt, !!s.thrusting && !this.dead);
+      if (s.fuel !== undefined) this.jetpackObj.userData.setFuel(s.fuel);
+    }
     if (this.jetFlames) for (const fl of this.jetFlames) { fl.visible = !!s.thrusting && !this.dead; if (fl.visible) fl.scale.set(1, 0.75 + Math.random() * 0.5, 1); }
     if (this.dead) {
       this.deathT += dt;
@@ -914,7 +926,7 @@ export class Character {
     const skyTarget = mode === 'skydive' ? 1 : 0, glideTarget = mode === 'glide' ? 1 : 0;
     this.skydiveAmt += (skyTarget - this.skydiveAmt) * Math.min(1, dt * 6);
     this.glideAmt += (glideTarget - this.glideAmt) * Math.min(1, dt * 6);
-    if (mode !== 'ground') {
+    if (mode !== 'ground' || this.emote) {
       target.tpose = 1;
     } else if (speed < 0.4) target.idle = 1;
     else {
@@ -954,6 +966,14 @@ export class Character {
     _right.set(-cy, 0, sy);
     _fwd.set(sy, 0, cy);
     const B = this.bones;
+    this.model.position.x = 0;
+    if (this.emote && mode === 'ground') {
+      this.emote.t += dt;
+      this.emote.k = Math.min(1, this.emote.k + dt * 6);
+      this.model.position.y = 0;
+      poseEmote(this.emote.id, this.emote.t, B, { R: _right, F: _fwd, U: _up }, rotateBoneWorld, this.model, this.emote.k);
+      return;
+    }
     // crouch
     const crouchT = s.crouch && mode === 'ground' ? 1 : 0;
     this.crouchAmt += (crouchT - this.crouchAmt) * Math.min(1, dt * 12);

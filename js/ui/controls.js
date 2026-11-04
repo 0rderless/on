@@ -13,11 +13,12 @@ export const HUD_DEFAULTS = {
   reload:   { x: 0.775, y: 0.38, s: 0.85, o: 0.9 },
   interact: { x: 0.62,  y: 0.63, s: 1, o: 1 },
   map:      { x: 0.5,   y: 0.08, s: 1, o: 0.9 },
+  emote:    { x: 0.575, y: 0.08, s: 1, o: 0.9 },
   autofire: { x: 0.86,  y: 0.885, s: 1, o: 0.95 },
 };
 export const HUD_NAMES = {
   minimap: 'Minimap', status: 'Health & Shield', hotbar: 'Inventory', joystick: 'Move Joystick', fire: 'Fire (Right)', fireL: 'Fire (Left)',
-  ads: 'Aim (ADS)', jump: 'Jump', crouch: 'Crouch', reload: 'Reload', interact: 'Pick Up / Open', map: 'Map', autofire: 'Auto Shoot Toggle',
+  ads: 'Aim (ADS)', jump: 'Jump', crouch: 'Crouch', reload: 'Reload', interact: 'Pick Up / Open', map: 'Map', emote: 'Emote', autofire: 'Auto Shoot Toggle',
 };
 
 /** Scale factor so the HUD keeps the same proportions on small phones and tablets (baseline 844×390). */
@@ -45,13 +46,13 @@ export class Controls {
     this.state = {
       move: { x: 0, y: 0 }, look: { dx: 0, dy: 0 },
       fire: false, firePressed: false, adsToggle: false, adsHeld: null,
-      jump: false, jumpHeld: false, crouch: false, reload: false, interact: false, slot: null, sprintKey: false, swap: null,
+      jump: false, jumpHeld: false, crouch: false, reload: false, interact: false, slot: null, sprintKey: false, swap: null, emote: null,
     };
     this.swapFrom = null; this.holdTimer = 0;
     this.enabled = false;
     this.pointers = new Map();  // pointerId → {role, x, y, el}
     this.keys = new Set();
-    this.onMap = null; this.onPause = null;
+    this.onMap = null; this.onPause = null; this.onEmote = null;
     this.joy = document.getElementById('joy');
     // iOS Safari can cancel a long-held pointer; track held jump touches with raw touch events too
     this.jumpTouches = new Set();
@@ -75,7 +76,7 @@ export class Controls {
     const s = this.state;
     s.move.x = s.move.y = 0; s.look.dx = s.look.dy = 0;
     s.fire = false; s.firePressed = false; s.adsToggle = false; s.adsHeld = null;
-    s.jump = s.crouch = s.reload = s.interact = false; s.jumpHeld = false; this.jumpTouches && this.jumpTouches.clear(); s.slot = null; s.sprintKey = false; s.swap = null;
+    s.jump = s.crouch = s.reload = s.interact = false; s.jumpHeld = false; this.jumpTouches && this.jumpTouches.clear(); s.slot = null; s.sprintKey = false; s.swap = null; s.emote = null;
     this.endSwap();
     this.pointers.clear();
     this.knob.style.transform = '';
@@ -121,6 +122,7 @@ export class Controls {
       case 'b-reload': return { role: 'reload', el: ctl };
       case 'b-interact': return { role: 'interact', el: ctl };
       case 'b-map': case 'minimap-wrap': return { role: 'map', el: ctl };
+      case 'b-emote': return { role: 'emote', el: ctl };
       case 'b-pause': return { role: 'pause', el: ctl };
       case 'b-auto': return { role: 'auto', el: ctl };
       default: return { role: 'look' };
@@ -129,7 +131,7 @@ export class Controls {
 
   down(e) {
     if (!this.enabled || this.hud.classList.contains('editing')) return;
-    if (e.target.closest('.overlay.show, #bigmap.show, button.btn')) return;
+    if (e.target.closest('.overlay.show, #bigmap.show, #emote-wheel.show, button.btn')) return;
     if (e.pointerType === 'mouse' && document.pointerLockElement !== document.body && !e.target.closest('.ctl, .slot')) {
       // desktop: click the 3D view to capture the mouse
       try { document.body.requestPointerLock(); } catch { /* unsupported */ }
@@ -150,6 +152,7 @@ export class Controls {
       case 'reload': s.reload = true; break;
       case 'interact': s.interact = true; break;
       case 'map': this.onMap && this.onMap(); break;
+      case 'emote': this.onEmote && this.onEmote(); break;
       case 'pause': this.onPause && this.onPause(); break;
       case 'auto': this.onAutoToggle && this.onAutoToggle(); break;
       case 'slot': {
@@ -244,6 +247,7 @@ export class Controls {
     else if (k === 'e' || k === 'f') s.interact = true;
     else if (k === 'shift') s.sprintKey = true;
     else if (k === 'm') this.onMap && this.onMap();
+    else if (k === 'b') this.onEmote && this.onEmote();
     else if (k === 'escape' || k === 'p') this.onPause && this.onPause();
     else if (k >= '1' && k <= '6') s.slot = +k - 1;
     else if (k === 'q') s.adsToggle = true;

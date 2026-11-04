@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { WEAPONS, GRENADES, HEALS, RARITIES, itemName, itemColor } from '../data/items.js';
 import { MAP_HALF, MAX_HEALTH, MAX_SHIELD, SOLO_RESPAWNS, KILLS_PER_RESPAWN } from '../config.js';
+import { EMOTES } from '../game/emotes.js';
 
 const RESPAWN_SVG = '<svg viewBox="0 0 24 24"><path d="M12 4a8 8 0 1 0 7.75 10h-2.1A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35A7.96 7.96 0 0 0 12 4z"/></svg>';
 
@@ -28,6 +29,34 @@ export class Hud {
     this.fpsT = 0; this.frames = 0;
     $('bigmap-close').addEventListener('click', () => this.toggleMap(false));
     $('b-pause').addEventListener('click', () => app.pause(true));
+    this.onEmotePick = null; this.emoteOpenedAt = 0;
+    this.buildEmoteWheel();
+  }
+
+  /** Emote wheel: five dances around a close button. */
+  buildEmoteWheel() {
+    const ring = $('ew-ring'), R = 104, C = 150;
+    const colors = { takethel: '#7cff6b', floss: '#4dd7ff', orangejustice: '#ff9a2e', laugh: '#ffe14d', defaultdance: '#c48bff' };
+    EMOTES.forEach((e, i) => {
+      const a = -Math.PI / 2 + i * (Math.PI * 2 / EMOTES.length);
+      const b = document.createElement('button');
+      b.className = 'ew-btn'; b.dataset.emote = e.id;
+      b.style.left = (C + Math.cos(a) * R).toFixed(1) + 'px'; b.style.top = (C + Math.sin(a) * R).toFixed(1) + 'px';
+      b.style.setProperty('--ec', colors[e.id] || '#ffe14d');
+      b.innerHTML = `<i class="ic ic-em-${e.id}"></i><span>${e.name}</span>`;
+      b.addEventListener('click', ev => { ev.stopPropagation(); if (performance.now() - this.emoteOpenedAt < 250) return; this.toggleEmotes(false); if (this.onEmotePick) this.onEmotePick(e.id); });
+      ring.appendChild(b);
+    });
+    $('ew-close').addEventListener('click', ev => { ev.stopPropagation(); this.toggleEmotes(false); });
+    // tapping the dimmed background closes it (ignoring the click that the opening tap itself produces)
+    $('emote-wheel').addEventListener('click', ev => { if (ev.target.id === 'emote-wheel' && performance.now() - this.emoteOpenedAt > 400) this.toggleEmotes(false); });
+  }
+
+  toggleEmotes(force) {
+    const w = $('emote-wheel');
+    const on = force !== undefined ? force : !w.classList.contains('show');
+    if (on && !w.classList.contains('show')) this.emoteOpenedAt = performance.now();
+    w.classList.toggle('show', on);
   }
 
   matchStart(m) {
@@ -35,6 +64,7 @@ export class Hud {
     this.el.classList.add('show');
     ['death', 'victory', 'pause'].forEach(id => $(id).classList.remove('show', 'spectating'));
     $('bigmap').classList.remove('show');
+    $('emote-wheel').classList.remove('show');
     $('respawn').classList.remove('show');
     $('spec-tag').classList.remove('show');
     $('killfeed').innerHTML = '';
@@ -60,6 +90,9 @@ export class Hud {
     $('sh-fill').style.width = (f.shield / MAX_SHIELD * 100) + '%';
     $('hp-num').textContent = Math.ceil(f.health);
     $('sh-num').textContent = Math.ceil(f.shield);
+    const dancing = !!p.emote;
+    if (this.dancing !== dancing) { this.dancing = dancing; $('b-emote').classList.toggle('on', dancing); }
+    if (!p.alive || p.mode !== 'ground') { if ($('emote-wheel').classList.contains('show')) this.toggleEmotes(false); }
     const jet = $('jet');
     if (f.jetpack) { jet.classList.add('show'); jet.classList.toggle('low', f.fuel < 25); $('jet-fill').style.width = f.fuel + '%'; } else jet.classList.remove('show');
     const hasJet = !!(f.jetpack && f === p);
@@ -84,7 +117,7 @@ export class Hud {
     const ch = $('crosshair');
     const scoped = m.ctrl.scoped;
     $('scope').classList.toggle('on', !!scoped);
-    if (!p.alive || p.mode !== 'ground' || scoped) ch.classList.add('hidden');
+    if (!p.alive || p.mode !== 'ground' || scoped || p.emote) ch.classList.add('hidden');
     else {
       ch.classList.remove('hidden');
       const style = w ? w.crosshair : 'dot';
@@ -198,7 +231,12 @@ export class Hud {
     const kf = $('killfeed');
     const name = (n, team) => `<b class="${n === this.m.player.name ? 'kf-me' : team === myTeam ? 'kf-mate' : ''}">${esc(n)}</b>`;
     const d = document.createElement('div'); d.className = 'kf';
-    d.innerHTML = msg.a ? `${name(msg.a, msg.aTeam)} <em>${msg.head ? '🎯 ' : ''}eliminated</em> ${name(msg.b, msg.bTeam)} <em>· ${msg.how}</em>` : `${name(msg.b, msg.bTeam)} <em>${msg.how}</em>`;
+    const gunImg = msg.w && this.app.icons['gun_' + msg.w];
+    const how = gunImg ? `<img class="kf-gun" src="${gunImg}" alt="${esc(msg.how)}">`
+      : `<i class="ic ${msg.w === 'pickaxe' ? 'ic-pickaxe' : msg.w === 'overdrive' || msg.w === 'shockwave' ? 'ic-grenade' : msg.w === 'storm' ? 'ic-storm' : msg.w === 'fall' ? 'ic-fall' : 'ic-elim'}"></i>`;
+    d.innerHTML = msg.a
+      ? `${name(msg.a, msg.aTeam)}${msg.head ? '<i class="ic ic-headshot kf-hs" title="Headshot"></i>' : ''}${how}${name(msg.b, msg.bTeam)}`
+      : `${how}${name(msg.b, msg.bTeam)} <em>${msg.how}</em>`;
     kf.appendChild(d);
     while (kf.children.length > 4) kf.removeChild(kf.firstChild);
     setTimeout(() => d.remove(), 7000);
@@ -211,7 +249,11 @@ export class Hud {
     b.classList.add('show'); this.bannerT = time;
   }
 
-  toast(text, cls = '') { const t = $('toast'); t.textContent = text; t.className = 'show ' + cls; this.toastT = 2.4; }
+  toast(text, cls = '', icon = '') {
+    const t = $('toast'); t.textContent = text;
+    if (icon) { const i = document.createElement('i'); i.className = 'ic ' + icon; t.prepend(i); }
+    t.className = 'show ' + cls; this.toastT = 2.4;
+  }
 
   elimPopup(name) {
     const e = $('elimpop');

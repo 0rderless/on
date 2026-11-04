@@ -89,6 +89,13 @@ class App {
       this.input = this.controls;
       this.controls.onMap = () => this.hud.toggleMap();
       this.controls.onPause = () => this.pause(!this.paused);
+      this.controls.onEmote = () => {
+        const m = this.match, p = m && m.player;
+        if (!p || !p.alive) return;
+        if (p.mode !== 'ground') { this.hud.toast('Land first to emote'); return; }
+        this.hud.toggleEmotes(); Audio.play('click', { vol: 0.5 });
+      };
+      this.hud.onEmotePick = id => { this.controls.state.emote = id; };
       this.controls.onAutoToggle = () => {
         const S = this.profile.settings; S.autoFire = !S.autoFire; Store.save();
         this.hud.toast(S.autoFire ? 'AUTO SHOOT ON' : 'AUTO SHOOT OFF', S.autoFire ? 'cyan' : '');
@@ -333,7 +340,7 @@ class App {
   /** Fill the HUD with sample content while editing from the lobby. */
   hudPreview(on) {
     if (on && !this.match) {
-      const fake = { selected: 1, slots: [{ kind: 'gun', id: 'ar', rarity: 3, mag: 30 }, { kind: 'gun', id: 'shotgun', rarity: 2, mag: 5 }, { kind: 'grenade', id: 'shockwave', count: 2 }, { kind: 'grenade', id: 'overdrive', count: 1 }, null], pickaxe: this.profile.locker.pickaxe, reloading: false };
+      const fake = { selected: 1, slots: [{ kind: 'gun', id: 'ar', rarity: 3, mag: 30 }, { kind: 'gun', id: 'sniper', rarity: 2, mag: 1 }, { kind: 'grenade', id: 'shockwave', count: 2 }, { kind: 'grenade', id: 'overdrive', count: 1 }, null], pickaxe: this.profile.locker.pickaxe, reloading: false };
       this.hud.slotKey = '';
       this.hud.updateSlots(fake);
       $('ammo-mag').textContent = '30'; $('ammo-res').textContent = '/ 120';

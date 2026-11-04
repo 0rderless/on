@@ -41,6 +41,7 @@ export class PlayerController {
     this.spectating = null;
     this.busOrbit = 0;
     this.throwHeld = false;
+    this.emoteOrbit = 0; this.emotePitch = -0.12; this.emoteCamK = 0;
   }
 
   /** Camera aim ray (from the camera through the crosshair). */
@@ -61,16 +62,22 @@ export class PlayerController {
     const zoom = ads ? f.weapon.zoom : 1;
     let sens = 0.0042 * S.sens * (ads ? S.adsSens / Math.sqrt(zoom) : 1);
     // aim assist slowdown
-    const assist = S.aimAssist && f.alive && f.mode === 'ground' && f.weapon ? this.findAssist(f) : null;
+    const assist = S.aimAssist && f.alive && f.mode === 'ground' && f.weapon && !f.emote ? this.findAssist(f) : null;
     if (assist && assist.ang < 0.07) sens *= 0.62;
     if (this.lock) sens *= 0.7; // steadier while locked on
+    // while dancing, swipes orbit the camera around the player instead of turning them
+    if (f.emote && f.alive) {
+      this.emoteOrbit -= input.look.dx * sens;
+      this.emotePitch = Math.max(-0.9, Math.min(0.6, this.emotePitch - input.look.dy * sens * (S.invertY ? -1 : 1)));
+      input.look.dx = 0; input.look.dy = 0;
+    }
     const swipePx = Math.abs(input.look.dx) + Math.abs(input.look.dy);
     this.yaw -= input.look.dx * sens;
     this.pitch -= input.look.dy * sens * (S.invertY ? -1 : 1);
     input.look.dx = 0; input.look.dy = 0;
     this.pitch = Math.max(-1.35, Math.min(1.2, this.pitch));
     // AUTO SHOOT lock-on: snaps onto nearby enemies and tracks them (Fortnite-mobile style)
-    const lockable = S.autoFire && f.alive && f.mode === 'ground' && f.weapon;
+    const lockable = S.autoFire && f.alive && f.mode === 'ground' && f.weapon && !f.emote;
     if (lockable) this.updateLock(dt, f, f.weapon, swipePx); else { this.lock = null; this.lockF = null; }
     this.lockTarget = this.lock ? this.lock.f : null;
     // aim assist pull (only while moving or shooting, like console/mobile assist)
@@ -96,6 +103,22 @@ export class PlayerController {
     if (f.mode === 'bus') {
       if (input.jump) { input.jump = false; g.jumpFromBus(f); }
       this.updateCamera(dt); return;
+    }
+    // ---------------- emotes: anything that moves, shoots or switches gear ends the dance
+    if (input.emote) {
+      const id = input.emote; input.emote = null;
+      if (g.startEmote(f, id)) { this.emoteOrbit = 0; this.emotePitch = -0.12; }
+      else if (f.mode !== 'ground') g.hud.toast('Land first to emote');
+    }
+    if (f.emote) {
+      const quit = mag > 0.25 || input.jump || input.fire || input.firePressed || input.reload || input.adsToggle || input.adsHeld ||
+        input.crouch || input.interact || input.swap || (input.slot !== null && input.slot !== undefined) || input.jumpHeld;
+      if (quit) g.stopEmote(f);
+      else {
+        f.move.set(0, 0); f.sprint = false; f.jetHeld = false;
+        this.interactTarget = null;
+        this.updateCamera(dt); return;
+      }
     }
     if (f.mode === 'skydive') {
       if (input.jump) { input.jump = false; const gH = g.groundAt(f.pos.x, f.pos.z, f.pos.y); if (f.pos.y - gH > 12) { f.mode = 'glide'; g.onDeploy(f); } }
@@ -347,7 +370,18 @@ export class PlayerController {
       cam.fov += (fov - cam.fov) * Math.min(1, dt * 6); cam.updateProjectionMatrix();
       return;
     }
-    const yaw = f === g.player ? this.yaw : f.yaw, pitch = f === g.player ? this.pitch : f.pitch * 0.5;
+    let yaw = f === g.player ? this.yaw : f.yaw, pitch = f === g.player ? this.pitch : f.pitch * 0.5;
+    // emote camera: swing round to the front of the dancer (and back again afterwards)
+    const dancing = !!(f.emote && f.alive && f.mode === 'ground');
+    this.emoteCamK += ((dancing ? 1 : 0) - this.emoteCamK) * Math.min(1, dt * (dancing ? 4 : 7));
+    if (this.emoteCamK < 0.002) this.emoteCamK = 0;
+    const ek = this.emoteCamK;
+    if (ek > 0) {
+      const e = ek * ek * (3 - 2 * ek);
+      const eYaw = (f === g.player ? this.yaw : f.yaw) + Math.PI + (f === g.player ? this.emoteOrbit : 0);
+      yaw += angDiff(yaw, eYaw) * e;
+      pitch += ((f === g.player ? this.emotePitch : -0.12) - pitch) * e;
+    }
     if (f.mode === 'skydive') { dist = 6.5; right = 0; up = 1.2; fov = this.fovBase * 1.12; }
     else if (f.mode === 'glide') { dist = 7.6; right = 0; up = 0.05; fov = this.fovBase * 1.12; }   // you and the whole glider in frame
     else if (ads) {
@@ -355,6 +389,7 @@ export class PlayerController {
       if (w.scope) { dist = -0.2; right = 0.0; up = 0; fov = this.fovBase / w.zoom; }
       else { ({ dist, right, up } = CAMERA_RIG.ads); fov = this.fovBase / w.zoom; }
     } else ({ dist, right, up } = CAMERA_RIG.hip);
+    if (ek > 0) { dist += (3.9 - dist) * ek; right *= 1 - ek; up += (-0.25 - up) * ek; }
     if (!f.alive) { dist = 5; right = 0; }
     const pivotY = f.pos.y + (f.crouch && f.mode === 'ground' ? 1.18 : 1.56) + (f.mode !== 'ground' ? 0.8 : 0);
     const sy = Math.sin(yaw), cy = Math.cos(yaw), sp = Math.sin(pitch), cp = Math.cos(pitch);

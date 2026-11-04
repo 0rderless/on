@@ -84,7 +84,7 @@
   <div id="install" class="panel">
     <div class="in-txt"><b>Play it like an app</b><span id="install-msg"></span></div>
     <button class="btn primary sm" id="install-go" style="display:none"><span>INSTALL</span></button>
-    <button class="in-x" id="install-x" aria-label="Dismiss">✕</button>
+    <button class="in-x" id="install-x" aria-label="Dismiss"><i class="ic ic-close"></i></button>
   </div>
 
   <div class="tabpane show" data-pane="play">
@@ -103,9 +103,9 @@
           <button class="mode-btn" data-mode="reload"><b>RELOAD</b><small>Solo · 2 Respawns</small></button>
         </div>
         <div class="team-tabs">
-          <button class="t-btn active" data-team="solo"><i class="t-ico">&#9679;</i>SOLO</button>
-          <button class="t-btn" data-team="duo"><i class="t-ico">&#9679;&#9679;</i>DUOS</button>
-          <button class="t-btn" data-team="squad"><i class="t-ico">&#9679;&#9679;&#9679;&#9679;</i>SQUADS</button>
+          <button class="t-btn active" data-team="solo"><i class="t-ico"><i></i></i>SOLO</button>
+          <button class="t-btn" data-team="duo"><i class="t-ico"><i></i><i></i></i>DUOS</button>
+          <button class="t-btn" data-team="squad"><i class="t-ico"><i></i><i></i><i></i><i></i></i>SQUADS</button>
         </div>
         <div class="queue-tabs">
           <button class="q-btn active" data-ranked="0">UNRANKED</button>
@@ -216,10 +216,12 @@
   <button class="hud-el ctl round" data-hud="reload" id="b-reload"><i class="ic ic-reload"></i></button>
   <button class="hud-el ctl pill" data-hud="interact" id="b-interact"><span id="interact-txt">PICK UP</span></button>
   <button class="hud-el ctl round small" data-hud="map" id="b-map"><i class="ic ic-map"></i></button>
+  <button class="hud-el ctl round small" data-hud="emote" id="b-emote" aria-label="Emote"><i class="ic ic-dance"></i></button>
   <button class="hud-el ctl round small auto-btn" data-hud="autofire" id="b-auto"><b>AUTO</b><small>ON</small></button>
   <button class="ctl round small" id="b-pause"><i class="ic ic-gear"></i></button>
   <div id="fps"></div>
 
+  <div id="emote-wheel"><div class="ew-ring" id="ew-ring"><button class="ew-close" id="ew-close" aria-label="Close"><i class="ic ic-close"></i></button></div></div>
   <div id="bigmap"><canvas id="bigmap-c" width="900" height="900"></canvas><button class="btn ghost" id="bigmap-close"><span>CLOSE</span></button></div>
 
   <div id="death" class="overlay">
