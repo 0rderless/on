@@ -340,8 +340,8 @@ export class PlayerController {
     if (f.mode === 'bus') {
       this.busOrbit = this.yaw;
       const b = g.bus.pos;
-      _t.set(b.x, b.y - 2, b.z);
-      const d = 26;
+      _t.set(b.x, b.y - 2 + (g.bus.camUp || 0), b.z);
+      const d = g.bus.camDist || 26;
       cam.position.set(_t.x - Math.sin(this.yaw) * Math.cos(this.pitch) * d, _t.y - Math.sin(this.pitch) * d + 6, _t.z - Math.cos(this.yaw) * Math.cos(this.pitch) * d);
       cam.lookAt(_t);
       cam.fov += (fov - cam.fov) * Math.min(1, dt * 6); cam.updateProjectionMatrix();

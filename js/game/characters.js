@@ -624,7 +624,13 @@ export class Character {
       wings.add(pivot); pivots.push(pivot);
     }
     wings.traverse(o => { if (o.isMesh) o.castShadow = true; });
-    this.keepGear(this.attachToBone('Spine2', wings, this.f.chestLocal));
+    // ride the facing-aligned back mount (like the jetpack): glued to Spine2 the wings swung sideways
+    // whenever the walk/run animations twisted the torso differently from the idle pose
+    wings.position.set(0, 0.06, 0.02);
+    wings.userData.keep = true;
+    this.getBackMount().add(wings);
+    this.updateBackMount();
+    this.attachments.push(wings);
     this.wings = pivots;
   }
 

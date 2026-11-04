@@ -28,6 +28,10 @@ For local testing: `python3 -m http.server` in the repository root, then open `h
   - Red Dragon, with flapping wings and claws that hold you
   - Close Encounter, a flying saucer with a tractor beam
 - **Camera:** matched to Fortnite Mobile's third-person framing. See `docs/fortnite-mobile-camera-notes.md`.
+- **Battle bus per map:**
+  - Reversal Compound: a coach bus under an OVERCHARGE hot-air balloon.
+  - Warehouse: a tandem-rotor cargo helicopter hauling a freight trailer.
+  - Vulcan Garrison: an armoured VTOL dropship with tilt engines and searchlights.
 - **Queues:** Unranked for casual play with easier bots; Ranked with **Bronze I → Gold III**. Everyone starts at Bronze I and climbs with placement and eliminations. Bronze never loses progress, and you can't be demoted out of a division you've earned. Bots get tougher as you rank up.
 - **Zero Build:** 100 health and a 50 overshield that regenerates after 5 s out of combat. Every elimination fully restores your health and shield.
 - **Jetpacks:** everyone drops in wearing one by default. If you switch that off in the LOADOUT tab, jetpacks spawn around the map and in chests instead. A jetpack sits on your back without using a slot. Hold JUMP in the air to fly, up to about 24 m. Fuel refills on the ground, and you take no fall damage while wearing one. Bots use them too.

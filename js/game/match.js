@@ -4,6 +4,7 @@ import { Fighter } from './fighter.js';
 import { BotBrain, botName } from './bot.js';
 import { Combat } from './combat.js';
 import { Loot } from './loot.js';
+import { makeBus } from './buses.js';
 import { Effects, StormWall } from './effects.js';
 import { PlayerController } from './player.js';
 import { makeGun, makeGrenade, WEAPONS, AMMO_TYPES, DEFAULT_LOADOUT } from '../data/items.js';
@@ -148,7 +149,10 @@ export class Match {
     const off = (Math.random() - 0.5) * 120;
     const start = new THREE.Vector3().addScaledVector(dir, -MAP_HALF - 50).addScaledVector(perp, off);
     start.y = 135;
-    this.bus = { pos: start.clone(), start, dir, speed: 30, t: 0, len: (MAP_HALF + 50) * 2, active: true, mesh: this.makeBusMesh() };
+    // every map has its own themed carrier (see buses.js)
+    const ride = makeBus(this.mapId);
+    const cam = { compound: [42, 13], warehouse: [34, 6], vulcan: [26, 1] }[this.mapId] || [30, 4];
+    this.bus = { pos: start.clone(), start, dir, speed: 30, t: 0, len: (MAP_HALF + 50) * 2, active: true, mesh: ride.group, anim: ride.anim, camDist: cam[0], camUp: cam[1] };
     this.bus.mesh.position.copy(start);
     this.bus.mesh.rotation.y = Math.atan2(dir.x, dir.z);
     this.scene.add(this.bus.mesh);
@@ -176,27 +180,6 @@ export class Match {
         f.bot.jumpAt = Math.max(15, Math.min(this.bus.len - 20, rel.dot(dir) - 25 + Math.random() * 30));
       }
     }
-  }
-
-  makeBusMesh() {
-    const g = new THREE.Group();
-    const hull = new THREE.MeshStandardMaterial({ color: 0x2b2450, metalness: 0.6, roughness: 0.35 });
-    const trim = new THREE.MeshStandardMaterial({ color: 0x8a6cff, metalness: 0.4, roughness: 0.4, emissive: 0x3a1a9a, emissiveIntensity: 0.6 });
-    const glow = new THREE.MeshBasicMaterial({ color: 0x5ff4ff, toneMapped: false });
-    const body = new THREE.Mesh(new THREE.CapsuleGeometry(2.2, 12, 6, 16), hull); body.rotation.x = Math.PI / 2; g.add(body);
-    const stripe = new THREE.Mesh(new THREE.CylinderGeometry(2.25, 2.25, 9, 16, 1, true), trim); stripe.rotation.x = Math.PI / 2; stripe.scale.set(1, 1, 0.3); stripe.position.y = 0.4; g.add(stripe);
-    const wing = new THREE.Mesh(new THREE.BoxGeometry(18, 0.35, 3.2), hull); wing.position.set(0, -0.3, -0.5); g.add(wing);
-    const tail = new THREE.Mesh(new THREE.BoxGeometry(0.3, 3.4, 2.4), trim); tail.position.set(0, 2.4, -7.2); g.add(tail);
-    const tailW = new THREE.Mesh(new THREE.BoxGeometry(6, 0.25, 1.8), hull); tailW.position.set(0, 0.6, -7.4); g.add(tailW);
-    for (const x of [-6, 6]) {
-      const eng = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.1, 3.6, 14), hull); eng.rotation.x = Math.PI / 2; eng.position.set(x, -0.9, -0.4); g.add(eng);
-      const ex = new THREE.Mesh(new THREE.CircleGeometry(0.85, 16), glow); ex.position.set(x, -0.9, -2.25); ex.rotation.y = Math.PI; g.add(ex);
-    }
-    const cockpit = new THREE.Mesh(new THREE.SphereGeometry(1.6, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x9ff0ff, metalness: 0.9, roughness: 0.1, emissive: 0x1a5a6a })); cockpit.position.set(0, 0.9, 5.2); cockpit.scale.set(1, 0.7, 1.5); g.add(cockpit);
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 1.4, 6, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0x5ff4ff, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
-    beam.position.set(0, -4.5, -2); g.add(beam);
-    g.traverse(o => { if (o.isMesh) o.castShadow = false; });
-    return g;
   }
 
   initStorm() {
@@ -441,6 +424,7 @@ export class Match {
       B.pos.copy(B.start).addScaledVector(B.dir, B.t);
       B.mesh.position.copy(B.pos);
       B.mesh.position.y += Math.sin(this.time * 1.3) * 0.4;
+      if (B.anim) B.anim(this.time);
       for (const f of this.fighters) {
         if (f.mode !== 'bus') continue;
         f.pos.copy(B.pos);
