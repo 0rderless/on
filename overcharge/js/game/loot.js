@@ -1,6 +1,6 @@
 // Floor loot, chests, ammo boxes and dropped items.
 import * as THREE from 'three';
-import { RARITIES, AMMO_TYPES, FLOOR_RARITY, CHEST_RARITY, rollRarity, rollWeapon, makeGun, makeGrenade, makeHeal, WEAPONS } from '../data/items.js';
+import { RARITIES, AMMO_TYPES, FLOOR_RARITY, CHEST_RARITY, rollRarity, rollWeapon, makeGun, makeGrenade, makeHeal, WEAPONS, itemName } from '../data/items.js';
 import { Audio } from '../core/audio.js';
 
 const SHOW_DIST = 40;
@@ -167,9 +167,25 @@ export class Loot {
     const r = Math.random();
     const jetLoot = this.g.opts && this.g.opts.profile && this.g.opts.profile.jetpackStart === false;
     const extra = r < 0.15 && jetLoot ? { kind: 'jetpack', id: 'jetpack' } : r < 0.45 ? makeGrenade(Math.random() < 0.4 ? 'shockwave' : 'overdrive', 1 + Math.floor(Math.random() * 2)) : r < 0.7 ? makeHeal('medkit', 1) : this.randomAmmo();
-    const items = [makeGun(id, rollRarity(CHEST_RARITY)), this.ammoFor(id), extra];
-    this.drop(items, c.pos, 0.9);
+    // the chest's gun goes straight into your loadout (never onto the floor)
+    this.giveChestGun(f, makeGun(id, rollRarity(CHEST_RARITY)));
+    this.drop([this.ammoFor(id), extra], c.pos, 0.9);
     this.g.noise(f, c.pos, 25);
+  }
+
+  /** Upgrade the matching gun in your loadout, fill an empty slot, or convert to ammo. */
+  giveChestGun(f, gun) {
+    const i = f.slots.findIndex(s => s && s.kind === 'gun' && s.id === gun.id);
+    let msg = null;
+    if (i >= 0) {
+      if (gun.rarity > f.slots[i].rarity) { f.slots[i] = gun; if (f.selected === i + 1) f.cancelReload(); msg = 'UPGRADED · ' + itemName(gun); }
+      else { f.ammo[WEAPONS[gun.id].ammo] += WEAPONS[gun.id].mag * 2; msg = '+ ' + AMMO_TYPES[WEAPONS[gun.id].ammo].name.toUpperCase(); }
+    } else {
+      const empty = f.slots.findIndex(s => !s);
+      if (empty >= 0) { f.slots[empty] = gun; msg = 'NEW · ' + itemName(gun); }
+      else { f.ammo[WEAPONS[gun.id].ammo] += WEAPONS[gun.id].mag * 2; msg = '+ ' + AMMO_TYPES[WEAPONS[gun.id].ammo].name.toUpperCase(); }
+    }
+    if (f.isPlayer && msg) { this.g.hud.toast(msg, gun.rarity >= 3 ? 'yellow' : 'cyan'); Audio.play('equip', { vol: 0.8 }); }
   }
 
   openBox(b, f) {
@@ -207,7 +223,13 @@ export class Loot {
   /** Try to take an item for a fighter. Returns true if picked up. */
   take(f, rec, allowSwap = true) {
     if (!rec.active) return false;
+    // picking up a grenade/medkit never swaps out one of your guns
+    if (allowSwap && rec.item.kind !== 'gun') {
+      const cur = f.selected > 0 ? f.slots[f.selected - 1] : null;
+      if (cur && cur.kind === 'gun') allowSwap = false;
+    }
     const res = f.addItem(rec.item, allowSwap);
+    if (!res.ok && f.isPlayer) this.g.hud.toast('Inventory full');
     if (!res.ok) return false;
     this.remove(rec);
     if (res.dropped.length) this.drop(res.dropped, f.pos, 0.5);
