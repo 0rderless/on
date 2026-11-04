@@ -74,7 +74,7 @@ export class Combat {
    * aimOrigin/aimDir: the ray the shooter is aiming along (camera ray for the player, eyes for bots).
    * extraSpread: added cone (bots use it for inaccuracy).
    */
-  fireGun(f, aimOrigin, aimDir, extraSpread = 0) {
+  fireGun(f, aimOrigin, aimDir, extraSpread = 0, spreadMul = 1) {
     const it = f.item, w = f.weapon;
     if (!w || f.fireCd > 0 || f.equipT > 0) return false;
     if (f.reloading) { if (w.id === 'shotgun' && it.mag > 0) f.cancelReload(); else return false; }
@@ -84,7 +84,7 @@ export class Combat {
     it.mag--;
     f.lastShotAt = this.g.time;
     const moving = Math.hypot(f.vel.x, f.vel.z) > 1 || !f.phys.grounded;
-    let spread = (f.ads ? w.ads : w.hip) + f.bloom + (moving ? w.moveSpread : 0) + extraSpread;
+    let spread = ((f.ads ? w.ads : w.hip) + f.bloom + (moving ? w.moveSpread : 0)) * spreadMul + extraSpread;
     if (f.crouch) spread *= 0.75;
     f.bloom = Math.min(w.bloomMax, f.bloom + w.bloom);
     const muzzle = f.char ? f.char.muzzleWorld(new THREE.Vector3()) : new THREE.Vector3(f.pos.x, f.eyeY, f.pos.z);

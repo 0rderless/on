@@ -88,6 +88,19 @@ export class Hud {
         this.setCross(ch, style === 'circle' ? px : px + 2);
       } else this.setCross(ch, 6);
     }
+    // lock-on brackets around the enemy Auto Shoot is tracking
+    const lk = $('lockon'), lt = p.alive ? m.ctrl.lockTarget : null;
+    if (lt && lt.alive) {
+      _p.set(lt.pos.x, lt.pos.y + (lt.crouch ? 0.65 : 0.95), lt.pos.z).project(m.app.camera);
+      if (_p.z < 1) {
+        const d = Math.max(2, lt.pos.distanceTo(m.app.camera.position));
+        const hpx = Math.min(240, Math.max(34, (lt.crouch ? 1.4 : 2.0) / (2 * d * Math.tan(m.app.camera.fov * Math.PI / 360)) * innerHeight));
+        const wpx = hpx * 0.55;
+        lk.style.width = wpx + 'px'; lk.style.height = hpx + 'px';
+        lk.style.transform = `translate(${(_p.x * 0.5 + 0.5) * innerWidth - wpx / 2}px, ${(-_p.y * 0.5 + 0.5) * innerHeight - hpx / 2}px)`;
+        lk.className = 'show' + (m.ctrl.autoFiring ? ' firing' : '');
+      } else lk.className = '';
+    } else lk.className = '';
     // auto shoot feedback
     const af = !!(m.ctrl.autoFiring && p.alive);
     if (af !== this._af) { this._af = af; $('b-fire').classList.toggle('autofiring', af); $('b-fireL').classList.toggle('autofiring', af); }

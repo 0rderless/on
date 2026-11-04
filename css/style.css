@@ -480,3 +480,13 @@ input { font-family: inherit; }
 .fov-cross { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; background: linear-gradient(#fff, #fff) center / 2px 100% no-repeat, linear-gradient(#fff, #fff) center / 100% 2px no-repeat; filter: drop-shadow(0 0 1px #000); }
 .fov-tag { position: absolute; left: 8px; bottom: 6px; line-height: 1.2; font-size: 11px; font-family: var(--head); color: var(--muted); background: rgba(10, 6, 30, 0.7); padding: 3px 7px; border-radius: 5px; }
 .fov-tag b { color: var(--y); font-weight: 400; }
+
+/* auto shoot lock-on brackets */
+#lockon { position: absolute; left: 0; top: 0; width: 60px; height: 90px; pointer-events: none; display: none; will-change: transform; }
+#lockon.show { display: block; }
+#lockon i { position: absolute; width: 14px; height: 14px; border: 3px solid rgba(255, 77, 106, 0.95); filter: drop-shadow(0 0 3px rgba(255, 60, 90, 0.8)); }
+#lockon i:nth-child(1) { left: 0; top: 0; border-right: 0; border-bottom: 0; }
+#lockon i:nth-child(2) { right: 0; top: 0; border-left: 0; border-bottom: 0; }
+#lockon i:nth-child(3) { left: 0; bottom: 0; border-right: 0; border-top: 0; }
+#lockon i:nth-child(4) { right: 0; bottom: 0; border-left: 0; border-top: 0; }
+#lockon.firing i { border-color: #ff2d55; border-width: 4px; }

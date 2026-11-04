@@ -187,7 +187,7 @@ export function renderSettings(app, container, inGame = false) {
         <div class="fov-view"><canvas class="fov-canvas"></canvas><div class="fov-cross"></div><div class="fov-tag">PREVIEW · <b class="fov-val">${S.fov}°</b>${S.fov === 80 ? ' · FORTNITE DEFAULT' : ''}</div></div>
         <button class="btn ghost sm fov-reset"><span>RESET TO 80° (FORTNITE)</span></button>
       </div>
-      ${toggle('autoFire', 'Auto Shoot', 'Shoots for you the moment your crosshair is on an enemy — no fire button needed. Also toggled by the AUTO button in a match')}
+      ${toggle('autoFire', 'Auto Shoot', 'Locks onto enemies near your crosshair, tracks them and fires accurately for you — no fire button needed. The closer they are, the stronger it grabs. Swipe hard to break the lock. Also toggled by the AUTO button in a match')}
       ${toggle('aimAssist', 'Aim Assist', 'Slows and gently pulls your crosshair onto nearby enemies (works with or without Auto Shoot)')}
       ${toggle('autoSprint', 'Auto Sprint', 'Sprint when the joystick is pushed all the way')}
       ${toggle('autoPickup', 'Auto Pick Up', 'Grab ammo, grenades and guns into empty slots')}
