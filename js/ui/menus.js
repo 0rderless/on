@@ -100,7 +100,7 @@ export function refreshModeCard(app) {
   document.querySelectorAll('.mode-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.mode === lm.mode);
     const n = PLAYER_COUNTS[b.dataset.mode][team];
-    b.querySelector('small').textContent = b.dataset.mode === 'reload' ? `${teamLabel} · Respawns` : `${teamLabel} · ${n} players`;
+    b.querySelector('small').textContent = b.dataset.mode === 'reload' ? (team === 'solo' ? 'Solo · 2 Respawns' : `${teamLabel} · Respawns`) : `${teamLabel} · ${n} players`;
   });
   document.querySelectorAll('.t-btn').forEach(b => b.classList.toggle('active', b.dataset.team === team));
   document.querySelectorAll('.q-btn').forEach(b => b.classList.toggle('active', (b.dataset.ranked === '1') === !!lm.ranked));

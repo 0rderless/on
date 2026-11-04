@@ -12,7 +12,7 @@ export const firebaseConfig = {
 // All game data lives under this root so it never collides with other apps on the same database.
 export const DB_ROOT = 'overcharge';
 
-export const GAME_VERSION = '1.4.0';
+export const GAME_VERSION = '1.4.1';
 
 export const MAP_HALF = 160;          // map spans -160..160 on X and Z (metres)
 export const GRAVITY = 24;
@@ -44,3 +44,6 @@ export function vfovFromH(hfov) {
 export const TEAM_SIZES = { solo: 1, duo: 2, squad: 4 };
 export const TEAM_LABELS = { solo: 'Solo', duo: 'Duos', squad: 'Squads' };
 export const PLAYER_COUNTS = { br: { solo: 30, duo: 30, squad: 32 }, reload: { solo: 20, duo: 24, squad: 24 } };
+// Reload Solo: everyone starts with 2 respawns (also the cap) and earns one back every 3 eliminations
+export const SOLO_RESPAWNS = 2;
+export const KILLS_PER_RESPAWN = 3;

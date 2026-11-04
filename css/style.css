@@ -245,6 +245,22 @@ input { font-family: inherit; }
 .reload-tag { position: absolute; left: calc(100% + 8px); top: 0; font-family: var(--head); font-size: 11px; letter-spacing: 0.08em; white-space: nowrap; }
 .reload-tag.open { color: var(--green); }
 .reload-tag.closed { color: var(--red); }
+.resp-box { display: none; position: absolute; left: calc(100% + 8px); top: 18px; padding: 5px 8px 6px; border-radius: 9px; background: rgba(10, 6, 30, 0.6); border: 1px solid rgba(79, 242, 255, 0.35); min-width: 92px; }
+.resp-box.show { display: block; }
+.resp-box .rb-t { font-family: var(--head); font-size: 10px; letter-spacing: 0.12em; color: var(--muted); display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+.resp-box .rb-t em { font-style: normal; font-size: 15px; color: #4ff2ff; }
+.resp-box .rb-i { display: flex; gap: 4px; margin: 3px 0 2px; }
+.resp-box .rb-i i { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.15); }
+.resp-box .rb-i svg { width: 14px; height: 14px; fill: rgba(255, 255, 255, 0.25); }
+.resp-box .rb-i i.on { background: rgba(79, 242, 255, 0.18); border-color: #4ff2ff; box-shadow: 0 0 8px rgba(79, 242, 255, 0.45); }
+.resp-box .rb-i i.on svg { fill: #4ff2ff; }
+.resp-box .rb-k { display: flex; align-items: center; gap: 3px; white-space: nowrap; font-family: var(--head); font-size: 10px; letter-spacing: 0.06em; color: var(--muted); }
+.resp-box .rb-k b { width: 9px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.18); }
+.resp-box .rb-k b.on { background: var(--y); box-shadow: 0 0 5px rgba(255, 210, 50, 0.7); }
+.resp-box .rb-k span { margin-left: 3px; }
+.resp-box.empty { border-color: rgba(255, 77, 106, 0.6); }
+.resp-box.empty .rb-t em { color: var(--red); }
+.resp-box.closed { opacity: 0.55; border-color: rgba(255, 255, 255, 0.15); }
 .squad { position: absolute; left: calc(100% + 8px); top: 16px; display: flex; flex-direction: column; gap: 3px; width: 150px; }
 .sq { display: flex; align-items: center; gap: 6px; font-size: 12px; background: rgba(10, 6, 30, 0.55); padding: 1px 6px; border-radius: 6px; }
 .sq .sq-n { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 90px; }
