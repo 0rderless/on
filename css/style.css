@@ -141,6 +141,14 @@ input { font-family: inherit; }
 .rank-badge { width: 54px; height: 54px; flex: none; position: relative; display: grid; place-items: center; }
 .rank-badge svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .rank-badge b { position: relative; font-family: var(--head); font-size: 14px; color: #1a1033; font-weight: 400; }
+.rank-badge.tier-4 b, .rank-badge.tier-6 b { color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }
+.rank-badge.tier-5 svg { filter: drop-shadow(0 0 4px rgba(255, 106, 28, 0.7)); }
+.rank-badge.tier-6 svg { filter: drop-shadow(0 0 6px rgba(162, 77, 255, 0.85)); }
+.rank-badge.tier-7 svg { filter: drop-shadow(0 0 6px rgba(255, 63, 191, 0.85)) drop-shadow(0 0 2px rgba(255, 210, 74, 0.9)); }
+.rank-badge.tier-8 svg { animation: supreme-glow 1.6s ease-in-out infinite; }
+@keyframes supreme-glow { 0%, 100% { filter: drop-shadow(0 0 5px rgba(255, 36, 51, 0.8)); } 50% { filter: drop-shadow(0 0 11px rgba(255, 36, 51, 1)) drop-shadow(0 0 3px rgba(255, 210, 74, 0.9)); } }
+.ladder-step { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 62px; }
+.ladder-step span { font-family: var(--head); font-size: 9.5px; letter-spacing: 0.03em; text-align: center; line-height: 1.05; }
 .rank-txt { flex: 1; }
 .rank-name { font-family: var(--head); font-size: 17px; }
 .rank-sub { font-size: 12px; color: var(--muted); }

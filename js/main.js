@@ -27,7 +27,7 @@ const TIPS = [
   'Every elimination fully restores your health and shield.',
   'Grab a Jetpack and hold JUMP in the air to fly. Fuel refills while you stand on the ground.',
   'In Reload, you redeploy as long as a squadmate is standing — until the storm closes Reload.',
-  'Ranked climbs from Bronze to Gold. High placements and eliminations earn the most progress.',
+  'Ranked climbs from Bronze all the way to Supreme. High placements and eliminations earn the most progress.',
   'Customize every button in Settings → HUD Layout. Drag to move, slider to resize.',
   'Auto Fire shoots as soon as your crosshair is on an enemy. Toggle it in Settings.',
   'Chests hum when you are close. Listen for them!',
