@@ -7,6 +7,9 @@ source "$DIR/watermark.conf"
 IN="${1:?usage: watermark.sh input [output]}"
 OUT="${2:-${IN%.*}_wm.mp4}"
 M="(h*0.035)"   # margin from edges
+VH=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "$IN")
+FS=$(awk "BEGIN{v=$VH*$SIZE; if(v<16)v=16; printf \"%d\", v+0.5}")   # min 16px so small clips stay readable
+SH=$(awk "BEGIN{v=$VH/540; if(v<1)v=1; printf \"%d\", v+0.5}")      # shadow scales with video size
 
 case "$POSITION" in
   bottom-right)  X="W-w-$M"; Y="H-h-$M"; TX="w-tw-$M"; TY="h-th-$M" ;;
@@ -27,7 +30,7 @@ if [[ -n "$LOGO" ]]; then
 else
   SAFE_TEXT="${TEXT//:/\\:}"; SAFE_TEXT="${SAFE_TEXT//\'/}"
   ffmpeg -y -hide_banner -loglevel error -i "$IN" -vf \
-    "drawtext=fontfile=${FONT}:text='${SAFE_TEXT}':fontsize=h*${SIZE}:fontcolor=white@${OPACITY}:shadowcolor=black@$(awk "BEGIN{print ${OPACITY}*0.7}"):shadowx=2:shadowy=2:x=${TX}:y=${TY}" \
+    "drawtext=fontfile=${FONT}:text='${SAFE_TEXT}':fontsize=${FS}:fontcolor=white@${OPACITY}:shadowcolor=black@$(awk "BEGIN{print ${OPACITY}*0.7}"):shadowx=${SH}:shadowy=${SH}:x=${TX}:y=${TY}" \
     -c:v libx264 -crf 18 -preset medium -pix_fmt yuv420p -c:a copy "$OUT"
 fi
 echo "$OUT"
