@@ -1,36 +1,45 @@
 #!/usr/bin/env bash
-# Usage: watermark/watermark.sh input.mp4 [output.mp4]
-# Applies the confirmed watermark from watermark.conf to a clip (audio copied untouched).
+# Usage: watermark/watermark.sh [BAH|BAHH] input [output]
+#   BAH  = watermark D (very faint)    BAHH = watermark C (faint)
+# Applies the SGC KS "glass" watermark (video shows through the letters). Audio copied.
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$DIR/watermark.conf"
-IN="${1:?usage: watermark.sh input [output]}"
+
+CODE="$DEFAULT_CODE"
+case "${1:-}" in
+  [Bb][Aa][Hh])         CODE="BAH";  shift ;;
+  [Bb][Aa][Hh][Hh])     CODE="BAHH"; shift ;;
+esac
+LIFT_VAR="LIFT_$CODE"; LIFT="${!LIFT_VAR}"
+
+IN="${1:?usage: watermark.sh [BAH|BAHH] input [output]}"
 OUT="${2:-${IN%.*}_wm.mp4}"
-M="(h*0.035)"   # margin from edges
-VH=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "$IN")
-FS=$(awk "BEGIN{v=$VH*$SIZE; if(v<16)v=16; printf \"%d\", v+0.5}")   # min 16px so small clips stay readable
-SH=$(awk "BEGIN{v=$VH/540; if(v<1)v=1; printf \"%d\", v+0.5}")      # shadow scales with video size
+
+read -r VW VH FPS < <(ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate \
+  -of csv=p=0 "$IN" | tr ',' ' ')
+FS=$(awk "BEGIN{v=$VH*$SIZE; if(v<18)v=18; printf \"%d\", v+0.5}")
+M=$(awk "BEGIN{printf \"%d\", $VH*0.035+0.5}")
 
 case "$POSITION" in
-  bottom-right)  X="W-w-$M"; Y="H-h-$M"; TX="w-tw-$M"; TY="h-th-$M" ;;
-  bottom-left)   X="$M";     Y="H-h-$M"; TX="$M";     TY="h-th-$M" ;;
-  bottom-center) X="(W-w)/2";Y="H-h-$M"; TX="(w-tw)/2";TY="h-th-$M" ;;
-  top-right)     X="W-w-$M"; Y="$M";     TX="w-tw-$M"; TY="$M" ;;
-  top-left)      X="$M";     Y="$M";     TX="$M";     TY="$M" ;;
-  center)        X="(W-w)/2";Y="(H-h)/2";TX="(w-tw)/2";TY="(h-th)/2" ;;
+  bottom-right)  TX="w-tw-$M";   TY="h-th-$M" ;;
+  bottom-left)   TX="$M";        TY="h-th-$M" ;;
+  bottom-center) TX="(w-tw)/2";  TY="h-th-$M" ;;
+  top-right)     TX="w-tw-$M";   TY="$M" ;;
+  top-left)      TX="$M";        TY="$M" ;;
+  center)        TX="(w-tw)/2";  TY="(h-th)/2" ;;
   *) echo "unknown POSITION: $POSITION" >&2; exit 1 ;;
 esac
-X="${X//h*/H*}"; Y="${Y//h*/H*}"   # overlay uses H for main height
 
-if [[ -n "$LOGO" ]]; then
-  LOGO_PATH="$LOGO"; [[ "$LOGO" = /* ]] || LOGO_PATH="$DIR/../$LOGO"
-  ffmpeg -y -hide_banner -loglevel error -i "$IN" -i "$LOGO_PATH" -filter_complex \
-    "[1:v][0:v]scale2ref=w=oh*mdar:h=ih*${SIZE}*2.5[lg][base];[lg]format=rgba,colorchannelmixer=aa=${OPACITY}[lga];[base][lga]overlay=x=${X}:y=${Y}" \
-    -c:v libx264 -crf 18 -preset medium -pix_fmt yuv420p -c:a copy "$OUT"
-else
-  SAFE_TEXT="${TEXT//:/\\:}"; SAFE_TEXT="${SAFE_TEXT//\'/}"
-  ffmpeg -y -hide_banner -loglevel error -i "$IN" -vf \
-    "drawtext=fontfile=${FONT}:text='${SAFE_TEXT}':fontsize=${FS}:fontcolor=white@${OPACITY}:shadowcolor=black@$(awk "BEGIN{print ${OPACITY}*0.7}"):shadowx=${SH}:shadowy=${SH}:x=${TX}:y=${TY}" \
-    -c:v libx264 -crf 18 -preset medium -pix_fmt yuv420p -c:a copy "$OUT"
-fi
-echo "$OUT"
+SAFE_TEXT="${TEXT//:/\\:}"; SAFE_TEXT="${SAFE_TEXT//\'/}"
+T="fontfile=${FONT}:text='${SAFE_TEXT}':fontsize=${FS}:x=${TX}:y=${TY}"
+L="val+(255-val)*${LIFT}"
+
+ffmpeg -y -hide_banner -loglevel error -i "$IN" -filter_complex \
+  "[0:v]format=rgba,split[base][src];\
+color=c=black:s=${VW}x${VH}:r=${FPS},format=gray,drawtext=${T}:fontcolor=white[mask];\
+[src]lutrgb=r='${L}':g='${L}':b='${L}'[lit];[lit][mask]alphamerge[txt];\
+[base]drawtext=${T}:fontcolor=black@0:shadowcolor=black@0.15:shadowx=1:shadowy=1[b2];\
+[b2][txt]overlay=shortest=1,format=yuv420p[out]" \
+  -map "[out]" -map "0:a?" -c:v libx264 -crf 18 -preset medium -c:a copy "$OUT"
+echo "$OUT  (code $CODE)"

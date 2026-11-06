@@ -1,12 +1,16 @@
 # Instructions for Claude
 
-## Watermark every clip
-The user's confirmed watermark is **"SGC KS"**: bold (Inter Black), small (3% of video height), bottom-center,
-white at 40% opacity with a faint shadow. Settings live in `watermark/watermark.conf`.
+## Watermark codes (SGC KS)
+The user watermarks their video edits with **"SGC KS"**: bold, small, bottom-center, in a
+"glass" style where the video shows through the lightened letters (not a grey overlay).
 
-Whenever the user sends a video clip/edit (or says "add my watermark"), apply it with:
+When the user says one of these codes with a clip, apply that watermark:
 
-    watermark/watermark.sh <input> [output]
+| User says   | Watermark            | Command                                          |
+|-------------|----------------------|--------------------------------------------------|
+| `Code BAH`  | D - very faint (20%) | `watermark/watermark.sh BAH <input> [output]`    |
+| `Code BAHH` | C - faint (30%)      | `watermark/watermark.sh BAHH <input> [output]`   |
 
-Do not change the watermark settings unless the user explicitly asks.
-Send the watermarked file back to the user.
+Codes are case-insensitive (`code bah`, `CODE BAHH`). If they send a clip and ask for the
+watermark without a code, use BAHH. Send the watermarked file back to the user.
+Do not change the watermark settings in `watermark/watermark.conf` unless the user asks.
