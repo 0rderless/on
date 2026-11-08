@@ -31,7 +31,10 @@ export function renderIcons(renderer, factory, envTex) {
   const shoot = (obj, key, opts = {}) => {
     scene.add(obj);
     obj.updateMatrixWorld(true);
-    const box = new THREE.Box3().setFromObject(obj);
+    // frame the solid parts only (trails, beams and sparkles are drawn after renderOrder 6)
+    const box = new THREE.Box3(), mb = new THREE.Box3();
+    obj.traverse(o => { if (o.isMesh && o.renderOrder < 7 && !(o.material && o.material.blending === THREE.AdditiveBlending)) { o.geometry.computeBoundingBox(); mb.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld); box.union(mb); } });
+    if (box.isEmpty()) box.setFromObject(obj);
     const c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3());
     const half = Math.max(s.x, s.y, s.z) * 0.58;
     cam.left = -half; cam.right = half; cam.top = half; cam.bottom = -half;
@@ -52,7 +55,7 @@ export function renderIcons(renderer, factory, envTex) {
   shoot(factory.medkitModel(), 'heal_medkit', { dir: new THREE.Vector3(0.25, 0.35, 1) });
   { const jp = factory.jetpackModel(); for (const fl of jp.userData.flames) jp.remove(fl); shoot(jp, 'jetpack', { dir: new THREE.Vector3(0.7, 0.25, -1) }); }
   for (const p of PICKAXES) { const g = factory.pickaxeModel(p.id); g.rotation.z = -0.7; shoot(g, 'pick_' + p.id, { dir: new THREE.Vector3(0, 0, 1) }); }
-  for (const gl of GLIDERS) { const g = factory.gliderModel(gl.id); if (g.userData.anim) g.userData.anim(0.6, 0); shoot(g, 'glider_' + gl.id, { dir: new THREE.Vector3(0.55, 0.42, 1) }); }
+  for (const gl of GLIDERS) { const g = factory.gliderModel(gl.id); if (g.userData.anim) g.userData.anim(0.6, 0); shoot(g, 'glider_' + gl.id, { dir: gl.id === 'bike' || gl.id === 'surf' ? new THREE.Vector3(1, 0.4, 0.35) : new THREE.Vector3(0.55, 0.42, 1) }); }
 
   // Skin portraits (locker cards) — taller render target
   const PW = 224, PH = 292;

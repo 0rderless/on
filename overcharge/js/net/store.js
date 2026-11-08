@@ -4,6 +4,7 @@
 import { firebaseConfig, DB_ROOT } from '../config.js';
 import { newRank } from '../data/ranks.js';
 import { DEFAULT_LOADOUT, normalizeLoadout } from '../data/items.js';
+import { DEFAULT_GLIDER, normalizeGlider } from '../data/cosmetics.js';
 
 const LS_UID = 'oc_uid';
 const LS_PROFILE = 'oc_profile';
@@ -69,7 +70,7 @@ export function defaultProfile(uid, username) {
     level: 1, xp: 0,
     stats: { matches: 0, wins: 0, kills: 0, deaths: 0, top10: 0, damage: 0 },
     ranked: { br: newRank(), reload: newRank() },
-    locker: { skin: 'default', pickaxe: 'standard', glider: 'volt' },
+    locker: { skin: 'default', pickaxe: 'standard', glider: DEFAULT_GLIDER },
     settings: defaultSettings(),
     hud: {},
     loadout: [...DEFAULT_LOADOUT],
@@ -85,6 +86,7 @@ function normalize(p) {
   out.stats = { ...d.stats, ...(p.stats || {}) };
   out.ranked = { br: { ...newRank(), ...(p.ranked?.br || {}) }, reload: { ...newRank(), ...(p.ranked?.reload || {}) } };
   out.locker = { ...d.locker, ...(p.locker || {}) };
+  out.locker.glider = normalizeGlider(out.locker.glider);
   out.settings = { ...d.settings, ...(p.settings || {}) };
   out.hud = p.hud || {};
   out.loadout = normalizeLoadout(p.loadout);

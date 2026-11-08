@@ -501,7 +501,7 @@ export class CharacterFactory {
     return g;
   }
 
-  gliderModel(id = 'volt') { return makeGlider(id, this); }
+  gliderModel(id = 'military') { return makeGlider(id, this); }
 
   /** The female-body geometry matching one of the character's skinned meshes (built once). */
   femaleGeometry(mesh) {
@@ -557,7 +557,7 @@ export class Character {
     this.glider = null;
     this.setSkin(skin);
     this.pickaxeId = pickaxe;
-    this.gliderId = 'volt';
+    this.gliderId = 'military';
   }
 
   setSkin(id) {
@@ -907,7 +907,7 @@ export class Character {
   }
 
   setGlider(on) {
-    const id = this.gliderId || 'volt';
+    const id = this.gliderId || 'military';
     if (on && (!this.glider || this.glider.userData.id !== id)) {
       if (this.glider) this.root.remove(this.glider);
       this.glider = this.f.gliderModel(id); this.root.add(this.glider);
@@ -1106,6 +1106,18 @@ export class Character {
         rotateBoneWorld(B.Spine, _right, 0.22 * g); rotateBoneWorld(B.Spine1, _fwd, lean * g);
         rotateBoneWorld(B.RightArm, _fwd, 0.28 * g); rotateBoneWorld(B.LeftArm, _fwd, -0.18 * g);
         rotateBoneWorld(B.RightForeArm, _fwd, -0.25 * g); rotateBoneWorld(B.LeftForeArm, _fwd, 0.3 * g);
+      } else if (pose === 'sit') {
+        // astride a sky bike: thighs forward, knees bent, leaning in with both hands on the handlebars
+        const lean = Math.max(-0.3, Math.min(0.3, ((s.vx || 0) * cy - (s.vz || 0) * sy) * -0.025));
+        this.model.position.y = -0.3 * g;
+        rotateBoneWorld(B.LeftUpLeg, _right, 1.4 * g); rotateBoneWorld(B.RightUpLeg, _right, 1.4 * g);
+        rotateBoneWorld(B.LeftUpLeg, _fwd, 0.12 * g); rotateBoneWorld(B.RightUpLeg, _fwd, -0.12 * g);
+        rotateBoneWorld(B.LeftLeg, _right, -1.55 * g); rotateBoneWorld(B.RightLeg, _right, -1.55 * g);
+        rotateBoneWorld(B.LeftFoot, _right, 0.35 * g); rotateBoneWorld(B.RightFoot, _right, 0.35 * g);
+        rotateBoneWorld(B.Spine, _right, 0.2 * g); rotateBoneWorld(B.Spine1, _fwd, lean * g);
+        rotateBoneWorld(B.RightArm, _up, 1.22 * g); rotateBoneWorld(B.LeftArm, _up, -1.22 * g);
+        rotateBoneWorld(B.RightArm, _right, -0.3 * g); rotateBoneWorld(B.LeftArm, _right, -0.3 * g);
+        rotateBoneWorld(B.RightForeArm, _right, -0.15 * g); rotateBoneWorld(B.LeftForeArm, _right, -0.15 * g);
       } else if (pose === 'float') {
         // hovering in a tractor beam: arms loosely out, legs dangling
         rotateBoneWorld(B.RightArm, _fwd, 0.42 * g); rotateBoneWorld(B.LeftArm, _fwd, -0.42 * g);
