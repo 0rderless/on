@@ -39,7 +39,7 @@ export const SKINS = [
   },
   {
     id: 'king', name: 'King', rarity: 4, series: 'Royal Series',
-    desc: 'Royal gold armor with crimson accents, a jewelled crown and an ermine collar.',
+    desc: 'Royal gold armor with crimson accents and a jewelled gold crown.',
   },
   {
     id: 'beast', name: 'Orange Beast', rarity: 3, series: 'Wild Series',
