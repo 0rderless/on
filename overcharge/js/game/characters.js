@@ -576,7 +576,6 @@ export class Character {
     this.attachments = [];
     this.orbit = null; this.wings = null;
     if (id === 'shock') this.addShockGear();
-    if (id === 'platinum') this.addPlatinumGear();
     if (id === 'cursed') this.addCursedGear();
     if (id === 'dragon') this.addDragonGear();
     if (id === 'frost') this.addFrostGear();
@@ -598,12 +597,12 @@ export class Character {
     const mk = (c) => F._hairMats[c] || (F._hairMats[c] = new THREE.MeshStandardMaterial({ color: c, roughness: 0.55, metalness: 0.05 }));
     const G = F._hairGeo, root = new THREE.Group();
     const tieMat = mk(L.accent);
-    const hair = new THREE.Group(); hair.position.set(0, 0.13, -0.118); root.add(hair);
+    const hair = new THREE.Group(); hair.position.set(0, 0.15, -0.07); root.add(hair);
     const segs = [];
     if (L.hairStyle === 'bun') {
-      const bun = new THREE.Mesh(G.ball, mk(L.hair)); bun.scale.set(0.075, 0.068, 0.07); bun.position.set(0, 0.03, -0.03); hair.add(bun);
-      const tie = new THREE.Mesh(G.tie, tieMat); tie.rotation.x = 0.3; tie.position.set(0, 0.0, 0.0); hair.add(tie);
-      const tail = new THREE.Group(); tail.rotation.x = 0.5; hair.add(tail); segs.push(tail);
+      const bun = new THREE.Mesh(G.ball, mk(L.hair)); bun.scale.set(0.07, 0.064, 0.066); bun.position.set(0, 0.02, 0.022); hair.add(bun);
+      const tie = new THREE.Mesh(G.tie, tieMat); tie.rotation.x = 0.3; tie.position.set(0, 0.0, 0.05); hair.add(tie);
+      const tail = new THREE.Group(); tail.rotation.x = 0.5; tail.position.z = 0.03; hair.add(tail); segs.push(tail);
       const t = new THREE.Mesh(G.seg, mk(L.hairTip)); t.scale.set(0.028, 0.12, 0.028); t.position.y = -0.07; tail.add(t);
     } else {
       const n = L.hairStyle === 'braid' ? 5 : 4, len = L.hairStyle === 'braid' ? 0.095 : 0.115;
@@ -628,7 +627,7 @@ export class Character {
       const M = this.gearMats();
       const ws = new THREE.Shape(); ws.moveTo(0, 0); ws.quadraticCurveTo(0.05, 0.1, 0.02, 0.17); ws.quadraticCurveTo(-0.03, 0.12, -0.07, 0.15); ws.quadraticCurveTo(-0.05, 0.06, 0, 0);
       const wg = new THREE.ShapeGeometry(ws);
-      for (const s of [-1, 1]) { const w = new THREE.Mesh(wg, M.gold); w.material.side = THREE.DoubleSide; w.position.set(s * 0.115, 0.13, -0.02); w.rotation.set(0, s * Math.PI / 2, s * -0.35); root.add(w); }
+      for (const s of [-1, 1]) { const w = new THREE.Mesh(wg, M.gold); w.material.side = THREE.DoubleSide; w.position.set(s * 0.088, 0.14, 0.025); w.rotation.set(0, s * Math.PI / 2, s * -0.35); root.add(w); }
     }
     root.traverse(o => { if (o.isMesh) o.castShadow = true; });
     this.keepGear(this.attachToBone('Head', root, this.f.headLocal));
@@ -807,46 +806,35 @@ export class Character {
       const set = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.025, 8), gold); set.position.set(0.2 * s, 0.2, 0); set.rotation.z = -0.3 * s; g.add(set);
     }
     this.keepGear(this.attachToBone('Spine2', g, this.f.chestLocal));
-    const crown = new THREE.Group();
-    const band = new THREE.Mesh(new THREE.TorusGeometry(0.105, 0.012, 6, 24), gold); band.rotation.x = Math.PI / 2; band.position.set(0, 0.17, -0.01); crown.add(band);
-    for (let i = -2; i <= 2; i++) { const c = gem(0.02, 0.07 + (2 - Math.abs(i)) * 0.03); c.position.set(i * 0.045, 0.2, 0.07 - Math.abs(i) * 0.025); crown.add(c); }
+    // gold circlet fitted round the top of the helmet, crystals rising from the front half
+    const crown = new THREE.Group(); crown.position.set(0, 0.215, 0.035);
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.086, 0.009, 6, 28), gold); band.rotation.x = Math.PI / 2; band.scale.set(1, 1.12, 1); crown.add(band);
+    for (let i = -2; i <= 2; i++) {
+      const a = i * 0.5, h = 0.05 + (2 - Math.abs(i)) * 0.025;
+      const c = gem(0.016, h); c.position.set(Math.sin(a) * 0.084, h / 2 + 0.004, Math.cos(a) * 0.094); c.rotation.set(Math.cos(a) * 0.2, 0, -Math.sin(a) * 0.25); crown.add(c);
+    }
     this.keepGear(this.attachToBone('Head', crown, this.f.headLocal));
   }
 
-  /** King: jewelled gold crown, ermine collar and gold pauldrons. */
+  /** King: jewelled gold crown (the armour itself carries the royal gold and crimson). */
   addKingGear() {
     const F = this.f;
     F._kingMats = F._kingMats || {
       gold: new THREE.MeshStandardMaterial({ color: 0xffc94a, metalness: 1, roughness: 0.18, emissive: 0x3a2000, envMapIntensity: 1.4 }),
       ruby: new THREE.MeshStandardMaterial({ color: 0xe01030, roughness: 0.05, metalness: 0.2, emissive: 0x600010, emissiveIntensity: 0.8 }),
       sapphire: new THREE.MeshStandardMaterial({ color: 0x2a5cff, roughness: 0.05, metalness: 0.2, emissive: 0x0a1a70, emissiveIntensity: 0.8 }),
-      fur: new THREE.MeshStandardMaterial({ color: 0xf6f2ea, roughness: 0.95, metalness: 0 }),
-      spot: new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9, metalness: 0 }),
     };
     const M = F._kingMats;
-    const crown = new THREE.Group(); crown.position.set(0, 0.165, -0.005);
-    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.105, 0.098, 0.05, 24, 1, true), M.gold); crown.add(band);
+    // crown sized to the top of the helmet
+    const crown = new THREE.Group(); crown.position.set(0, 0.21, 0.035); crown.scale.set(1, 1, 1.1);
+    crown.add(new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.085, 0.045, 28, 1, true), M.gold));
     for (let i = 0; i < 8; i++) {
       const a = i / 8 * Math.PI * 2;
-      const pt = new THREE.Mesh(new THREE.ConeGeometry(0.022, 0.07, 6), M.gold); pt.position.set(Math.sin(a) * 0.1, 0.055, Math.cos(a) * 0.1); crown.add(pt);
-      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.011, 8, 6), M.gold); ball.position.set(Math.sin(a) * 0.1, 0.095, Math.cos(a) * 0.1); crown.add(ball);
-      const jewel = new THREE.Mesh(new THREE.OctahedronGeometry(0.014, 0), i % 2 ? M.sapphire : M.ruby); jewel.position.set(Math.sin(a) * 0.106, 0.0, Math.cos(a) * 0.106); crown.add(jewel);
+      const pt = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.06, 6), M.gold); pt.position.set(Math.sin(a) * 0.088, 0.05, Math.cos(a) * 0.088); crown.add(pt);
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.009, 8, 6), M.gold); ball.position.set(Math.sin(a) * 0.088, 0.084, Math.cos(a) * 0.088); crown.add(ball);
+      const jewel = new THREE.Mesh(new THREE.OctahedronGeometry(0.012, 0), i % 2 ? M.sapphire : M.ruby); jewel.position.set(Math.sin(a) * 0.092, 0.0, Math.cos(a) * 0.092); crown.add(jewel);
     }
-    const big = new THREE.Mesh(new THREE.OctahedronGeometry(0.022, 0), M.ruby); big.position.set(0, 0.01, 0.112); crown.add(big);
     this.keepGear(this.attachToBone('Head', crown, this.f.headLocal));
-    // ermine collar and gold pauldrons round the shoulders
-    const g = new THREE.Group();
-    const collar = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.045, 8, 26), M.fur); collar.rotation.x = Math.PI / 2; collar.position.set(0, 0.15, -0.01); collar.scale.set(1.15, 1, 1); g.add(collar);
-    for (let i = 0; i < 12; i++) {
-      const a = i / 12 * Math.PI * 2;
-      const sp = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 4), M.spot); sp.scale.set(0.6, 1.4, 0.6);
-      sp.position.set(Math.sin(a) * 0.15 * 1.15 * 1.18, 0.16, Math.cos(a) * 0.15 * 1.18 - 0.01); g.add(sp);
-    }
-    for (const s of [-1, 1]) {
-      const pad = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), M.gold); pad.position.set(0.2 * s, 0.12, -0.01); pad.rotation.z = -0.45 * s; pad.scale.set(1, 0.7, 1.05); g.add(pad);
-      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.02, 0), M.ruby); gem.position.set(0.23 * s, 0.16, 0.07); g.add(gem);
-    }
-    this.keepGear(this.attachToBone('Spine2', g, this.f.chestLocal));
   }
 
   /** Orange Beast: curled horns, a spiked back ridge and claw-like shoulder spikes. */
