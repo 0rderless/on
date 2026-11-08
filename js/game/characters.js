@@ -39,7 +39,7 @@ export const PALETTE_LOOKS = {
   viper:     { light: 0x2b3230, mid: 0x111514, dark: 0x050606, accent: 0x39ff7a, glow: 0x39ff7a, glowI: 0.75, accentI: 1.2, rough: 0.2, metal: 0.55, env: 1.0, visor: 0x021006, visorGlow: 0x39ff7a, visorI: 2.4, hair: 0x101214, hairTip: 0x39ff7a, hairStyle: 'ponytail' },
   valkyrie:  { light: 0xc0262f, mid: 0x6a0c12, dark: 0x1c0306, accent: 0xffc24a, glow: 0xfff0c8, glowI: 0.3, accentI: 0.35, rough: 0.28, metal: 0.6, env: 1.0, visor: 0x1a0c00, visorGlow: 0xffd45a, visorI: 1.8, hair: 0xf0c75a, hairTip: 0xfff0b0, hairStyle: 'braid', goldMetal: true },
   arcticfox: { light: 0xf2f5f8, mid: 0x9aa6b4, dark: 0x2a313b, accent: 0xff7a1c, glow: 0xffa040, glowI: 0.25, accentI: 0.7, rough: 0.55, metal: 0.1, env: 0.5, visor: 0x1a0a00, visorGlow: 0xff8a2a, visorI: 2.0, hair: 0xb5501e, hairTip: 0xe08a4a, hairStyle: 'bun', camo: true },
-  void:      { light: 0x2a2140, mid: 0x0d0a18, dark: 0x020104, accent: 0x9b4dff, glow: 0xb06bff, glowI: 0.9, accentI: 1.1, rough: 0.25, metal: 0.5, env: 0.7, visor: 0x05000c, visorGlow: 0xa040ff, visorI: 1.2, stars: true },
+  void:      { light: 0x1c1c1f, mid: 0x08080a, dark: 0x020203, accent: 0x0d0d10, glow: 0x000000, glowI: 0.0, accentI: 0.0, rough: 0.3, metal: 0.45, env: 0.6, visor: 0x300000, visorGlow: 0xe00000, visorI: 0.85, visorRaw: true },
   emerald:   { light: 0x2fe08a, mid: 0x07804a, dark: 0x02261a, accent: 0xffc84a, glow: 0x7dffc2, glowI: 0.35, accentI: 0.3, rough: 0.12, metal: 0.55, env: 1.4, visor: 0x011a0e, visorGlow: 0x20e070, visorI: 1.1, goldMetal: true, facets: true },
   king:      { light: 0xffd36b, mid: 0xb07a18, dark: 0x2a1404, accent: 0xc0122a, glow: 0xffe9a8, glowI: 0.25, accentI: 0.55, rough: 0.2, metal: 0.95, env: 1.3, visor: 0x1a0a00, visorGlow: 0xffb020, visorI: 1.0 },
   beast:     { light: 0xff9a1c, mid: 0xd25a08, dark: 0x1a0a02, accent: 0x1a0a02, glow: 0xffb040, glowI: 0.2, accentI: 0.0, rough: 0.7, metal: 0.05, env: 0.4, visor: 0x200800, visorGlow: 0xff6a00, visorI: 1.3, stripes: true },
@@ -207,7 +207,7 @@ export class CharacterFactory {
     } else if (PALETTE_LOOKS[skinId]) {
       const L = PALETTE_LOOKS[skinId];
       mat = new THREE.MeshStandardMaterial({ map: baseMat.map, normalMap: baseMat.normalMap || null, roughness: L.rough, metalness: L.metal, envMapIntensity: L.env });
-      if (isVisor) { mat.map = null; mat.color.set(L.visor); mat.emissive.set(L.visorGlow); mat.emissiveIntensity = L.visorI; mat.roughness = 0.12; }
+      if (isVisor) { mat.map = null; mat.color.set(L.visor); mat.emissive.set(L.visorGlow); mat.emissiveIntensity = L.visorI; mat.roughness = 0.12; if (L.visorRaw) mat.toneMapped = false; }
       else this.patchShader(mat, 'pal:' + skinId);
     } else if (SKIN_LOOKS[skinId]) {
       const L = SKIN_LOOKS[skinId];
@@ -763,29 +763,26 @@ export class Character {
     this.keepGear(this.attachToBone('Head', crown, this.f.headLocal));
   }
 
-  /** Void: a dark halo behind the head and void shards drifting round the body. */
+  /** Void: a black halo behind the head and black shards drifting round the body. */
   addVoidGear() {
     const F = this.f;
     F._voidMats = F._voidMats || {
-      core: new THREE.MeshStandardMaterial({ color: 0x050208, roughness: 0.2, metalness: 0.7, emissive: 0x2a0a50, emissiveIntensity: 0.6 }),
+      core: new THREE.MeshStandardMaterial({ color: 0x050506, roughness: 0.22, metalness: 0.7 }),
       glow: new THREE.MeshBasicMaterial({ color: 0xb06bff, toneMapped: false }),
       soft: new THREE.MeshBasicMaterial({ color: 0x7a2cff, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }),
     };
     const M = F._voidMats;
     const halo = new THREE.Group();
     halo.add(new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.012, 6, 36), M.core));
-    halo.add(new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.004, 4, 36), M.glow));
-    const haloGlow = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.03, 6, 36), M.soft); halo.add(haloGlow);
     halo.position.set(0, 0.13, -0.17);
     this.keepGear(this.attachToBone('Head', halo, this.f.headLocal));
     const orbit = new THREE.Group(); orbit.position.y = 1.05;
     for (let i = 0; i < 4; i++) {
       const a = (i / 4) * Math.PI * 2;
       const shard = new THREE.Mesh(new THREE.OctahedronGeometry(0.05, 0), M.core); shard.scale.y = 1.8;
-      const glow = new THREE.Mesh(new THREE.OctahedronGeometry(0.075, 0), M.soft); glow.scale.y = 1.8;
-      shard.position.set(Math.cos(a) * 0.58, Math.sin(a * 2) * 0.28, Math.sin(a) * 0.58); glow.position.copy(shard.position);
-      shard.rotation.set(0.4 * i, i, 0.3); glow.rotation.copy(shard.rotation);
-      orbit.add(shard, glow);
+      shard.position.set(Math.cos(a) * 0.58, Math.sin(a * 2) * 0.28, Math.sin(a) * 0.58);
+      shard.rotation.set(0.4 * i, i, 0.3);
+      orbit.add(shard);
     }
     this.root.add(orbit);
     this.orbit = orbit;

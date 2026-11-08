@@ -31,7 +31,7 @@ export const SKINS = [
   },
   {
     id: 'void', name: 'Void', rarity: 4, series: 'Void Series',
-    desc: 'Armor cut from the night between stars. A dark halo and void shards drift around it.',
+    desc: 'Pitch-black from head to toe, with one glowing red visor. A black halo and void shards drift around it.',
   },
   {
     id: 'emerald', name: 'Emerald', rarity: 3, series: 'Gemstone Series',
