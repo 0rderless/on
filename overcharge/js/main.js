@@ -245,7 +245,6 @@ class App {
     let lastTouch = 0;
     document.addEventListener('touchend', e => { const now = Date.now(); if (now - lastTouch < 300 && !e.target.closest('input')) e.preventDefault(); lastTouch = now; }, { passive: false });
     this.setupInstall();
-    this.setupFullscreen();
     document.addEventListener('visibilitychange', () => {
       if (!Audio.ctx) return;
       if (document.hidden) { Audio.ctx.suspend(); if (this.state === 'match' && !this.paused) this.pause(true); }
@@ -287,39 +286,6 @@ class App {
     });
     go.addEventListener('click', async () => { if (!this.installEvt) return; this.installEvt.prompt(); await this.installEvt.userChoice.catch(() => {}); this.installEvt = null; box.classList.remove('show'); });
     $('install-x').addEventListener('click', () => { box.classList.remove('show'); try { localStorage.setItem('oc_install_x', '1'); } catch { /* storage blocked */ } });
-  }
-
-  /** Full-screen button for playing in the browser (the home-screen app is already full screen). */
-  setupFullscreen() {
-    const el = document.documentElement;
-    const standalone = window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: fullscreen)').matches || navigator.standalone;
-    const btn = $('btn-fs'), pbtn = $('p-fs');
-    if (standalone) { btn.classList.add('hide'); pbtn.classList.add('hide'); return; }
-    const canFs = !!(el.requestFullscreen || el.webkitRequestFullscreen) && !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
-    const isFs = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
-    const sync = () => {
-      const on = isFs();
-      btn.innerHTML = `<i class="ic ${on ? 'ic-shrink' : 'ic-expand'}"></i>`;
-      btn.title = on ? 'Exit full screen' : 'Full screen';
-      pbtn.querySelector('span').textContent = on ? 'EXIT FULL SCREEN' : 'FULL SCREEN';
-      setTimeout(() => this.resize(), 120);
-    };
-    const toggle = async () => {
-      Audio.unlock();
-      if (!canFs) { $('fs-tip').classList.add('show'); return; }   // iPhone Safari: no Fullscreen API for pages
-      try {
-        if (isFs()) await (document.exitFullscreen ? document.exitFullscreen() : document.webkitExitFullscreen());
-        else {
-          await (el.requestFullscreen ? el.requestFullscreen({ navigationUI: 'hide' }) : el.webkitRequestFullscreen());
-          try { await screen.orientation.lock('landscape'); } catch { /* not allowed on this device */ }
-        }
-      } catch (e) { console.warn('fullscreen:', e.message); if (!isFs()) $('fs-tip').classList.add('show'); }
-    };
-    btn.addEventListener('click', toggle);
-    pbtn.addEventListener('click', toggle);
-    $('fs-tip-ok').addEventListener('click', () => $('fs-tip').classList.remove('show'));
-    document.addEventListener('fullscreenchange', sync);
-    document.addEventListener('webkitfullscreenchange', sync);
   }
 
   resize() {
