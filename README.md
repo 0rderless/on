@@ -21,10 +21,13 @@ For local testing: `python3 -m http.server` in the repository root, then open `h
   - **Warehouse:** a giant distribution centre under an open steel-truss roof. Nine zones are joined by wide doorways: Dispatch, High Racks, Offices, Loading Docks, Cold Storage, Container Stacks, The Red Room, Conveyor Line and Forklift Bay.
   - **Vulcan Garrison:** a sci-fi fortress deck floating over a pale plain at night, built around a molten forge under a blue-lit spire. Its zones are Vulcan Core, Hangar Bay, Command Spire, Fuel Depot, Armory, Landing Pads, Shield Generators, Rampart and Barracks.
 - **Gliders** (Locker → GLIDERS), each with its own riding pose and animation:
-  - Volt Wing
-  - Airborne Canopy, a military round parachute
+  - Airborne Canopy, a military round parachute (the default)
   - Sky Surfer, where you stand on a surfboard
-  - Sky Serpent, a giant slithering serpent you ride standing on its back, like the surfboard
+  - Yellow Cab, where you stand on the roof of a yellow car with its wheels spinning
+  - Cloud Nine, a puffy cloud you stand on
+  - Magic Carpet, a rippling red-and-gold carpet with gold tassels
+  - Sky Rider, a sky bike you sit on and drive down through the air (you land on your feet as normal)
+  - Helping Hand, a giant hand rising out of a cloud that carries you on its palm
   - Red Dragon, with flapping wings and claws that hold you
   - Close Encounter, a flying saucer with a tractor beam
 - **Camera:** matched to Fortnite Mobile's third-person framing. See `docs/fortnite-mobile-camera-notes.md`.

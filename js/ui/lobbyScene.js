@@ -76,14 +76,24 @@ export class LobbyScene {
   /** Locker glider preview: the character glides in place under the chosen glider (null = back to normal). */
   showGlider(id) {
     this.glidePreview = id || null;
-    if (id) { this.idling = false; this.char.stopEmote(); this.char.gliderId = id; this.char.setHeld(null); this.char.setGlider(true); this.layout('glider'); }
+    if (id) {
+      this.idling = false; this.char.stopEmote(); this.char.gliderId = id; this.char.setHeld(null); this.char.setGlider(true);
+      // gliders you ride (car, hand, cloud, bike...) hang below your feet: lift the preview so they clear the stage
+      const gl = this.char.glider; gl.updateMatrixWorld(true);
+      const box = new THREE.Box3(), mb = new THREE.Box3();
+      gl.traverse(o => { if (o.isMesh && o.renderOrder < 7) { o.geometry.computeBoundingBox(); mb.copy(o.geometry.boundingBox).applyMatrix4(o.matrixWorld); box.union(mb); } });
+      const below = Math.max(0, this.char.root.position.y - box.min.y);
+      this.glideLift = below > 0.4 ? below + 0.25 : 0.35;
+      this.layout('glider');
+    }
     else if (this.char.glider) { this.char.setGlider(false); if (this.mode === 'glider') this.layout('locker'); }
   }
 
   layout(mode) {
     // frame the character depending on which tab is open
     this.mode = mode;
-    this.target = mode === 'glider' ? { x: 2.3, y: 3.1, z: 13, lx: 2.3, ly: 2.95 } : mode === 'locker' ? { x: 0.9, y: 1.05, z: 5.8, lx: 0.9, ly: 0.95 } : mode === 'play' ? { x: 0.2, y: 1.15, z: 6.3, lx: 0.2, ly: 0.95 } : { x: -1.4, y: 1.1, z: 6.8, lx: -1.4, ly: 0.95 };
+    const lift = this.glideLift || 0.35, under = lift > 0.36;
+    this.target = mode === 'glider' ? (under ? { x: 2.0, y: lift + 1.1, z: 10.5, lx: 2.0, ly: lift + 0.55 } : { x: 2.3, y: 3.1, z: 13, lx: 2.3, ly: 2.95 }) : mode === 'locker' ? { x: 0.9, y: 1.05, z: 5.8, lx: 0.9, ly: 0.95 } : mode === 'play' ? { x: 0.2, y: 1.15, z: 6.3, lx: 0.2, ly: 0.95 } : { x: -1.4, y: 1.1, z: 6.8, lx: -1.4, ly: 0.95 };
   }
 
   resize(w, h) { this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); }
@@ -96,7 +106,7 @@ export class LobbyScene {
     this.spinVel *= Math.pow(0.04, dt);
     this.spin += this.spinVel * dt * 10;
     this.char.update(dt, { vx: 0, vz: 0, yaw: -0.35 + this.spin + (this.glidePreview ? 0.6 : 0), pitch: 0.02, grounded: !this.glidePreview, mode: this.glidePreview ? 'glide' : 'ground', reloadFrac: -1, camDist: 3 });
-    if (this.glidePreview) this.char.root.position.y = 0.35 + Math.sin(this.time * 1.4) * 0.12; else this.char.root.position.y = 0;
+    if (this.glidePreview) this.char.root.position.y = (this.glideLift || 0.35) + Math.sin(this.time * 1.4) * 0.12; else this.char.root.position.y = 0;
     this.ring2.rotation.z = this.time * 0.3;
     const p = this.particles.geometry.attributes.position;
     for (let i = 0; i < p.count; i++) { let y = p.getY(i) + dt * 0.25; if (y > 7) y = -0.3; p.setY(i, y); }

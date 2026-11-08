@@ -1,6 +1,7 @@
 // Gliders (the "parachutes" you deploy after skydiving). Each returns a Group placed on the character root
 // (origin at the feet, +Z forward) with userData { id, pose, anim(t, dt) }.
-// pose: 'hang' (hands up on a bar/reins), 'canopy' (hands high on risers), 'ride' (standing on it), 'float'.
+// pose: 'hang' (hands up on a bar/reins), 'canopy' (hands high on risers), 'ride' (standing on it), 'float',
+// 'sit' (sitting astride with hands on handlebars).
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
@@ -46,34 +47,6 @@ const glow = (color, extra = {}) => new THREE.MeshBasicMaterial({ color, toneMap
 
 // ------------------------------------------------------------------ builders (geometry/materials cached per type)
 const BUILD = {
-  volt(C) {
-    if (!C.volt) {
-      const shape = new THREE.Shape();
-      shape.moveTo(-1.4, 0); shape.quadraticCurveTo(0, 0.55, 1.4, 0); shape.lineTo(1.1, -0.25); shape.quadraticCurveTo(0, 0.2, -1.1, -0.25); shape.lineTo(-1.4, 0);
-      const tex = canvasTex(256, 64, (x) => {
-        const g = x.createLinearGradient(0, 0, 256, 0);
-        g.addColorStop(0, '#5b2bd6'); g.addColorStop(0.5, '#9a5cff'); g.addColorStop(1, '#5b2bd6');
-        x.fillStyle = g; x.fillRect(0, 0, 256, 64);
-        x.fillStyle = '#ffe14d'; x.beginPath(); x.moveTo(118, 8); x.lineTo(100, 36); x.lineTo(126, 36); x.lineTo(112, 58); x.lineTo(156, 24); x.lineTo(130, 24); x.lineTo(142, 8); x.fill();
-        x.fillStyle = 'rgba(79,242,255,0.9)'; x.fillRect(0, 0, 256, 5); x.fillRect(0, 59, 256, 5);
-      });
-      const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.9, bevelEnabled: false });
-      const pos = geo.attributes.position, uv = geo.attributes.uv;
-      for (let i = 0; i < pos.count; i++) uv.setXY(i, (pos.getX(i) + 1.4) / 2.8, pos.getZ(i) / 0.9);
-      C.volt = {
-        geo, mat: std({ map: tex, metalness: 0.2, side: THREE.DoubleSide, emissive: 0x2a0f6a, emissiveIntensity: 0.6 }),
-        trim: glow(0x5ff4ff), rope: new THREE.MeshBasicMaterial({ color: 0x222233 }),
-      };
-    }
-    const V = C.volt, g = new THREE.Group();
-    const wing = new THREE.Mesh(V.geo, V.mat); wing.rotation.x = Math.PI / 2; wing.position.set(0, 2.62, 0.45);
-    const trim = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.04, 0.05), V.trim); trim.position.set(0, 2.69, 0.46);
-    g.add(wing, trim);
-    for (const [h, x] of [[HAND_L, 0.55], [HAND_R, -0.55]]) g.add(rod(new THREE.Vector3(x, 2.55, 0.05), h.clone().setY(h.y + 0.05), 0.012, V.rope, 4));
-    g.add(rod(HAND_L.clone().setY(2.0), HAND_R.clone().setY(2.0), 0.022, V.rope, 6));
-    return { g, pose: 'hang' };
-  },
-
   military(C) {
     if (!C.mil) {
       const tex = canvasTex(256, 64, (x, w, h) => {
@@ -145,7 +118,7 @@ const BUILD = {
     const trail = new THREE.Mesh(S.trail, S.trailMat); trail.rotation.x = -Math.PI / 2 + 0.25; trail.position.set(0, -0.35, -2.2); trail.renderOrder = 7;
     board.add(trail);
     const spray = [];
-    for (let i = 0; i < 6; i++) { const s = new THREE.Mesh(S.spray, S.sprayMat); board.add(s); spray.push(s); }
+    for (let i = 0; i < 6; i++) { const s = new THREE.Mesh(S.spray, S.sprayMat); s.renderOrder = 7; board.add(s); spray.push(s); }
     board.position.y = -0.07;
     g.add(board);
     return {
@@ -156,62 +129,197 @@ const BUILD = {
     };
   },
 
-  snake(C) {
-    // ridden like the surfboard: the serpent's body runs front-to-back under your feet,
-    // the head rears up in front and the tail whips out behind
-    if (!C.snake) {
-      const pts = [
-        new THREE.Vector3(0, -0.05, -3.6), new THREE.Vector3(0, -0.12, -2.6), new THREE.Vector3(0, -0.16, -1.6),
-        new THREE.Vector3(0, -0.17, -0.6), new THREE.Vector3(0, -0.17, 0.4), new THREE.Vector3(0, -0.12, 1.3),
-        new THREE.Vector3(0, 0.12, 2.0), new THREE.Vector3(0, 0.5, 2.45), new THREE.Vector3(0, 0.8, 2.75),
-      ];
-      const curve = new THREE.CatmullRomCurve3(pts);
-      const body = taperedTube(curve, 90, 14, u => u < 0.78 ? 0.035 + 0.2 * Math.pow(Math.sin(Math.min(1, u / 0.78) * Math.PI * 0.5), 0.7) : 0.235 - (u - 0.78) * 0.25);
-      const scales = canvasTex(128, 64, (x, w, h) => {
-        x.fillStyle = '#2f8a3a'; x.fillRect(0, 0, w, h);
-        for (let yy = 0; yy < h; yy += 8) for (let xx = (yy / 8) % 2 ? 0 : 8; xx < w; xx += 16) { x.fillStyle = (xx + yy) % 32 ? '#256e2e' : '#3fa548'; x.beginPath(); x.moveTo(xx, yy); x.lineTo(xx + 8, yy + 4); x.lineTo(xx, yy + 8); x.lineTo(xx - 8, yy + 4); x.fill(); }
-        x.fillStyle = '#d8c14a'; x.fillRect(0, h * 0.42, w, h * 0.16);
-        x.fillStyle = '#16301a'; for (let xx = 0; xx < w; xx += 32) { x.beginPath(); x.ellipse(xx + 16, h * 0.18, 9, 6, 0, 0, Math.PI * 2); x.fill(); x.beginPath(); x.ellipse(xx, h * 0.82, 9, 6, 0, 0, Math.PI * 2); x.fill(); }
-      }, [16, 1]);
-      const mat = std({ map: scales, roughness: 0.35, metalness: 0.15 });
-      const uTime = { value: 0 };
-      mat.onBeforeCompile = (sh) => {
-        sh.uniforms.uSnakeT = uTime;
-        // slither: side-to-side waves that are calm under the rider's feet and grow towards the tail
-        sh.vertexShader = 'uniform float uSnakeT;\n' + sh.vertexShader.replace('#include <begin_vertex>',
-          '#include <begin_vertex>\n float sk = smoothstep(-0.2, -3.4, position.z) + smoothstep(1.2, 2.6, position.z) * 0.35;\n transformed.x += sin(position.z * 2.1 + uSnakeT * 6.0) * 0.34 * sk;\n transformed.y += sin(position.z * 1.4 + uSnakeT * 3.5) * 0.07 * sk;');
-      };
-      mat.customProgramCacheKey = () => 'oc-snake-ride';
-      C.snake = {
-        body, mat, uTime, end: curve.getPointAt(1), dir: curve.getTangentAt(1),
-        head: new THREE.SphereGeometry(1, 16, 12), headMat: std({ color: 0x2c7f36, roughness: 0.35, metalness: 0.15 }), hoodMat: std({ color: 0x24692c, roughness: 0.45, side: THREE.DoubleSide }),
-        belly: std({ color: 0xd8c14a, roughness: 0.4 }),
-        eye: new THREE.SphereGeometry(0.06, 8, 6), eyeMat: glow(0xffd21a), pupil: new THREE.BoxGeometry(0.014, 0.08, 0.02), pupilMat: new THREE.MeshBasicMaterial({ color: 0x111111 }),
-        fang: new THREE.ConeGeometry(0.026, 0.13, 6), fangMat: std({ color: 0xf4f0e2, roughness: 0.3 }),
-        tongue: new THREE.BoxGeometry(0.035, 0.014, 0.38), tongueMat: std({ color: 0xc61f3b, roughness: 0.5 }),
-        trail: new THREE.PlaneGeometry(0.9, 3), trailMat: new THREE.MeshBasicMaterial({ color: 0x7dff9a, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }),
+  car(C) {
+    // a chunky yellow cab: you stand on the roof (roof top at y = 0)
+    if (!C.car) {
+      const checker = canvasTex(256, 32, (x, w, h) => { x.fillStyle = '#ffd21a'; x.fillRect(0, 0, w, h); for (let i = 0; i < 32; i++) { x.fillStyle = '#111'; x.fillRect(i * 8, (i % 2) * 8, 8, 8); x.fillRect(i * 8, 16 + (i % 2) * 8, 8, 8); } });
+      C.car = {
+        body: new RoundedBoxGeometry(1.75, 0.62, 3.7, 3, 0.18), paint: std({ color: 0xffc81a, roughness: 0.3, metalness: 0.35 }),
+        cabin: new RoundedBoxGeometry(1.55, 0.62, 1.9, 3, 0.16), glass: std({ color: 0x1b2a3a, roughness: 0.08, metalness: 0.6, envMapIntensity: 1.4 }),
+        roof: new RoundedBoxGeometry(1.42, 0.06, 1.6, 2, 0.03),
+        stripe: new THREE.BoxGeometry(1.77, 0.12, 2.6), stripeMat: std({ map: checker, roughness: 0.4 }),
+        tire: new THREE.CylinderGeometry(0.36, 0.36, 0.3, 18), tireMat: std({ color: 0x15161a, roughness: 0.85 }),
+        hub: new THREE.CylinderGeometry(0.2, 0.2, 0.32, 10), hubMat: std({ color: 0xcfd5de, roughness: 0.25, metalness: 0.9 }),
+        bumper: new RoundedBoxGeometry(1.8, 0.16, 0.18, 2, 0.06), chrome: std({ color: 0xd8dde6, roughness: 0.2, metalness: 1 }),
+        lamp: new THREE.CircleGeometry(0.12, 14), head: glow(0xfff6c8), tail: glow(0xff2a2a),
+        sign: new RoundedBoxGeometry(0.5, 0.16, 0.18, 2, 0.04), signMat: std({ color: 0xffffff, emissive: 0xffe9a0, emissiveIntensity: 0.6 }),
       };
     }
-    const S = C.snake, g = new THREE.Group();
-    g.add(new THREE.Mesh(S.body, S.mat));
-    // head rearing up at the front, looking ahead
-    const head = new THREE.Group(); head.position.copy(S.end); head.rotation.x = -0.35; g.add(head);
-    const skull = new THREE.Mesh(S.head, S.headMat); skull.scale.set(0.3, 0.19, 0.46); skull.position.z = 0.18; head.add(skull);
-    const jaw = new THREE.Mesh(S.head, S.belly); jaw.scale.set(0.24, 0.07, 0.36); jaw.position.set(0, -0.12, 0.2); head.add(jaw);
-    const hood = new THREE.Mesh(S.head, S.hoodMat); hood.scale.set(0.62, 0.42, 0.08); hood.position.set(0, -0.08, -0.2); hood.rotation.x = 0.25; head.add(hood);
-    for (const sx of [-1, 1]) {
-      const e = new THREE.Mesh(S.eye, S.eyeMat); e.position.set(sx * 0.17, 0.09, 0.34); head.add(e);
-      const p = new THREE.Mesh(S.pupil, S.pupilMat); p.position.set(sx * 0.19, 0.09, 0.38); head.add(p);
-      const f = new THREE.Mesh(S.fang, S.fangMat); f.rotation.x = Math.PI; f.position.set(sx * 0.08, -0.13, 0.52); head.add(f);
+    const K = C.car, g = new THREE.Group(), car = new THREE.Group(); g.add(car);
+    car.position.y = -0.07;
+    const add = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); car.add(m); return m; };
+    add(K.body, K.paint, 0, -1.0, 0);
+    add(K.stripe, K.stripeMat, 0, -0.86, 0.15);
+    add(K.cabin, K.glass, 0, -0.42, -0.15);
+    add(K.roof, K.paint, 0, -0.08, -0.15);
+    add(K.sign, K.signMat, 0, 0.0, -0.75);
+    add(K.bumper, K.chrome, 0, -1.22, 1.87); add(K.bumper, K.chrome, 0, -1.22, -1.87);
+    for (const sx of [-1, 1]) { add(K.lamp, K.head, sx * 0.6, -0.98, 1.855); add(K.lamp, K.tail, sx * 0.62, -0.98, -1.855, 0, Math.PI, 0); }
+    const wheels = [];
+    for (const [x, z] of [[0.86, 1.2], [-0.86, 1.2], [0.86, -1.2], [-0.86, -1.2]]) {
+      const w = new THREE.Group(); w.position.set(x, -1.36, z); car.add(w);
+      const t = new THREE.Mesh(K.tire, K.tireMat); t.rotation.z = Math.PI / 2; w.add(t);
+      const h = new THREE.Mesh(K.hub, K.hubMat); h.rotation.z = Math.PI / 2; w.add(h);
+      wheels.push(w);
     }
-    const tongue = new THREE.Mesh(S.tongue, S.tongueMat); tongue.position.set(0, -0.07, 0.7); head.add(tongue);
-    const trail = new THREE.Mesh(S.trail, S.trailMat); trail.rotation.x = -Math.PI / 2; trail.position.set(0, -0.35, -4.4); trail.renderOrder = 7; g.add(trail);
     return {
       g, pose: 'ride', anim: (t) => {
-        S.uTime.value = t;
-        head.rotation.y = Math.sin(t * 1.6) * 0.22; head.rotation.x = -0.35 + Math.sin(t * 2.3) * 0.08;
-        tongue.scale.z = 0.5 + Math.max(0, Math.sin(t * 9)) * 0.8; tongue.position.z = 0.56 + tongue.scale.z * 0.14;
-        g.position.y = Math.sin(t * 3.0) * 0.03; g.rotation.z = Math.sin(t * 1.5) * 0.05;
+        for (const w of wheels) w.rotation.x = t * 9;
+        car.position.y = -0.07 + Math.sin(t * 2.4) * 0.04; car.rotation.z = Math.sin(t * 1.3) * 0.04; car.rotation.x = -0.06 + Math.sin(t * 1.9) * 0.025;
+      },
+    };
+  },
+
+  cloud(C) {
+    // a puffy cloud you stand on (its flattened top sits at y = 0)
+    if (!C.cloud) {
+      C.cloud = { puff: new THREE.SphereGeometry(1, 16, 12), mat: std({ color: 0xffffff, roughness: 1, metalness: 0, emissive: 0xc9d8ff, emissiveIntensity: 0.25 }), shade: std({ color: 0xdfe7f5, roughness: 1, metalness: 0 }) };
+    }
+    const K = C.cloud, g = new THREE.Group(), cloud = new THREE.Group(); g.add(cloud);
+    const puffs = [];
+    const P = [[0, -0.32, 0, 0.75, 0.45, 0.75], [0.62, -0.38, 0.15, 0.55, 0.38, 0.5], [-0.6, -0.36, -0.1, 0.58, 0.4, 0.55], [0.15, -0.36, 0.62, 0.5, 0.36, 0.48], [-0.2, -0.38, -0.65, 0.52, 0.36, 0.5],
+      [0.95, -0.5, -0.35, 0.38, 0.3, 0.36], [-0.95, -0.52, 0.4, 0.4, 0.3, 0.38], [0.5, -0.62, -0.7, 0.4, 0.3, 0.4], [-0.45, -0.6, 0.85, 0.4, 0.3, 0.4], [0, -0.7, 0, 0.95, 0.35, 0.95]];
+    P.forEach(([x, y, z, sx, sy, sz], i) => { const m = new THREE.Mesh(K.puff, i === P.length - 1 ? K.shade : K.mat); m.position.set(x, y, z); m.scale.set(sx, sy, sz); cloud.add(m); puffs.push([m, sx, sy, sz, i]); });
+    return {
+      g, pose: 'ride', anim: (t) => {
+        cloud.position.y = Math.sin(t * 1.6) * 0.05; cloud.rotation.y = Math.sin(t * 0.4) * 0.15;
+        for (const [m, sx, sy, sz, i] of puffs) { const k = 1 + Math.sin(t * 1.8 + i * 1.3) * 0.04; m.scale.set(sx * k, sy * k, sz * k); }
+      },
+    };
+  },
+
+  carpet(C) {
+    // a rippling flying carpet (deck at y = 0), gold tassels at both ends
+    if (!C.carpet) {
+      const tex = canvasTex(256, 384, (x, w, h) => {
+        x.fillStyle = '#9b1020'; x.fillRect(0, 0, w, h);
+        x.strokeStyle = '#f2c14e'; x.lineWidth = 10; x.strokeRect(10, 10, w - 20, h - 20);
+        x.strokeStyle = '#1d2a6b'; x.lineWidth = 8; x.strokeRect(26, 26, w - 52, h - 52);
+        x.fillStyle = '#f2c14e';
+        for (let y = 40; y < h - 40; y += 24) { x.beginPath(); x.moveTo(30, y); x.lineTo(40, y + 12); x.lineTo(30, y + 24); x.fill(); x.beginPath(); x.moveTo(w - 30, y); x.lineTo(w - 40, y + 12); x.lineTo(w - 30, y + 24); x.fill(); }
+        x.translate(w / 2, h / 2);
+        for (const [r, c] of [[100, '#1d2a6b'], [78, '#f2c14e'], [58, '#c42a3a'], [36, '#1d2a6b'], [16, '#f2c14e']]) { x.fillStyle = c; x.beginPath(); x.moveTo(0, -r * 1.4); x.lineTo(r, 0); x.lineTo(0, r * 1.4); x.lineTo(-r, 0); x.fill(); }
+      });
+      const geo = new THREE.PlaneGeometry(1.5, 2.4, 12, 20); geo.rotateX(-Math.PI / 2);
+      C.carpet = {
+        geo, base: Float32Array.from(geo.attributes.position.array), mat: std({ map: tex, roughness: 0.85, side: THREE.DoubleSide }),
+        tassel: new THREE.ConeGeometry(0.035, 0.16, 5), gold: std({ color: 0xf2c14e, roughness: 0.4, metalness: 0.6 }),
+        spark: new THREE.OctahedronGeometry(0.035, 0), sparkMat: glow(0xffe9a0),
+      };
+    }
+    const K = C.carpet, g = new THREE.Group(), carpet = new THREE.Group(); g.add(carpet);
+    const geo = K.geo.clone(); const mesh = new THREE.Mesh(geo, K.mat); carpet.add(mesh);
+    const base = K.base, pos = geo.attributes.position;
+    const tassels = [];
+    for (const zEnd of [-1.2, 1.2]) for (let i = 0; i < 7; i++) {
+      const tt = new THREE.Mesh(K.tassel, K.gold); tt.rotation.x = zEnd > 0 ? Math.PI / 2 + 0.3 : -Math.PI / 2 - 0.3; tt.position.set(-0.6 + i * 0.2, -0.02, zEnd + Math.sign(zEnd) * 0.07); carpet.add(tt); tassels.push(tt);
+    }
+    const sparks = [];
+    for (let i = 0; i < 8; i++) { const sp = new THREE.Mesh(K.spark, K.sparkMat); sp.renderOrder = 7; carpet.add(sp); sparks.push(sp); }
+    return {
+      g, pose: 'ride', anim: (t) => {
+        for (let i = 0; i < pos.count; i++) {
+          const x = base[i * 3], z = base[i * 3 + 2];
+          const under = Math.max(0, 1 - Math.hypot(x, z * 0.8) / 0.55);   // calm under the rider's feet
+          pos.setY(i, (Math.sin(z * 3.2 - t * 5) * 0.06 + Math.sin(x * 4 + t * 3) * 0.025) * (1 - under) + Math.abs(x) * 0.06);
+        }
+        pos.needsUpdate = true; geo.computeVertexNormals();
+        carpet.position.y = -0.03 + Math.sin(t * 2) * 0.03; carpet.rotation.z = Math.sin(t * 1.2) * 0.05;
+        tassels.forEach((tt, i) => { tt.rotation.z = Math.sin(t * 6 + i) * 0.25; });
+        sparks.forEach((sp, i) => { const k = (t * 0.6 + i / 8) % 1; sp.position.set(Math.sin(i * 2.4) * 0.8, -0.1 - k * 0.6, -1.3 - k * 1.2); sp.scale.setScalar(1 - k); sp.rotation.y = t * 3 + i; });
+      },
+    };
+  },
+
+  bike(C) {
+    // a sky bike you sit on and drive (seat at y = 0.6, handlebars at the hands of the 'sit' pose)
+    if (!C.bike) {
+      const ringTex = canvasTex(64, 64, (x, w, h) => { const gr = x.createRadialGradient(32, 32, 10, 32, 32, 32); gr.addColorStop(0, 'rgba(90,240,255,0)'); gr.addColorStop(0.7, 'rgba(90,240,255,0.85)'); gr.addColorStop(1, 'rgba(90,240,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, w, h); });
+      const flameTex = canvasTex(16, 128, (x, w, h) => { const gr = x.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.2, 'rgba(120,230,255,0.9)'); gr.addColorStop(1, 'rgba(40,120,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, w, h); });
+      C.bike = {
+        red: std({ color: 0xd8182a, roughness: 0.25, metalness: 0.45 }), black: std({ color: 0x16171c, roughness: 0.5, metalness: 0.3 }),
+        chrome: std({ color: 0xdfe4ec, roughness: 0.15, metalness: 1 }), seat: std({ color: 0x1c1410, roughness: 0.7 }),
+        tire: new THREE.TorusGeometry(0.34, 0.1, 10, 24), rim: new THREE.CylinderGeometry(0.25, 0.25, 0.1, 18), spoke: new THREE.BoxGeometry(0.03, 0.48, 0.02),
+        tank: new THREE.SphereGeometry(1, 18, 12), seatGeo: new RoundedBoxGeometry(0.34, 0.12, 0.7, 2, 0.05),
+        headlight: new THREE.CircleGeometry(0.1, 16), lightMat: glow(0xfff4c0),
+        ring: new THREE.PlaneGeometry(1, 1), ringMat: new THREE.MeshBasicMaterial({ map: ringTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }),
+        flame: new THREE.ConeGeometry(0.07, 0.6, 10, 1, true), flameMat: new THREE.MeshBasicMaterial({ map: flameTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }),
+      };
+    }
+    const K = C.bike, g = new THREE.Group(), bike = new THREE.Group(); g.add(bike);
+    const add = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1, parent = bike) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); m.scale.set(sx, sy, sz); parent.add(m); return m; };
+    // wheels (spinning)
+    const wheels = [];
+    for (const z of [0.82, -0.78]) {
+      const w = new THREE.Group(); w.position.set(0, 0.3, z); bike.add(w); wheels.push(w);
+      add(K.tire, K.black, 0, 0, 0, 0, Math.PI / 2, 0, 1, 1, 1, w);
+      add(K.rim, K.chrome, 0, 0, 0, 0, 0, Math.PI / 2, 1, 1, 1, w);
+      for (let i = 0; i < 3; i++) add(K.spoke, K.red, 0, 0, 0, i * Math.PI / 3, 0, 0, 1, 1, 1, w);
+      const ring = add(K.ring, K.ringMat, 0, 0, 0, 0, Math.PI / 2, 0, 1.1, 1.1, 1.1, w); ring.renderOrder = 7;
+    }
+    // frame, tank, seat, engine
+    bike.add(rod(new THREE.Vector3(0, 0.3, 0.82), new THREE.Vector3(0, 0.92, 0.46), 0.04, K.chrome, 8));   // fork
+    bike.add(rod(new THREE.Vector3(0, 0.3, -0.78), new THREE.Vector3(0, 0.55, -0.1), 0.045, K.black, 8)); // swingarm
+    add(K.tank, K.red, 0, 0.72, 0.28, 0.25, 0, 0, 0.2, 0.15, 0.36);                                        // tank
+    add(K.tank, K.red, 0, 0.42, -0.62, -0.2, 0, 0, 0.16, 0.12, 0.42);                                     // tail
+    add(K.tank, K.black, 0, 0.36, 0.05, 0, 0, 0, 0.2, 0.2, 0.3);                                         // engine
+    add(K.seatGeo, K.seat, 0, 0.56, -0.2, 0.06);
+    bike.add(rod(new THREE.Vector3(-0.36, 0.94, 0.42), new THREE.Vector3(0.36, 0.94, 0.42), 0.024, K.chrome, 6));   // handlebar
+    for (const sx of [-1, 1]) add(K.seatGeo, K.seat, sx * 0.31, 0.94, 0.42, 0, 0, Math.PI / 2, 0.42, 0.9, 0.17);   // grips
+    add(K.headlight, K.lightMat, 0, 0.8, 0.62, 0, 0, 0);
+    add(K.tank, K.chrome, 0, 0.8, 0.56, 0, 0, 0, 0.12, 0.12, 0.08);
+    // exhausts with blue jet flames
+    const flames = [];
+    for (const sx of [-1, 1]) {
+      bike.add(rod(new THREE.Vector3(sx * 0.16, 0.3, 0.1), new THREE.Vector3(sx * 0.18, 0.44, -0.75), 0.04, K.chrome, 8));
+      const f = add(K.flame, K.flameMat, sx * 0.18, 0.45, -1.05, -Math.PI / 2 - 0.18, 0, 0); f.renderOrder = 8; flames.push(f);
+    }
+    return {
+      g, pose: 'sit', anim: (t) => {
+        for (const w of wheels) w.rotation.x = t * 14;
+        flames.forEach((f, i) => f.scale.set(1, 0.8 + Math.sin(t * 30 + i * 2) * 0.25, 1));
+        bike.position.y = Math.sin(t * 2.6) * 0.03; bike.rotation.z = Math.sin(t * 1.1) * 0.06; bike.rotation.x = -0.05 + Math.sin(t * 1.7) * 0.02;
+      },
+    };
+  },
+
+  hand(C) {
+    // a giant open hand rising from a cloud; you stand on the palm (palm top at y = 0), fingers out in front
+    if (!C.hand) {
+      C.hand = {
+        skin: std({ color: 0xe8b48c, roughness: 0.6, metalness: 0 }), nail: std({ color: 0xf6d7c4, roughness: 0.3 }),
+        cuff: std({ color: 0xf4f4f6, roughness: 0.7 }), cloud: std({ color: 0xffffff, roughness: 1, emissive: 0xc9d8ff, emissiveIntensity: 0.25 }),
+        palm: new RoundedBoxGeometry(1.7, 0.42, 1.7, 4, 0.2), seg: new THREE.CapsuleGeometry(0.17, 0.42, 6, 12), ball: new THREE.SphereGeometry(1, 14, 10),
+        arm: new THREE.CylinderGeometry(0.62, 0.78, 2.4, 20), cuffGeo: new THREE.TorusGeometry(0.66, 0.14, 10, 24),
+      };
+    }
+    const K = C.hand, g = new THREE.Group(), hand = new THREE.Group(); g.add(hand);
+    hand.position.y = -0.22;
+    const add = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0, sx = 1, sy = 1, sz = 1, parent = hand) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); m.scale.set(sx, sy, sz); parent.add(m); return m; };
+    add(K.palm, K.skin, 0, 0, 0);
+    // four fingers pointing forward (+Z), curling up a little at the tips
+    const fingers = [];
+    [[-0.6, 0.95], [-0.2, 1.05], [0.2, 1.0], [0.58, 0.85]].forEach(([x, len], i) => {
+      const f = new THREE.Group(); f.position.set(x, 0.02, 0.8); hand.add(f);
+      const a = add(K.seg, K.skin, 0, 0, len * 0.27, Math.PI / 2, 0, 0, 1, len, 1, f);
+      const tip = new THREE.Group(); tip.position.set(0, 0, len * 0.56); f.add(tip);
+      add(K.seg, K.skin, 0, 0, 0.18, Math.PI / 2 - 0.0, 0, 0, 0.95, 0.85, 0.95, tip);
+      add(K.ball, K.nail, 0, 0.12, 0.36, 0, 0, 0, 0.11, 0.04, 0.12, tip);
+      tip.rotation.x = -0.45; fingers.push({ f, tip, i });
+    });
+    // thumb out to the side
+    const thumb = new THREE.Group(); thumb.position.set(-0.85, 0.02, 0.15); thumb.rotation.y = -0.9; hand.add(thumb);
+    add(K.seg, K.skin, 0, 0, 0.3, Math.PI / 2, 0, 0, 1.15, 1.0, 1.15, thumb);
+    // wrist and forearm going down into a cloud
+    add(K.arm, K.skin, 0, -1.2, -0.75, 0.55, 0, 0);
+    add(K.cuffGeo, K.cuff, 0, -1.55, -0.95, Math.PI / 2 + 0.55, 0, 0);
+    const puffs = [];
+    for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; puffs.push(add(K.ball, K.cloud, Math.cos(a) * 0.75, -2.2 + Math.sin(i * 1.7) * 0.1, -1.35 + Math.sin(a) * 0.6, 0, 0, 0, 0.55, 0.42, 0.55)); }
+    return {
+      g, pose: 'ride', anim: (t) => {
+        hand.position.y = -0.22 + Math.sin(t * 1.8) * 0.05; hand.rotation.z = Math.sin(t * 1.1) * 0.05;
+        for (const { tip, i } of fingers) tip.rotation.x = -0.45 - Math.max(0, Math.sin(t * 1.5 + i * 0.5)) * 0.15;
+        puffs.forEach((p, i) => p.scale.setScalar(0.5 + Math.sin(t * 2 + i) * 0.05));
       },
     };
   },
@@ -322,8 +430,8 @@ const BUILD = {
 /** Build a glider of type id. cache: any object to keep shared geometry/materials on (the CharacterFactory). */
 export function makeGlider(id, cache) {
   const C = cache._gliders || (cache._gliders = {});
-  const b = (BUILD[id] || BUILD.volt)(C);
-  b.g.userData.id = BUILD[id] ? id : 'volt';
+  const b = (BUILD[id] || BUILD.military)(C);
+  b.g.userData.id = BUILD[id] ? id : 'military';
   b.g.userData.pose = b.pose;
   b.g.userData.anim = b.anim || null;
   b.g.traverse(o => { if (o.isMesh) { o.castShadow = false; o.frustumCulled = false; } });

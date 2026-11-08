@@ -392,7 +392,11 @@ export class PlayerController {
     } else ({ dist, right, up } = CAMERA_RIG.hip);
     if (ek > 0) { dist += (3.9 - dist) * ek; right *= 1 - ek; up += (-0.25 - up) * ek; }
     if (!f.alive) { dist = 5; right = 0; }
-    const pivotY = f.pos.y + (f.crouch && f.mode === 'ground' ? 1.18 : 1.56) + (f.mode !== 'ground' ? 0.8 : 0);
+    // gliders you stand or sit on hang below your feet: aim lower and pull back so the whole thing is in frame
+    const gp = f.mode === 'glide' && f.char && f.char.glider && f.char.glider.userData.pose;
+    const under = gp === 'ride' || gp === 'sit';
+    if (under) { dist = 9.2; pitch -= 0.3; }
+    const pivotY = f.pos.y + (f.crouch && f.mode === 'ground' ? 1.18 : 1.56) + (f.mode !== 'ground' ? (under ? -0.35 : 0.8) : 0);
     const sy = Math.sin(yaw), cy = Math.cos(yaw), sp = Math.sin(pitch), cp = Math.cos(pitch);
     const fwd = _dir.set(sy * cp, sp, cy * cp);
     const rgt = new THREE.Vector3(-cy, 0, sy);

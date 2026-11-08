@@ -78,10 +78,16 @@ export const RARITY_COLORS = ['#8a93a3', '#3fbf5c', '#2f8cff', '#a64dff', '#ff9d
 export const RARITY_NAMES = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'];
 
 export const GLIDERS = [
-  { id: 'volt',     name: 'Volt Wing',        rarity: 2, desc: 'The standard-issue OVERCHARGE glider. Purple, fast, reliable.' },
   { id: 'military', name: 'Airborne Canopy',  rarity: 1, desc: 'A classic round military parachute. Lines, risers and an olive-drab canopy.' },
   { id: 'surf',     name: 'Sky Surfer',       rarity: 3, desc: 'Stand up and ride the wind down on a surfboard.' },
-  { id: 'snake',    name: 'Sky Serpent',      rarity: 3, desc: 'Surf the sky standing on the back of a giant slithering serpent.' },
+  { id: 'car',      name: 'Yellow Cab',       rarity: 3, desc: 'Ride down standing on the roof of a bright yellow car, wheels still spinning.' },
+  { id: 'cloud',    name: 'Cloud Nine',       rarity: 2, desc: 'Stand on a fluffy little cloud and drift down to the fight.' },
+  { id: 'carpet',   name: 'Magic Carpet',     rarity: 4, desc: 'A rippling red-and-gold flying carpet with golden tassels.' },
+  { id: 'bike',     name: 'Sky Rider',        rarity: 4, desc: 'Sit on a sky bike and drive it down through the air, wheels spinning and engine glowing.' },
+  { id: 'hand',     name: 'Helping Hand',     rarity: 3, desc: 'A giant hand rises out of a cloud and carries you down on its palm.' },
   { id: 'dragon',   name: 'Red Dragon',       rarity: 4, desc: 'A crimson dragon grabs you in its claws and flaps you down to the fight.' },
   { id: 'saucer',   name: 'Close Encounter',  rarity: 4, desc: 'Beamed down from a flying saucer. They come in peace. Probably.' },
 ];
+export const DEFAULT_GLIDER = 'military';
+/** Saved glider id → one that still exists (removed gliders fall back to the default). */
+export function normalizeGlider(id) { return GLIDERS.some(g => g.id === id) ? id : DEFAULT_GLIDER; }
