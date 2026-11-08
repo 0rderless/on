@@ -30,6 +30,22 @@ export const SKINS = [
     desc: 'Glacier-white plating that glitters with frost, crowned with ice crystals.',
   },
   {
+    id: 'void', name: 'Void', rarity: 4, series: 'Void Series',
+    desc: 'Armor cut from the night between stars. A dark halo and void shards drift around it.',
+  },
+  {
+    id: 'emerald', name: 'Emerald', rarity: 3, series: 'Gemstone Series',
+    desc: 'Polished emerald plating with gold trim and living green crystals on the shoulders and crown.',
+  },
+  {
+    id: 'king', name: 'King', rarity: 4, series: 'Royal Series',
+    desc: 'Royal gold armor with crimson accents, a jewelled crown and an ermine collar.',
+  },
+  {
+    id: 'beast', name: 'Orange Beast', rarity: 3, series: 'Wild Series',
+    desc: 'Tiger-striped orange hide, curled horns, a spiked back and burning orange eyes.',
+  },
+  {
     id: 'nova', name: 'Nova', rarity: 3, series: 'Strike Force Series', body: 'female',
     desc: 'White strike armor with hot-pink trim and a ponytail to match.',
   },
