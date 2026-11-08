@@ -39,6 +39,10 @@ export const PALETTE_LOOKS = {
   viper:     { light: 0x2b3230, mid: 0x111514, dark: 0x050606, accent: 0x39ff7a, glow: 0x39ff7a, glowI: 0.75, accentI: 1.2, rough: 0.2, metal: 0.55, env: 1.0, visor: 0x021006, visorGlow: 0x39ff7a, visorI: 2.4, hair: 0x101214, hairTip: 0x39ff7a, hairStyle: 'ponytail' },
   valkyrie:  { light: 0xc0262f, mid: 0x6a0c12, dark: 0x1c0306, accent: 0xffc24a, glow: 0xfff0c8, glowI: 0.3, accentI: 0.35, rough: 0.28, metal: 0.6, env: 1.0, visor: 0x1a0c00, visorGlow: 0xffd45a, visorI: 1.8, hair: 0xf0c75a, hairTip: 0xfff0b0, hairStyle: 'braid', goldMetal: true },
   arcticfox: { light: 0xf2f5f8, mid: 0x9aa6b4, dark: 0x2a313b, accent: 0xff7a1c, glow: 0xffa040, glowI: 0.25, accentI: 0.7, rough: 0.55, metal: 0.1, env: 0.5, visor: 0x1a0a00, visorGlow: 0xff8a2a, visorI: 2.0, hair: 0xb5501e, hairTip: 0xe08a4a, hairStyle: 'bun', camo: true },
+  void:      { light: 0x2a2140, mid: 0x0d0a18, dark: 0x020104, accent: 0x9b4dff, glow: 0xb06bff, glowI: 0.9, accentI: 1.1, rough: 0.25, metal: 0.5, env: 0.7, visor: 0x05000c, visorGlow: 0xa040ff, visorI: 1.2, stars: true },
+  emerald:   { light: 0x2fe08a, mid: 0x07804a, dark: 0x02261a, accent: 0xffc84a, glow: 0x7dffc2, glowI: 0.35, accentI: 0.3, rough: 0.12, metal: 0.55, env: 1.4, visor: 0x011a0e, visorGlow: 0x20e070, visorI: 1.1, goldMetal: true, facets: true },
+  king:      { light: 0xffd36b, mid: 0xb07a18, dark: 0x2a1404, accent: 0xc0122a, glow: 0xffe9a8, glowI: 0.25, accentI: 0.55, rough: 0.2, metal: 0.95, env: 1.3, visor: 0x1a0a00, visorGlow: 0xffb020, visorI: 1.0 },
+  beast:     { light: 0xff9a1c, mid: 0xd25a08, dark: 0x1a0a02, accent: 0x1a0a02, glow: 0xffb040, glowI: 0.2, accentI: 0.0, rough: 0.7, metal: 0.05, env: 0.4, visor: 0x200800, visorGlow: 0xff6a00, visorI: 1.3, stripes: true },
   rose:      { light: 0x6b3fa8, mid: 0x2e1650, dark: 0x0d0618, accent: 0xf2a68a, glow: 0xff5cc8, glowI: 0.6, accentI: 0.5, rough: 0.3, metal: 0.45, env: 0.9, visor: 0x12041a, visorGlow: 0xff5cc8, visorI: 2.2, hair: 0x2a1240, hairTip: 0xc25cff, hairStyle: 'ponytail', goldMetal: true },
 };
 
@@ -119,10 +123,14 @@ export class CharacterFactory {
     const pickWorld = new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(0.55, 0, 0));
     pickWorld.setPosition(handPos);
     this.pickLocal = handInv.clone().multiply(pickWorld);
-    const headPos = new THREE.Vector3().setFromMatrixPosition(head.matrixWorld);
-    this.headLocal = head.matrixWorld.clone().invert().multiply(new THREE.Matrix4().makeTranslation(headPos.x, headPos.y, headPos.z));
-    const chestPos = new THREE.Vector3().setFromMatrixPosition(spine2.matrixWorld);
-    this.chestLocal = spine2.matrixWorld.clone().invert().multiply(new THREE.Matrix4().makeTranslation(chestPos.x, chestPos.y, chestPos.z));
+    // Head and chest gear frames come from the rest pose, so crowns, horns and shoulder pieces sit square on
+    // the body part they belong to in every pose (the rifle idle twists the torso by ~50 degrees).
+    const rest = SkeletonUtils.clone(this.template); rest.updateMatrixWorld(true);
+    const rHead = this.findBone(rest, 'Head'), rChest = this.findBone(rest, 'Spine2');
+    const headPos = new THREE.Vector3().setFromMatrixPosition(rHead.matrixWorld);
+    this.headLocal = rHead.matrixWorld.clone().invert().multiply(new THREE.Matrix4().makeTranslation(headPos.x, headPos.y, headPos.z));
+    const chestPos = new THREE.Vector3().setFromMatrixPosition(rChest.matrixWorld);
+    this.chestLocal = rChest.matrixWorld.clone().invert().multiply(new THREE.Matrix4().makeTranslation(chestPos.x, chestPos.y, chestPos.z));
     // Back gear (jetpack, battery pack) rides on a mount that faces where the character faces, because the
     // rifle stance blades the whole torso ~55 degrees and a pack glued to it would hang off one side.
     // How far behind the spine the back surface is depends on that twist: measure it straight and bladed.
@@ -242,6 +250,9 @@ export class CharacterFactory {
         sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', common + `
           vec3 pal = mix(${v3(L.mid)}, ${v3(L.light)}, smoothstep(0.18, 0.78, lum));
           ${camo}
+          ${L.stars ? `float neb = smoothstep(0.5, 0.85, oc_noise(vMapUv * 7.0 + vec2(uTime * 0.04, uTime * 0.02))); pal = mix(pal, vec3(0.16, 0.05, 0.3), neb * 0.7);` : ''}
+          ${L.stripes ? `float oc_band = sin(vMapUv.y * 95.0 + oc_noise(vMapUv * 13.0) * 7.0 + vMapUv.x * 20.0); float stripe = smoothstep(0.45, 0.8, oc_band) * smoothstep(0.3, 0.55, oc_noise(vMapUv * 8.0 + 5.0)); pal = mix(pal, ${v3(L.dark)}, stripe * 0.92);` : ''}
+          ${L.facets ? `pal *= 0.75 + 0.5 * oc_noise(floor(vMapUv * 60.0) + 0.5);` : ''}
           pal = mix(pal, ${v3(L.dark)}, darkness);
           float oc_acc = max(redness, edge * 0.35 * (1.0 - darkness));
           diffuseColor.rgb = mix(pal, ${v3(L.accent)}, oc_acc);
@@ -255,6 +266,8 @@ export class CharacterFactory {
           float oc_p = 0.75 + 0.25 * sin(uTime * 2.6 + vMapUv.y * 18.0);
           totalEmissiveRadiance += ${v3(L.glow)} * edge * (1.0 - darkness) * ${L.glowI.toFixed(3)} * oc_p;
           totalEmissiveRadiance += ${v3(L.accent)} * redness * ${L.accentI.toFixed(3)} * 0.6;
+          ${L.stars ? `vec2 oc_cell = floor(vMapUv * 240.0); float oc_star = step(0.988, oc_hash(oc_cell)); totalEmissiveRadiance += vec3(0.85, 0.75, 1.0) * oc_star * (0.55 + 0.45 * sin(uTime * 3.0 + oc_hash(oc_cell + 7.0) * 40.0)) * 1.6;` : ''}
+          ${L.facets ? `vec2 oc_gc = floor(vMapUv * 300.0); float oc_glint = step(0.994, oc_hash(oc_gc + floor(uTime * 1.5))); totalEmissiveRadiance += vec3(0.7, 1.0, 0.85) * oc_glint * 1.8;` : ''}
         `);
       } else if (kind === 'shock') {
         sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', common + `
@@ -567,7 +580,11 @@ export class Character {
     if (id === 'cursed') this.addCursedGear();
     if (id === 'dragon') this.addDragonGear();
     if (id === 'frost') this.addFrostGear();
-    if (PALETTE_LOOKS[id]) this.addHair(PALETTE_LOOKS[id], id);
+    if (PALETTE_LOOKS[id] && PALETTE_LOOKS[id].hairStyle) this.addHair(PALETTE_LOOKS[id], id);
+    if (id === 'void') this.addVoidGear();
+    if (id === 'emerald') this.addEmeraldGear();
+    if (id === 'king') this.addKingGear();
+    if (id === 'beast') this.addBeastGear();
     for (const a of this.attachments) a.visible = !this.jetpackObj || !!a.userData.keep;
   }
 
@@ -745,6 +762,111 @@ export class Character {
     const crown = new THREE.Group();
     for (let i = -2; i <= 2; i++) { const c = crystal(0.018, 0.08 + (2 - Math.abs(i)) * 0.03); c.position.set(i * 0.04, 0.2, 0.06 - Math.abs(i) * 0.02); crown.add(c); }
     this.keepGear(this.attachToBone('Head', crown, this.f.headLocal));
+  }
+
+  /** Void: a dark halo behind the head and void shards drifting round the body. */
+  addVoidGear() {
+    const F = this.f;
+    F._voidMats = F._voidMats || {
+      core: new THREE.MeshStandardMaterial({ color: 0x050208, roughness: 0.2, metalness: 0.7, emissive: 0x2a0a50, emissiveIntensity: 0.6 }),
+      glow: new THREE.MeshBasicMaterial({ color: 0xb06bff, toneMapped: false }),
+      soft: new THREE.MeshBasicMaterial({ color: 0x7a2cff, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }),
+    };
+    const M = F._voidMats;
+    const halo = new THREE.Group();
+    halo.add(new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.012, 6, 36), M.core));
+    halo.add(new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.004, 4, 36), M.glow));
+    const haloGlow = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.03, 6, 36), M.soft); halo.add(haloGlow);
+    halo.position.set(0, 0.13, -0.17);
+    this.keepGear(this.attachToBone('Head', halo, this.f.headLocal));
+    const orbit = new THREE.Group(); orbit.position.y = 1.05;
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2;
+      const shard = new THREE.Mesh(new THREE.OctahedronGeometry(0.05, 0), M.core); shard.scale.y = 1.8;
+      const glow = new THREE.Mesh(new THREE.OctahedronGeometry(0.075, 0), M.soft); glow.scale.y = 1.8;
+      shard.position.set(Math.cos(a) * 0.58, Math.sin(a * 2) * 0.28, Math.sin(a) * 0.58); glow.position.copy(shard.position);
+      shard.rotation.set(0.4 * i, i, 0.3); glow.rotation.copy(shard.rotation);
+      orbit.add(shard, glow);
+    }
+    this.root.add(orbit);
+    this.orbit = orbit;
+    this.keepGear(orbit);
+  }
+
+  /** Emerald: green crystal clusters on the shoulders and a crystal crown. */
+  addEmeraldGear() {
+    const F = this.f;
+    F._emeraldMat = F._emeraldMat || new THREE.MeshStandardMaterial({ color: 0x1fe08a, roughness: 0.05, metalness: 0.15, envMapIntensity: 1.6, emissive: 0x0a7a40, emissiveIntensity: 0.6, flatShading: true });
+    const gold = this.gearMats().gold;
+    const gem = (r, h) => new THREE.Mesh(new THREE.ConeGeometry(r, h, 6), F._emeraldMat);
+    const g = new THREE.Group();
+    for (const s of [-1, 1]) {
+      for (const [dx, dy, dz, h, tilt] of [[0.2, 0.2, 0, 0.2, 0.3], [0.25, 0.18, 0.04, 0.14, 0.65], [0.16, 0.19, -0.05, 0.12, 0.1]]) {
+        const c = gem(0.034, h); c.position.set(dx * s, dy + h / 2, dz); c.rotation.z = -tilt * s; g.add(c);
+      }
+      const set = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.025, 8), gold); set.position.set(0.2 * s, 0.2, 0); set.rotation.z = -0.3 * s; g.add(set);
+    }
+    this.keepGear(this.attachToBone('Spine2', g, this.f.chestLocal));
+    const crown = new THREE.Group();
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.105, 0.012, 6, 24), gold); band.rotation.x = Math.PI / 2; band.position.set(0, 0.17, -0.01); crown.add(band);
+    for (let i = -2; i <= 2; i++) { const c = gem(0.02, 0.07 + (2 - Math.abs(i)) * 0.03); c.position.set(i * 0.045, 0.2, 0.07 - Math.abs(i) * 0.025); crown.add(c); }
+    this.keepGear(this.attachToBone('Head', crown, this.f.headLocal));
+  }
+
+  /** King: jewelled gold crown, ermine collar and gold pauldrons. */
+  addKingGear() {
+    const F = this.f;
+    F._kingMats = F._kingMats || {
+      gold: new THREE.MeshStandardMaterial({ color: 0xffc94a, metalness: 1, roughness: 0.18, emissive: 0x3a2000, envMapIntensity: 1.4 }),
+      ruby: new THREE.MeshStandardMaterial({ color: 0xe01030, roughness: 0.05, metalness: 0.2, emissive: 0x600010, emissiveIntensity: 0.8 }),
+      sapphire: new THREE.MeshStandardMaterial({ color: 0x2a5cff, roughness: 0.05, metalness: 0.2, emissive: 0x0a1a70, emissiveIntensity: 0.8 }),
+      fur: new THREE.MeshStandardMaterial({ color: 0xf6f2ea, roughness: 0.95, metalness: 0 }),
+      spot: new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9, metalness: 0 }),
+    };
+    const M = F._kingMats;
+    const crown = new THREE.Group(); crown.position.set(0, 0.165, -0.005);
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.105, 0.098, 0.05, 24, 1, true), M.gold); crown.add(band);
+    for (let i = 0; i < 8; i++) {
+      const a = i / 8 * Math.PI * 2;
+      const pt = new THREE.Mesh(new THREE.ConeGeometry(0.022, 0.07, 6), M.gold); pt.position.set(Math.sin(a) * 0.1, 0.055, Math.cos(a) * 0.1); crown.add(pt);
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.011, 8, 6), M.gold); ball.position.set(Math.sin(a) * 0.1, 0.095, Math.cos(a) * 0.1); crown.add(ball);
+      const jewel = new THREE.Mesh(new THREE.OctahedronGeometry(0.014, 0), i % 2 ? M.sapphire : M.ruby); jewel.position.set(Math.sin(a) * 0.106, 0.0, Math.cos(a) * 0.106); crown.add(jewel);
+    }
+    const big = new THREE.Mesh(new THREE.OctahedronGeometry(0.022, 0), M.ruby); big.position.set(0, 0.01, 0.112); crown.add(big);
+    this.keepGear(this.attachToBone('Head', crown, this.f.headLocal));
+    // ermine collar and gold pauldrons round the shoulders
+    const g = new THREE.Group();
+    const collar = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.045, 8, 26), M.fur); collar.rotation.x = Math.PI / 2; collar.position.set(0, 0.15, -0.01); collar.scale.set(1.15, 1, 1); g.add(collar);
+    for (let i = 0; i < 12; i++) {
+      const a = i / 12 * Math.PI * 2;
+      const sp = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 4), M.spot); sp.scale.set(0.6, 1.4, 0.6);
+      sp.position.set(Math.sin(a) * 0.15 * 1.15 * 1.18, 0.16, Math.cos(a) * 0.15 * 1.18 - 0.01); g.add(sp);
+    }
+    for (const s of [-1, 1]) {
+      const pad = new THREE.Mesh(new THREE.SphereGeometry(0.1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), M.gold); pad.position.set(0.2 * s, 0.12, -0.01); pad.rotation.z = -0.45 * s; pad.scale.set(1, 0.7, 1.05); g.add(pad);
+      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.02, 0), M.ruby); gem.position.set(0.23 * s, 0.16, 0.07); g.add(gem);
+    }
+    this.keepGear(this.attachToBone('Spine2', g, this.f.chestLocal));
+  }
+
+  /** Orange Beast: curled horns, a spiked back ridge and claw-like shoulder spikes. */
+  addBeastGear() {
+    const F = this.f;
+    F._beastMats = F._beastMats || {
+      horn: new THREE.MeshStandardMaterial({ color: 0x2a1a10, roughness: 0.45, metalness: 0.1, emissive: 0x3a1000, emissiveIntensity: 0.4 }),
+      spike: new THREE.MeshStandardMaterial({ color: 0xf2e6cc, roughness: 0.4, metalness: 0.05 }),
+    };
+    const M = F._beastMats;
+    this.keepGear(this.attachToBone('Head', this.addHorns(M.horn, true), this.f.headLocal));
+    const g = new THREE.Group();
+    for (let i = 0; i < 5; i++) {
+      const h = 0.12 - i * 0.012;
+      const sp = new THREE.Mesh(new THREE.ConeGeometry(0.03, h, 6), M.spike); sp.position.set(0, 0.2 - i * 0.085, -0.17); sp.rotation.x = -1.15; g.add(sp);
+    }
+    for (const s of [-1, 1]) for (const [dx, dy, dz, h] of [[0.21, 0.21, 0.02, 0.13], [0.25, 0.18, -0.04, 0.1]]) {
+      const sp = new THREE.Mesh(new THREE.ConeGeometry(0.025, h, 6), M.spike); sp.position.set(dx * s, dy + h / 2, dz); sp.rotation.z = -0.55 * s; g.add(sp);
+    }
+    this.keepGear(this.attachToBone('Spine2', g, this.f.chestLocal));
   }
 
   addPlatinumGear() {
