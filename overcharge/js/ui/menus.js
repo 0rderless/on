@@ -246,6 +246,7 @@ export function renderSettings(app, container, inGame = false) {
       <div class="set-row"><div>Quality<small>Lower = smoother on older phones (full effect after restart)</small></div><div class="seg" data-seg="quality">${['low', 'medium', 'high'].map(q => `<button class="${S.quality === q ? 'on' : ''}" data-q="${q}">${q.toUpperCase()}</button>`).join('')}</div></div>
       ${toggle('dynRes', 'Dynamic Resolution', 'Off by default. Only for very slow phones: lowers sharpness slightly when the frame rate is low')}
       ${toggle('fpsCap', '60 FPS Cap', 'Saves battery and heat on 120 Hz phones')}
+      ${toggle('bloom', 'Glow Effects', 'Neon lights, muzzle flashes and energy glow softly. Off on Low quality; turn off for extra frame rate')}
       ${toggle('showFps', 'Show FPS')}
     </div>
     <div class="set-sec"><h3>AUDIO</h3>

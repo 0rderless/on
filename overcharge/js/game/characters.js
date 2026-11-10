@@ -39,7 +39,7 @@ export const PALETTE_LOOKS = {
   viper:     { light: 0x2b3230, mid: 0x111514, dark: 0x050606, accent: 0x39ff7a, glow: 0x39ff7a, glowI: 0.75, accentI: 1.2, rough: 0.2, metal: 0.55, env: 1.0, visor: 0x021006, visorGlow: 0x39ff7a, visorI: 2.4, hair: 0x101214, hairTip: 0x39ff7a, hairStyle: 'ponytail' },
   valkyrie:  { light: 0xc0262f, mid: 0x6a0c12, dark: 0x1c0306, accent: 0xffc24a, glow: 0xfff0c8, glowI: 0.3, accentI: 0.35, rough: 0.28, metal: 0.6, env: 1.0, visor: 0x1a0c00, visorGlow: 0xffd45a, visorI: 1.8, hair: 0xf0c75a, hairTip: 0xfff0b0, hairStyle: 'braid', goldMetal: true },
   arcticfox: { light: 0xf2f5f8, mid: 0x9aa6b4, dark: 0x2a313b, accent: 0xff7a1c, glow: 0xffa040, glowI: 0.25, accentI: 0.7, rough: 0.55, metal: 0.1, env: 0.5, visor: 0x1a0a00, visorGlow: 0xff8a2a, visorI: 2.0, hair: 0xb5501e, hairTip: 0xe08a4a, hairStyle: 'bun', camo: true },
-  void:      { light: 0x1c1c1f, mid: 0x08080a, dark: 0x020203, accent: 0x0d0d10, glow: 0x000000, glowI: 0.0, accentI: 0.0, rough: 0.3, metal: 0.45, env: 0.6, visor: 0x300000, visorGlow: 0xe00000, visorI: 0.85, visorRaw: true },
+  void:      { light: 0x1c1c1f, mid: 0x08080a, dark: 0x020203, accent: 0x0d0d10, glow: 0x000000, glowI: 0.0, accentI: 0.0, rough: 0.3, metal: 0.45, env: 0.6, visor: 0x300000, visorGlow: 0xe00000, visorI: 0.85, visorRaw: true, rim: 0x16161c },
   emerald:   { light: 0x2fe08a, mid: 0x07804a, dark: 0x02261a, accent: 0xffc84a, glow: 0x7dffc2, glowI: 0.35, accentI: 0.3, rough: 0.12, metal: 0.55, env: 1.4, visor: 0x011a0e, visorGlow: 0x20e070, visorI: 1.1, goldMetal: true, facets: true },
   king:      { light: 0xffd36b, mid: 0xb07a18, dark: 0x2a1404, accent: 0xc0122a, glow: 0xffe9a8, glowI: 0.25, accentI: 0.55, rough: 0.2, metal: 0.95, env: 1.3, visor: 0x1a0a00, visorGlow: 0xffb020, visorI: 1.0 },
   beast:     { light: 0xff9a1c, mid: 0xd25a08, dark: 0x1a0a02, accent: 0x1a0a02, glow: 0xffb040, glowI: 0.2, accentI: 0.0, rough: 0.7, metal: 0.05, env: 0.4, visor: 0x200800, visorGlow: 0xff6a00, visorI: 1.3, stripes: true },
@@ -74,6 +74,10 @@ export class CharacterFactory {
         }
       }
     }
+    // the idle rifle stance on the upper body only: layered over the legs so the gun stays steady and on
+    // target while you shoot, aim or reload on the move
+    const upper = /(Spine|Neck|Head|Shoulder|Arm|Hand)/;
+    this.clips.aimUpper = new THREE.AnimationClip('aimUpper', this.clips.idle.duration, this.clips.idle.tracks.filter(t => upper.test(t.name) && !/Hips/.test(t.name)).map(t => t.clone()));
     this.baseMats = {};
     this.template.traverse(o => {
       if (o.isSkinnedMesh) {
@@ -195,7 +199,8 @@ export class CharacterFactory {
     let mat;
     if (skinId === 'default') {
       mat = baseMat.clone();
-      if (!isVisor) { mat.roughness = 0.7; mat.metalness = 0.15; }
+      if (!isVisor) { mat.roughness = 0.58; mat.metalness = 0.22; mat.envMapIntensity = 0.7; this.patchShader(mat, 'default'); }
+      else { mat.roughness = 0.12; mat.metalness = 0.6; mat.envMapIntensity = 1.4; }
     } else if (skinId === 'shock') {
       mat = new THREE.MeshStandardMaterial({ map: baseMat.map, normalMap: baseMat.normalMap || null, roughness: 0.38, metalness: 0.3, envMapIntensity: 0.5 });
       if (isVisor) { mat.map = null; mat.color.set(0x111111); mat.emissive.set(0xffe14d); mat.emissiveIntensity = 2.2; }
@@ -339,6 +344,12 @@ export class CharacterFactory {
           #include <emissivemap_fragment>
           totalEmissiveRadiance += vec3(0.3, 0.85, 1.0) * (edge * 0.7 * (1.0 - darkness) + redness * 0.8) + vec3(0.8, 0.95, 1.0) * sparkle * 1.5;
         `);
+      } else if (kind === 'default') {
+        // standard-issue armour: untouched colours, a faint pulse in the red markings
+        sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', common).replace('#include <emissivemap_fragment>', `
+          #include <emissivemap_fragment>
+          totalEmissiveRadiance += vec3(1.0, 0.25, 0.2) * redness * (0.25 + 0.12 * sin(uTime * 2.2));
+        `);
       } else {
         sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', common + `
           vec3 plat = mix(vec3(0.62, 0.64, 0.7), vec3(0.97, 0.97, 1.0), smoothstep(0.2, 0.8, lum));
@@ -353,58 +364,134 @@ export class CharacterFactory {
           totalEmissiveRadiance += vec3(1.0, 0.7, 0.2) * oc_glint * (0.12 + 0.08 * sin(uTime * 2.0));
         `);
       }
+      // every outfit: a rim light that lifts the silhouette off the background, and crisper panel lines
+      const RIM = { shock: [0.25, 0.75, 0.9], platinum: [0.7, 0.72, 0.8], cursed: [0.5, 0.2, 0.85], zombie: [0.35, 0.7, 0.2], dragon: [0.95, 0.4, 0.12], frost: [0.45, 0.8, 1.0], default: [0.5, 0.6, 0.8] };
+      let rim = RIM[kind];
+      if (!rim && kind.startsWith('pal:')) { const L = PALETTE_LOOKS[kind.slice(4)]; const c = new THREE.Color(L.rim ?? L.glow ?? 0x8899bb); rim = [c.r, c.g, c.b].map(v => v * 0.75 + 0.06); }
+      rim = rim || [0.5, 0.6, 0.8];
+      sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>', `
+          #include <emissivemap_fragment>
+          {
+            float oc_fres = 1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0);
+            float oc_rimK = pow(oc_fres, 3.2) * (0.55 + 0.45 * clamp(normal.y * 0.5 + 0.7, 0.0, 1.0));
+            totalEmissiveRadiance += vec3(${rim.map(v => v.toFixed(3)).join(', ')}) * oc_rimK * 0.85;
+          }
+        `);
     };
-    mat.customProgramCacheKey = () => 'oc_' + kind;
+    mat.customProgramCacheKey = () => 'oc2_' + kind;
   }
 
   // ------------------------------------------------------------------ items
+  /**
+   * Gun bodies: the model's own texture with a finish per weapon (the painted panels are recoloured, the
+   * dark parts stay dark) and proper metal shading. Rarity shows in the glowing energy parts, not as a tint.
+   */
+  gunBodyMat(src, id, rarity = 0) {
+    const key = id + '|' + (id === 'smg' ? rarity : 0) + '|' + src.uuid;
+    this._gunMats = this._gunMats || {};
+    if (this._gunMats[key]) return this._gunMats[key];
+    const F = { ar: { paint: 0xdfe5ee, rough: 0.36, metal: 0.55 }, sniper: { paint: 0x6a52c8, rough: 0.3, metal: 0.6 }, smg: { paint: 0xeef1f6, rough: 0.34, metal: 0.45 }, shotgun: { paint: 0xb9c0cc, rough: 0.4, metal: 0.6 } }[id] || { paint: 0xffffff, rough: 0.4, metal: 0.5 };
+    const m = new THREE.MeshStandardMaterial({ map: src.map || null, normalMap: src.normalMap || null, color: 0xffffff, roughness: F.rough, metalness: F.metal, envMapIntensity: 1.25 });
+    const paint = new THREE.Color(F.paint);
+    const isSmg = id === 'smg';
+    const glowC = new THREE.Color(RARITIES[rarity].glow);
+    m.onBeforeCompile = (sh) => {
+      sh.uniforms.uPaint = { value: paint }; sh.uniforms.uGunGlow = { value: glowC };
+      sh.fragmentShader = 'uniform vec3 uPaint; uniform vec3 uGunGlow;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n totalEmissiveRadiance += uGunGlow * gunGlow * 1.5;').replace('#include <map_fragment>', `
+        #include <map_fragment>
+        {
+          vec3 c = diffuseColor.rgb;
+          float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b));
+          float lum = dot(c, vec3(0.299, 0.587, 0.114));
+          float sat = (mx - mn) / max(mx, 1e-3);
+          ${isSmg
+    ? 'float k = smoothstep(0.35, 0.6, sat) * step(c.g, c.r * 0.75); diffuseColor.rgb = mix(c * uPaint, vec3(0.05, 0.06, 0.08), k); gunGlow = k;'
+    : 'float k = smoothstep(0.1, 0.26, lum) * smoothstep(0.03, 0.14, sat); diffuseColor.rgb = mix(c * vec3(0.8, 0.84, 0.95), uPaint * (0.4 + lum * 1.05), k);'}
+        }`).replace('void main() {', 'float gunGlow = 0.0;\nvoid main() {');
+    };
+    m.customProgramCacheKey = () => 'oc_gun_' + id;
+    m.name = 'gun_' + id;
+    return (this._gunMats[key] = m);
+  }
+
+  gunParts() {
+    if (this._parts) return this._parts;
+    const cyl = (r1, r2, h, seg = 12) => { const g = new THREE.CylinderGeometry(r1, r2, h, seg); g.rotateX(Math.PI / 2); return g; };   // along Z
+    const tor = (r, t, seg = 16) => new THREE.TorusGeometry(r, t, 6, seg);                                                                // ring around Z
+    this._parts = {
+      cyl, tor,
+      geo: {},
+      dark: new THREE.MeshStandardMaterial({ color: 0x1b1e27, metalness: 0.85, roughness: 0.32, envMapIntensity: 1.2 }),
+      steel: new THREE.MeshStandardMaterial({ color: 0x9aa3b4, metalness: 0.95, roughness: 0.22, envMapIntensity: 1.3 }),
+      glass: new THREE.MeshStandardMaterial({ color: 0x0b1420, metalness: 0.9, roughness: 0.05, envMapIntensity: 1.6 }),
+      glow: RARITIES.map(r => new THREE.MeshBasicMaterial({ color: r.glow, toneMapped: false })),
+      lens: { ar: new THREE.MeshBasicMaterial({ color: 0x5ff4ff, toneMapped: false }), sniper: new THREE.MeshBasicMaterial({ color: 0xff5cf0, toneMapped: false }), smg: new THREE.MeshBasicMaterial({ color: 0x9ff0ff, toneMapped: false }) },
+    };
+    return this._parts;
+  }
+
   gunModel(id, rarity = 0) {
     const key = id === 'ar' || id === 'sniper' ? 'rifle' : id === 'shotgun' ? 'shotgun' : 'blaster';
     const tpl = this.gunTemplates[key];
     const g = tpl.clone(true);
     g.userData.muzzle = tpl.userData.muzzle.clone(); // clone() JSON-copies userData, restore the Vector3
-    const rc = new THREE.Color(RARITIES[rarity].glow);
-    // rarity tint: clone materials once per (key, rarity)
-    const ck = `${key}|${rarity}|${id}`;
-    if (!this.gunCache[ck]) {
-      this.gunCache[ck] = new Map();
-    }
-    const cache = this.gunCache[ck];
-    g.traverse(o => {
-      if (o.isMesh) {
-        if (!cache.has(o.material)) {
-          const m = o.material.clone();
-          m.emissive = rc.clone(); m.emissiveIntensity = 0.06 + rarity * 0.035;
-          if (id === 'sniper') m.color = new THREE.Color(0xb9a6ff);
-          cache.set(o.material, m);
-        }
-        o.material = cache.get(o.material);
+    g.traverse(o => { if (o.isMesh) o.material = this.gunBodyMat(o.material, id, rarity); });
+    const P = this.gunParts(), G = P.geo, glow = P.glow[rarity], lens = P.lens[id] || P.lens.ar;
+    const geo = (k, make) => G[k] || (G[k] = make());
+    // attachments are laid out in metres on the finished gun; the model group itself may be scaled
+    const att = new THREE.Group(); att.scale.setScalar(1 / g.scale.x); g.add(att);
+    const add = (k, make, mat, x, y, z, rx = 0, ry = 0, rz = 0) => { const m = new THREE.Mesh(geo(k, make), mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); att.add(m); return m; };
+    if (id === 'ar') {
+      // muzzle brake with a glowing ring, energy rails down the handguard, lit magazine window, sight lenses, laser module
+      add('ar_brake', () => P.cyl(0.02, 0.02, 0.07, 10), P.dark, 0, 0.142, 0.552);
+      add('ar_brakeTip', () => P.cyl(0.023, 0.02, 0.014, 10), P.steel, 0, 0.142, 0.592);
+      add('ring22', () => P.tor(0.021, 0.004), glow, 0, 0.142, 0.53);
+      for (const sx of [-1, 1]) {
+        add('ar_rail', () => new THREE.BoxGeometry(0.004, 0.009, 0.19), glow, sx * 0.0275, 0.15, 0.385);
+        add('ar_mag', () => new THREE.BoxGeometry(0.003, 0.05, 0.012), glow, sx * 0.0205, -0.005, 0.122, 0.3);
+        add('ar_cell', () => new THREE.BoxGeometry(0.004, 0.016, 0.05), glow, sx * 0.031, 0.137, 0.07);
       }
-    });
-    if (!this._parts) {
-      this._parts = {
-        barrel: new THREE.CylinderGeometry(0.018, 0.022, 0.42, 10), scope: new THREE.CylinderGeometry(0.035, 0.035, 0.32, 14),
-        lens: new THREE.CircleGeometry(0.03, 14), lensMat: new THREE.MeshBasicMaterial({ color: 0xff5cf0, toneMapped: false }),
-        strips: {}, stripMats: RARITIES.map(r => new THREE.MeshBasicMaterial({ color: r.glow, toneMapped: false })),
-      };
+      add('ar_lensF', () => new THREE.CircleGeometry(0.019, 16), lens, 0, 0.232, 0.162);
+      add('ar_lensB', () => new THREE.CircleGeometry(0.015, 14), lens, 0, 0.232, -0.101, 0, Math.PI, 0);
+      add('ar_laser', () => new THREE.BoxGeometry(0.028, 0.026, 0.09), P.dark, 0, 0.082, 0.36);
+      add('ar_laserTip', () => new THREE.CircleGeometry(0.008, 10), glow, 0, 0.082, 0.406);
+      g.userData.muzzle.set(0, 0.142, 0.6);
+    } else if (id === 'sniper') {
+      // long fluted barrel with heat-sink rings and a slotted brake, a full-length scope, bipod and cheek rest
+      add('sn_barrel', () => P.cyl(0.013, 0.016, 0.42, 12), P.dark, 0, 0.142, 0.7);
+      for (let i = 0; i < 5; i++) add('sn_fin', () => P.cyl(0.023, 0.023, 0.01, 12), P.steel, 0, 0.142, 0.545 + i * 0.03);
+      for (let i = 0; i < 3; i++) add('ring18', () => P.tor(0.018, 0.004), glow, 0, 0.142, 0.72 + i * 0.045);
+      add('sn_brake', () => new THREE.BoxGeometry(0.05, 0.03, 0.075), P.dark, 0, 0.142, 0.925);
+      add('sn_brakeSlot', () => new THREE.BoxGeometry(0.052, 0.008, 0.045), glow, 0, 0.142, 0.925);
+      add('sn_tube', () => P.cyl(0.021, 0.021, 0.36, 14), P.dark, 0, 0.243, 0.04);
+      add('sn_bell', () => P.cyl(0.035, 0.022, 0.085, 16), P.dark, 0, 0.243, 0.235);
+      add('sn_eye', () => P.cyl(0.027, 0.023, 0.06, 14), P.dark, 0, 0.243, -0.155);
+      add('sn_lensF', () => new THREE.CircleGeometry(0.031, 18), lens, 0, 0.243, 0.2785);
+      add('sn_lensB', () => new THREE.CircleGeometry(0.021, 14), P.glass, 0, 0.243, -0.1855, 0, Math.PI, 0);
+      add('sn_turret', () => new THREE.CylinderGeometry(0.012, 0.012, 0.03, 10), P.steel, 0, 0.272, 0.05);
+      for (const z of [-0.04, 0.12]) add('sn_mount', () => new THREE.BoxGeometry(0.03, 0.03, 0.022), P.steel, 0, 0.214, z);
+      for (const sx of [-1, 1]) {
+        add('sn_leg', () => new THREE.BoxGeometry(0.008, 0.008, 0.19), P.steel, sx * 0.022, 0.092, 0.37, 0.03, 0, 0);
+        add('ar_rail', () => new THREE.BoxGeometry(0.004, 0.009, 0.19), glow, sx * 0.0275, 0.15, 0.385);
+        add('ar_cell', () => new THREE.BoxGeometry(0.004, 0.016, 0.05), glow, sx * 0.031, 0.137, 0.07);
+      }
+      add('sn_cheek', () => new RoundedBoxGeometry(0.03, 0.022, 0.12, 1, 0.008), P.dark, 0, 0.172, -0.17);
+      g.userData.muzzle.set(0, 0.142, 0.965);
+    } else if (id === 'smg') {
+      // energy emitter: a lens inside glowing coils at the front, lit power cell, top fin
+      add('smg_emit', () => P.cyl(0.026, 0.03, 0.04, 14), P.dark, 0, 0.168, 0.315);
+      add('smg_lens', () => new THREE.CircleGeometry(0.02, 14), lens, 0, 0.168, 0.336);
+      for (let i = 0; i < 3; i++) add('ring30', () => P.tor(0.031, 0.0045), glow, 0, 0.168, 0.255 + i * 0.027);
+      for (const sx of [-1, 1]) add('smg_cell', () => new THREE.BoxGeometry(0.004, 0.05, 0.085), glow, sx * 0.0335, 0.03, 0.185);
+      add('smg_fin', () => new THREE.BoxGeometry(0.01, 0.02, 0.12), P.steel, 0, 0.236, 0.2);
+      add('smg_finGlow', () => new THREE.BoxGeometry(0.012, 0.005, 0.1), glow, 0, 0.247, 0.2);
+      g.userData.muzzle.set(0, 0.168, 0.345);
+    } else {
+      const L = +(g.userData.length * 0.45).toFixed(3);
+      add('strip' + L, () => new THREE.BoxGeometry(0.008, 0.008, L), glow, 0.03, 0.06, g.userData.length * 0.12);
     }
-    const P = this._parts;
-    if (id === 'sniper') {
-      // longer barrel + big scope
-      const barrel = new THREE.Mesh(P.barrel, this.metalMat());
-      barrel.rotation.x = Math.PI / 2; barrel.position.set(0, 0.035, g.userData.muzzle.z + 0.17);
-      const scope = new THREE.Mesh(P.scope, this.metalMat());
-      scope.rotation.x = Math.PI / 2; scope.position.set(0, 0.16, 0.05);
-      const lens = new THREE.Mesh(P.lens, P.lensMat);
-      lens.position.set(0, 0.16, 0.211);
-      g.add(barrel, scope, lens);
-      g.userData.muzzle = g.userData.muzzle.clone(); g.userData.muzzle.z += 0.38;
-    }
-    const L = +(g.userData.length * 0.45).toFixed(3);
-    const stripGeo = P.strips[L] || (P.strips[L] = new THREE.BoxGeometry(0.012, 0.012, L));
-    const strip = new THREE.Mesh(stripGeo, P.stripMats[rarity]);
-    strip.position.set(0.035, 0.03, g.userData.length * 0.12);
-    g.add(strip);
+    if (id === 'ar' || id === 'sniper' || id === 'smg') g.userData.muzzle.divideScalar(g.scale.x);
+    g.traverse(o => { if (o.isMesh) o.castShadow = true; });
     return g;
   }
 
@@ -545,6 +632,10 @@ export class Character {
       a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true;
       this.actions[k] = a;
     }
+    this.aimAct = this.mixer.clipAction(factory.clips.aimUpper);
+    this.aimAct.play(); this.aimAct.setEffectiveWeight(0);
+    this.aimK = 0; this.airAmt = 0; this.slideAmt = 0; this.flinchK = 0; this.flinchSide = 1;
+    this.leanX = 0; this.leanZ = 0; this.pvf = 0; this.pvr = 0; this.pYaw = 0; this.recoilSide = 1;
     this.weights = { idle: 1, forward: 0, backward: 0, left: 0, right: 0, run: 0, tpose: 0 };
     this.held = null; this.heldKind = null; this.heldId = null;
     this.muzzleLocal = new THREE.Vector3();
@@ -924,7 +1015,9 @@ export class Character {
   playEmote(id) { this.emote = { id, t: 0, k: 0 }; this.setHeld(null); }
   stopEmote() { this.emote = null; this.model.position.x = 0; }
 
-  fire() { this.recoil = Math.min(1, this.recoil + 0.6); }
+  fire() { this.recoil = Math.min(1, this.recoil + 0.7); this.recoilSide = Math.random() < 0.5 ? -1 : 1; }
+  /** Flinch from a hit. side: -1 hit from the left, 1 from the right. */
+  flinch(side = 1) { this.flinchK = 1; this.flinchSide = side; }
   swing() { this.swingT = 0; }
   throwAnim() { this.throwT = 0; }
 
@@ -933,6 +1026,8 @@ export class Character {
     this.emote = null; this.model.position.x = 0;
     this.dead = true; this.deathT = 0;
     for (const k in this.weights) this.actions[k].setEffectiveWeight(0);
+    this.aimAct.setEffectiveWeight(0); this.aimK = 0;
+    this.model.rotation.set(0, 0, 0);
     const a = this.actions[seed < 0.5 ? 'death1' : 'death2'];
     a.reset(); a.setEffectiveWeight(1); a.play();
     this.body.rotation.x = 0;
@@ -1048,11 +1143,16 @@ export class Character {
         target.left = Math.max(0, -vr / speed) * k;
       }
     }
-    const blend = Math.min(1, dt * 10);
+    const blend = Math.min(1, dt * 9);
     for (const k in this.weights) {
       this.weights[k] += (target[k] - this.weights[k]) * blend;
       this.actions[k].setEffectiveWeight(this.weights[k]);
     }
+    // upper body steadies into the aim stance while shooting, aiming or reloading on the move
+    const busy = (s.sinceShot ?? 9) < 0.6 || s.reloadFrac >= 0 || !!s.ads || !!s.slide;
+    const aimWant = mode === 'ground' && !this.emote && this.heldKind === 'gun' && busy && speed > 0.4 ? 1 : 0;
+    this.aimK += (aimWant - this.aimK) * Math.min(1, dt * (aimWant ? 16 : 4.5));
+    this.aimAct.setEffectiveWeight(this.aimK * 6);
     const air = mode === 'ground' && !s.grounded;
     const ts = air ? 0.15 : Math.max(0.6, Math.min(1.9, speed / (s.crouch ? 2.2 : 3.6)));
     this.actions.forward.timeScale = this.actions.backward.timeScale = ts;
@@ -1075,6 +1175,7 @@ export class Character {
     _fwd.set(sy, 0, cy);
     const B = this.bones;
     this.model.position.x = 0;
+    if (mode !== 'ground' || this.emote) { this.model.rotation.set(0, 0, 0); this.leanX = this.leanZ = 0; }
     if (this.emote && mode === 'ground') {
       this.emote.t += dt;
       this.emote.k = Math.min(1, this.emote.k + dt * 6);
@@ -1082,11 +1183,50 @@ export class Character {
       poseEmote(this.emote.id, this.emote.t, B, { R: _right, F: _fwd, U: _up }, rotateBoneWorld, this.model, this.emote.k);
       return;
     }
-    // crouch
-    const crouchT = s.crouch && mode === 'ground' ? 1 : 0;
+    // lean into acceleration and turns (the whole body tips from the feet)
+    const ground = mode === 'ground';
+    const idt = 1 / Math.max(dt, 1e-3);
+    const accF = (vf - this.pvf) * idt, accR = (vr - this.pvr) * idt;
+    let dYaw = s.yaw - this.pYaw; dYaw -= Math.round(dYaw / (Math.PI * 2)) * Math.PI * 2;
+    this.pvf = vf; this.pvr = vr; this.pYaw = s.yaw;
+    const clampL = (v, m) => Math.max(-m, Math.min(m, v));
+    const wantX = ground ? clampL(accF * 0.007, 0.1) + this.weights.run * 0.07 : 0;
+    const wantZ = ground ? clampL(accR * 0.007, 0.1) + clampL(-dYaw * idt * speed * 0.006, 0.13) : 0;
+    this.leanX += (wantX - this.leanX) * Math.min(1, dt * 7);
+    this.leanZ += (wantZ - this.leanZ) * Math.min(1, dt * 7);
+    // slide: sitting back on one leg, the other stretched out in front
+    this.slideAmt += ((s.slide && ground ? 1 : 0) - this.slideAmt) * Math.min(1, dt * 13);
+    const sl = this.slideAmt;
+    this.model.rotation.set(this.leanX - 0.3 * sl, 0, this.leanZ);
+    // crouch (a hard landing also dips the knees)
+    const crouchT = s.crouch && ground && !s.slide ? 1 : 0;
     this.crouchAmt += (crouchT - this.crouchAmt) * Math.min(1, dt * 12);
-    const c = this.crouchAmt;
-    this.model.position.y = -0.36 * c;
+    const c = Math.max(this.crouchAmt, Math.min(0.6, (s.land || 0) * 0.6) * (1 - sl));
+    this.model.position.y = -0.36 * c - 0.5 * sl;
+    if (sl > 0.01) {
+      rotateBoneWorld(B.RightUpLeg, _right, 1.0 * sl); rotateBoneWorld(B.RightLeg, _right, -0.12 * sl);
+      rotateBoneWorld(B.LeftUpLeg, _right, 0.55 * sl); rotateBoneWorld(B.LeftLeg, _right, -1.6 * sl);
+      rotateBoneWorld(B.RightFoot, _right, -0.25 * sl);
+      rotateBoneWorld(B.Spine, _right, 0.2 * sl); rotateBoneWorld(B.Spine1, _right, 0.14 * sl);
+    }
+    // in the air: knees tuck on the way up, legs reach for the ground on the way down
+    const airT = ground && !s.grounded && !(s.mantle >= 0) && !s.slide ? 1 : 0;
+    this.airAmt += (airT - this.airAmt) * Math.min(1, dt * (airT ? 9 : 14));
+    if (this.airAmt > 0.01 && ground) {
+      const a = this.airAmt, up = Math.max(0, Math.min(1, ((s.vy || 0) + 2) / 8)), jet = s.thrusting ? 0.5 : 1;
+      rotateBoneWorld(B.LeftUpLeg, _right, (0.25 + 0.5 * up) * a * jet); rotateBoneWorld(B.LeftLeg, _right, -(0.45 + 0.6 * up) * a * jet);
+      rotateBoneWorld(B.RightUpLeg, _right, (0.05 + 0.2 * up) * a); rotateBoneWorld(B.RightLeg, _right, -(0.3 + 0.3 * up) * a * jet);
+      if (s.thrusting) rotateBoneWorld(B.Spine, _right, 0.12 * a);
+    }
+    // climbing a ledge: reach up, pull, knee over
+    if (s.mantle >= 0 && ground) {
+      const k = Math.min(1, s.mantle), reach = Math.sin(Math.min(1, k / 0.6) * Math.PI * 0.5) * (1 - Math.max(0, (k - 0.6) / 0.4));
+      rotateBoneWorld(B.RightArm, _right, 0.75 * reach); rotateBoneWorld(B.LeftArm, _right, 0.95 * reach);
+      const knee = Math.sin(k * Math.PI);
+      rotateBoneWorld(B.LeftUpLeg, _right, 1.0 * knee); rotateBoneWorld(B.LeftLeg, _right, -1.35 * knee);
+      rotateBoneWorld(B.RightLeg, _right, -0.4 * knee);
+      rotateBoneWorld(B.Spine, _right, 0.25 * knee);
+    }
     if (c > 0.01) {
       const a = 0.95 * c;
       rotateBoneWorld(B.LeftUpLeg, _right, a); rotateBoneWorld(B.RightUpLeg, _right, a);
@@ -1142,18 +1282,48 @@ export class Character {
     // aim pitch distributed over the spine
     this.pitchSmooth += ((s.pitch || 0) - this.pitchSmooth) * Math.min(1, dt * 18);
     let p = this.pitchSmooth;
-    // recoil kick
-    this.recoil = Math.max(0, this.recoil - dt * 6);
-    p += this.recoil * 0.08;
-    // reload dip
-    if (s.reloadFrac >= 0) p -= Math.sin(Math.min(1, s.reloadFrac) * Math.PI) * 0.45;
+    // recoil: the gun kicks up and back into the shoulder, then settles
+    this.recoil = Math.max(0, this.recoil - dt * 7.5);
+    const rc = this.recoil * this.recoil * (3 - 2 * this.recoil);
+    p += rc * 0.05;
+    // reload, in four beats: tip the gun over, drop the hand to the belt for a fresh magazine, bring it up, slap it home
+    const rl = s.reloadFrac;
+    let hold = 0, reach = 0, slap = 0;
+    if (rl >= 0) {
+      const sm = (x) => { const t = Math.max(0, Math.min(1, x)); return t * t * (3 - 2 * t); };
+      hold = sm(rl / 0.14) * (1 - sm((rl - 0.86) / 0.14));
+      reach = sm((rl - 0.1) / 0.24) * (1 - sm((rl - 0.48) / 0.24));
+      slap = rl > 0.76 && rl < 0.9 ? Math.sin((rl - 0.76) / 0.14 * Math.PI) : 0;
+      p -= hold * 0.2 - slap * 0.05;
+    }
+    // weapon swap: the gun dips out of view and comes back up
+    const eq = Math.min(1, Math.max(0, (s.equip || 0) / 0.3));
     rotateBoneWorld(B.Spine, _right, p * 0.3);
     rotateBoneWorld(B.Spine1, _right, p * 0.3);
-    rotateBoneWorld(B.Spine2, _right, p * 0.4);
-    if (s.reloadFrac >= 0) {
-      const k = Math.sin(Math.min(1, s.reloadFrac) * Math.PI);
-      rotateBoneWorld(B.LeftArm, _right, -0.6 * k);
-      rotateBoneWorld(B.RightHand, _fwd, 0.5 * k);
+    rotateBoneWorld(B.Spine2, _right, p * 0.4 - rc * 0.03);
+    if (rc > 0.001) {
+      rotateBoneWorld(B.RightArm, _right, rc * 0.075); rotateBoneWorld(B.LeftArm, _right, rc * 0.075);
+      rotateBoneWorld(B.RightShoulder, _up, this.recoilSide * rc * 0.025);
+      rotateBoneWorld(B.Head, _right, -rc * 0.03);
+    }
+    if (hold > 0.001) {
+      rotateBoneWorld(B.RightHand, _fwd, 0.75 * hold);
+      rotateBoneWorld(B.RightForeArm, _right, 0.42 * hold);
+      rotateBoneWorld(B.LeftArm, _right, -1.05 * reach + 0.2 * slap);
+      rotateBoneWorld(B.LeftForeArm, _right, -0.35 * reach);
+      rotateBoneWorld(B.Head, _right, -0.16 * hold);
+    }
+    if (eq > 0.001) {
+      const e = Math.sin(eq * Math.PI * 0.5);
+      rotateBoneWorld(B.RightArm, _right, -0.55 * e); rotateBoneWorld(B.LeftArm, _right, -0.5 * e);
+    }
+    // flinch from a hit: a quick twist away that springs back
+    if (this.flinchK > 0) {
+      this.flinchK = Math.max(0, this.flinchK - dt * 5.5);
+      const fk = this.flinchK * this.flinchK;
+      rotateBoneWorld(B.Spine1, _up, this.flinchSide * 0.24 * fk);
+      rotateBoneWorld(B.Spine2, _right, -0.12 * fk);
+      rotateBoneWorld(B.Head, _fwd, this.flinchSide * 0.16 * fk);
     }
     // pickaxe swing
     if (this.swingT >= 0) {

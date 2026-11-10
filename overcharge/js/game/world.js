@@ -5,6 +5,7 @@ import { CollisionWorld } from './collision.js';
 import { MAP_HALF } from '../config.js';
 import { buildWarehouse, animateWarehouse } from './warehouse.js';
 import { buildVulcan, animateVulcan } from './vulcan.js';
+import { futurizeBegin, futurizeStatic, futurizeDynamic } from './futuristic.js';
 
 const CHUNKS = 3;
 const CHUNK_SIZE = (MAP_HALF * 2) / CHUNKS;
@@ -32,6 +33,7 @@ export class World {
     this.ammoSpots = [];      // {x,y,z}
     this.pois = [];           // {name,x,z,r}
     this.rng = seeded(1337);
+    this.trim = null;
     this.makeMaterials();
   }
 
@@ -166,6 +168,7 @@ export class World {
   box(x, y0, z, w, h, d, mat, opts = {}) {
     this.pushBox(mat, x, y0 + h / 2, z, w, h, d);
     if (!opts.noCol) this.col.addBox(x - w / 2, y0, z - d / 2, x + w / 2, y0 + h, z + d / 2, opts.tag || 0);
+    if (this.trim && !opts.noCol) this.trim(x, y0, z, w, h, d, mat);   // neon edge trims (futuristic.js)
   }
 
   cyl(x, y0, z, r, h, mat, opts = {}) {
@@ -328,16 +331,21 @@ export class World {
 
   // ---------------------------------------------------------------- build
   build() {
+    futurizeBegin(this);
     if (this.mapId === 'warehouse') {
       buildWarehouse(this);
+      futurizeStatic(this);
       this.finalize();
       animateWarehouse(this);
+      futurizeDynamic(this);
       return this;
     }
     if (this.mapId === 'vulcan') {
       buildVulcan(this);
+      futurizeStatic(this);
       this.finalize();
       animateVulcan(this);
+      futurizeDynamic(this);
       return this;
     }
     // ground
@@ -353,8 +361,10 @@ export class World {
     this.glassWing(120, 4);
     this.crateDepot(-108, -108);
     this.scatter();
+    futurizeStatic(this);
     this.finalize();
     this.animatedPieces();
+    futurizeDynamic(this);
     return this;
   }
 

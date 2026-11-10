@@ -114,12 +114,14 @@ export class Combat {
         rec.dmg += dmg; rec.head = rec.head || tr.head; rec.point = tr.point;
         hitsByTarget.set(tr.f, rec);
       } else if (tr.normal) {
-        this.g.effects.impact(tr.point, tr.normal, 'world');
+        this.g.effects.impact(tr.point, tr.normal, 'world', w.tracer);
         if (Math.random() < 0.35) Audio.play('impact' + (1 + Math.floor(Math.random() * 3)), { pos: tr.point, vol: 0.35, range: 40 });
       }
     }
     for (const [target, rec] of hitsByTarget) this.damage(target, rec.dmg, f, { head: rec.head, point: rec.point, weapon: w.id });
-    this.g.effects.muzzleFlash(muzzle, w.tracer, w.id === 'shotgun' ? 0.9 : w.id === 'sniper' ? 0.8 : 0.5);
+    this.g.effects.muzzleFlash(muzzle, w.tracer, w.id === 'shotgun' ? 0.9 : w.id === 'sniper' ? 0.95 : w.id === 'smg' ? 0.5 : 0.62, aimDir);
+    // spent casing out of the right-hand side (energy SMG has none)
+    if (w.id !== 'smg') this.g.effects.shell(_p.set(f.pos.x + Math.sin(f.yaw) * 0.25, muzzle.y, f.pos.z + Math.cos(f.yaw) * 0.25), _a.set(-Math.cos(f.yaw), 0, Math.sin(f.yaw)));
     const snd = w.sound === 'sniper' ? 'sniper' : w.sound;
     Audio.play(snd, { pos: muzzle, vol: f.isPlayer ? 0.75 : 0.9, range: w.id === 'sniper' ? 260 : 160, near: 6, rate: w.id === 'smg' ? 1.25 : 1 });
     this.g.noise(f, muzzle, w.id === 'sniper' ? 160 : 90);
@@ -153,7 +155,7 @@ export class Combat {
     if (attacker) attacker.damageDealt += res.shieldDmg + res.healthDmg;
     const p = info.point || new THREE.Vector3(target.pos.x, target.pos.y + 1.2, target.pos.z);
     g.effects.impact(p, null, res.shieldDmg > 0 && res.healthDmg <= 0 ? 'shield' : 'flesh');
-    if (res.shieldBroke) Audio.play('shieldbreak', { pos: p, vol: 0.7, range: 50 });
+    if (res.shieldBroke) { Audio.play('shieldbreak', { pos: p, vol: 0.7, range: 50 }); g.effects.shieldBreak(p); }
     g.onDamage(target, attacker, res, info);
     if (target.bot) target.bot.onHurt(attacker);
     if (res.killed) g.eliminate(target, attacker, info);

@@ -7,6 +7,8 @@ import {
 
 export const SPEED = { run: 5.6, sprint: 7.3, crouch: 2.7, ads: 3.4, air: 0.35 };
 const JUMP_V = 8.2;
+const SLIDE_TIME = 0.95;
+const _mv = new THREE.Vector3();
 
 let NEXT_ID = 1;
 
@@ -46,6 +48,29 @@ export class Fighter {
     this.lastShotAt = -99;
     this.spawnedAt = 0;
     this.stepT = 0;
+    this.slideT = 0; this.slideCd = 0; this.slideSpeed = 0; this.slideDir = new THREE.Vector2();
+    this.mantle = null;      // {t, dur, from, to} while climbing a ledge
+    this.coyote = 0;         // short grace period to jump after running off an edge
+    this.landK = 0;          // landing impact, decays (animation / camera)
+  }
+
+  get sliding() { return this.slideT > 0; }
+
+  /** Start a slide: only out of a sprint, on the ground. */
+  startSlide() {
+    if (this.sliding || this.slideCd > 0 || this.mode !== 'ground' || !this.phys.grounded || this.healing) return false;
+    const sp = Math.hypot(this.vel.x, this.vel.z);
+    if (sp < 5.2) return false;
+    this.slideT = SLIDE_TIME; this.slideSpeed = Math.max(sp * 1.22, 9.4);
+    this.slideDir.set(this.vel.x / sp, this.vel.z / sp);
+    this.crouch = true; this.ads = false; this._inSlide = true;
+    return true;
+  }
+  endSlide(stand = true) {
+    if (!this.sliding && !this._inSlide) return;
+    this._inSlide = false;
+    this.slideT = 0; this.slideCd = 0.45;
+    if (stand) this.crouch = false;
   }
 
   get height() { return this.crouch && this.mode === 'ground' ? CROUCH_HEIGHT : PLAYER_HEIGHT; }
@@ -62,6 +87,7 @@ export class Fighter {
     this.ammo = { light: 0, medium: 0, heavy: 0, shells: 0 };
     this.kills = 0; this.damageDealt = 0; this.placement = 0; this.eliminatedBy = null;
     this.overdriveT = 0; this.reloadT = 0; this.fireCd = 0; this.respawnT = -1; this.healT = 0; this.emote = null;
+    this.slideT = 0; this.slideCd = 0; this.mantle = null; this.coyote = 0; this.landK = 0;
     this.jetpack = false; this.fuel = JETPACK.fuel; this.thrusting = false;
     this.vel.set(0, 0, 0);
   }
@@ -224,7 +250,22 @@ export class Fighter {
     }
   }
 
-  /** Movement physics. Returns events {landed, fallDamage, deploy} */
+  /** A ledge in front (dx,dz unit) that can be climbed from the air: {from, to, dur, dx, dz} or null. */
+  findMantle(world, dx, dz) {
+    const feet = this.pos.y, R = PLAYER_RADIUS;
+    // something solid in front at chest height?
+    const hit = world.raycast(this.pos.x, feet + 1.0, this.pos.z, dx, 0, dz, R + 0.45);
+    if (!hit) return null;
+    const px = this.pos.x + dx * (hit.t + 0.42), pz = this.pos.z + dz * (hit.t + 0.42);
+    const top = world.groundHeight(px, pz, 0.18, feet + 2.25, 0);
+    const rise = top - feet;
+    if (rise < 0.75 || rise > 2.25) return null;
+    if (!world.isFree(px, top, pz, R * 0.9, PLAYER_HEIGHT)) return null;                 // room to stand on top
+    if (!world.isFree(this.pos.x, feet + 0.1, this.pos.z, R * 0.8, rise + PLAYER_HEIGHT)) return null; // headroom on the way up
+    return { t: 0, dur: 0.24 + rise * 0.1, from: this.pos.clone(), to: _mv.set(px, top, pz).clone(), dx, dz };
+  }
+
+  /** Movement physics. Returns events {landed, fallDamage, deploy, jumped, mantle} */
   simulate(dt, world, groundAt) {
     const ev = {};
     const od = this.overdriveT > 0 ? 1.25 : 1;
@@ -248,6 +289,20 @@ export class Fighter {
       return ev;
     }
     if (this.mode !== 'ground') return ev;
+    if (this.slideCd > 0) this.slideCd -= dt;
+    if (this.landK > 0) this.landK = Math.max(0, this.landK - dt * 3.2);
+    // ---- climbing a ledge: a short scripted move up and over
+    if (this.mantle) {
+      const m = this.mantle;
+      m.t += dt;
+      const k = Math.min(1, m.t / m.dur);
+      const up = Math.min(1, k / 0.62), fw = Math.max(0, (k - 0.45) / 0.55);
+      const eu = 1 - (1 - up) * (1 - up), ef = fw * fw * (3 - 2 * fw);
+      this.pos.set(m.from.x + (m.to.x - m.from.x) * ef, m.from.y + (m.to.y - m.from.y) * eu, m.from.z + (m.to.z - m.from.z) * ef);
+      this.vel.set(0, 0, 0); this.thrusting = false; this.wantJump = false; this.peakFallSpeed = 0;
+      if (k >= 1) { this.mantle = null; this.phys.grounded = true; this.vel.set(m.dx * 2.5, 0, m.dz * 2.5); }
+      return ev;
+    }
     // ---- ground movement
     let speed = SPEED.run;
     if (this.crouch) speed = SPEED.crouch;
@@ -258,9 +313,23 @@ export class Fighter {
     const mag = Math.min(1, Math.hypot(this.move.x, this.move.y));
     const tx = this.move.x * speed, tz = this.move.y * speed;
     const grounded = this.phys.grounded;
+    this.coyote = grounded ? 0.12 : Math.max(0, this.coyote - dt);
     const accel = grounded ? (mag > 0.05 ? 14 : 18) : 2.2;
     const k = Math.min(1, dt * accel);
-    if (!grounded && this.noFallDamage) {
+    if (this.sliding) {
+      // slide: carried by momentum that bleeds off, steerable a little
+      this.slideT -= dt;
+      this.slideSpeed = Math.max(0, this.slideSpeed - 5.2 * dt);
+      if (mag > 0.2) {
+        const st = Math.min(1, dt * 1.6);
+        this.slideDir.x += (this.move.x / mag - this.slideDir.x) * st; this.slideDir.y += (this.move.y / mag - this.slideDir.y) * st;
+        const l = Math.hypot(this.slideDir.x, this.slideDir.y) || 1; this.slideDir.x /= l; this.slideDir.y /= l;
+      }
+      this.vel.x = this.slideDir.x * this.slideSpeed * od; this.vel.z = this.slideDir.y * this.slideSpeed * od;
+      const blocked = Math.hypot(this.pos.x - (this._sx ?? this.pos.x), this.pos.z - (this._sz ?? this.pos.z)) < this.slideSpeed * dt * 0.3;
+      this._sx = this.pos.x; this._sz = this.pos.z;
+      if (this.slideT <= 0 || this.slideSpeed < 4.2 || !grounded && this.vel.y < -6 || (blocked && this.slideT < SLIDE_TIME - 0.12)) this.endSlide();
+    } else if (!grounded && this.noFallDamage) {
       // launched by a shockwave: keep your speed, the joystick only steers it
       if (mag > 0.05) {
         const hs = Math.max(Math.hypot(this.vel.x, this.vel.z), speed);
@@ -291,11 +360,17 @@ export class Fighter {
       this.jetIdle += dt;
       if (grounded && this.jetIdle > JETPACK.regenDelay) this.fuel = Math.min(JETPACK.fuel, this.fuel + JETPACK.regen * dt);
     }
-    if (this.wantJump && grounded) {
-      this.vel.y = JUMP_V; this.phys.grounded = false; ev.jumped = true;
+    if (this.wantJump && (grounded || (this.coyote > 0 && this.vel.y <= 0))) {
+      this.vel.y = JUMP_V; this.phys.grounded = false; ev.jumped = true; this.coyote = 0;
+      if (this.sliding) { this.endSlide(); ev.slideJump = true; }   // slide-jump: the slide's speed carries into the air
       if (this.crouch) this.crouch = false;
     }
     this.wantJump = false;
+    // mantle: in the air, pushing into a ledge you can reach → climb it
+    if (!this.phys.grounded && !this.thrusting && mag > 0.3 && this.vel.y < 5.5 && this.vel.y > -14) {
+      const m = this.findMantle(world, this.move.x / mag, this.move.y / mag);
+      if (m) { this.mantle = m; ev.mantle = true; this.crouch = false; this.endSlide(); return ev; }
+    }
     this.vel.y -= GRAVITY * dt;
     if (this.vel.y < -55) this.vel.y = -55;
     if (!this.phys.grounded) this.peakFallSpeed = Math.max(this.peakFallSpeed, -this.vel.y);
@@ -303,6 +378,7 @@ export class Fighter {
     if (landed) {
       ev.landed = true;
       const v = this.peakFallSpeed;
+      this.landK = Math.min(1, Math.max(this.landK, v / 16));
       if (v > 17.5 && !this.noFallDamage && !this.jetpack) ev.fallDamage = Math.round((v - 17.5) * 7); // jetpacks soften landings
       this.noFallDamage = false;
       this.peakFallSpeed = 0;

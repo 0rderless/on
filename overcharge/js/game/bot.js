@@ -59,7 +59,7 @@ export class BotBrain {
     this.dropTarget = null; this.jumpDist = rnd(20, 70);
     this.burstLeft = 0; this.burstPause = 0;
     this.celebrateT = 0; this.emoteWait = 0; this.emoteUntil = 0;
-    this.followLeader = null;
+    this.followLeader = null; this.slot = 0;
   }
 
   // -------------------------------------------------------------- events
@@ -81,6 +81,25 @@ export class BotBrain {
     if (src === this.f || (src && src.team === this.f.team)) return;
     this.heard = pos.clone(); this.heardAt = this.g.time;
     if (src && (!this.target || !this.target.alive)) { this.lastKnown.copy(pos); }
+  }
+
+  /** True for a bot on the human player's team (they escort the player instead of doing their own thing). */
+  get mate() { const L = this.followLeader; return !!(L && L.isPlayer && L.alive); }
+
+  /** Formation slot beside / behind the leader. */
+  slotPos() {
+    const L = this.followLeader, a = L.yaw + Math.PI + [-0.75, 0.75, 0][this.slot % 3], r = 4.2 + (this.slot > 2 ? 2 : 0);
+    return { x: L.pos.x + Math.sin(a) * r, z: L.pos.z + Math.cos(a) * r };
+  }
+
+  /** Focus an enemy the player is fighting (called when the player hits someone or gets hit). */
+  assist(enemy) {
+    if (!enemy || !enemy.alive || enemy.team === this.f.team || !this.f.alive) return;
+    const g = this.g;
+    if (this.target && this.target.alive && this.target !== enemy && g.time - this.targetSeenAt < 0.6 && this.target.pos.distanceTo(this.f.pos) < 12) return; // busy with someone on top of us
+    if (this.target !== enemy) { this.trackT = 0; this.aimErr.set(rnd(-0.2, 0.2), rnd(-0.1, 0.1)); }
+    this.target = enemy; this.targetSeenAt = g.time; this.lastKnown.copy(enemy.pos); this.trackT = Math.max(this.trackT, this.reaction * 0.5);
+    this.state = 'fight'; this.emoteWait = 0; if (this.f.emote) g.stopEmote(this.f);
   }
 
   onKill(victim) {
@@ -164,6 +183,16 @@ export class BotBrain {
     if (f.mode === 'bus') return;
     if (f.mode === 'skydive' || f.mode === 'glide') { this.updateAir(dt); return; }
     this.jetT = (this.jetT || 0) - dt;
+    // squad mates take off when you do, and jet up to you when you're on higher ground
+    let flyWith = false;
+    if (this.mate && f.jetpack) {
+      const L = this.followLeader;
+      if (L.mode === 'ground') {
+        const up = L.pos.y - f.pos.y, d = Math.hypot(L.pos.x - f.pos.x, L.pos.z - f.pos.z);
+        const want = L.thrusting || (!L.phys.grounded && up > 1.2) || (up > 2.6 && d < 14);
+        if (want && d < 70 && f.fuel > (f.phys.grounded ? 25 : 4) && up > -1.5) { flyWith = true; this.jetT = 0.2; if (f.phys.grounded) f.wantJump = true; }
+      }
+    }
     f.jetHeld = this.jetT > 0 && f.jetpack;
     this.switchCd -= dt; this.nadeCd -= dt;
 
@@ -218,6 +247,20 @@ export class BotBrain {
     }
     // non-combat movement
     f.crouch = false;
+    if (flyWith || (this.mate && !f.phys.grounded && this.followLeader.mode === 'ground')) {
+      const sp = this.slotPos(), dx = sp.x - f.pos.x, dz = sp.z - f.pos.z, d = Math.hypot(dx, dz);
+      if (d > 1.5) { f.move.set(dx / d, dz / d); f.sprint = true; this.lookYaw = this.turnToward(this.lookYaw, Math.atan2(dx, dz), dt * 6); }
+      this.lookPitch *= 0.9;
+      return this.applyLook(dt);
+    }
+    if (this.state === 'escort') {
+      // in position: cover the squad — watch where the leader isn't looking
+      const L = this.followLeader;
+      this.lookYaw = this.turnToward(this.lookYaw, L.yaw + [-1.1, 1.1, Math.PI][this.slot % 3] + Math.sin(g.time * 0.6 + f.id) * 0.5, dt * 2.5);
+      this.lookPitch *= 0.9;
+      if (f.weapon && f.item.mag < WEAPONS[f.item.id].mag) f.startReload();
+      return this.applyLook(dt);
+    }
     if (this.state === 'hold') {
       if (g.time > this.holdUntil) this.state = 'roam';
       this.lookYaw += Math.sin(g.time * 0.7 + f.id) * dt * 0.8;
@@ -268,6 +311,7 @@ export class BotBrain {
       if (!this.airOff) { const a = Math.random() * Math.PI * 2; this.airOff = { x: Math.cos(a) * 7, z: Math.sin(a) * 7 }; }
       this.dropTarget = { x: L.pos.x + L.vel.x * 1.5 + this.airOff.x, z: L.pos.z + L.vel.z * 1.5 + this.airOff.z };
     }
+    else if (L && L.alive && L.isPlayer && L.mode === 'ground') { const sp = this.slotPos(); this.dropTarget = { x: sp.x, z: sp.z }; }
     if (!this.dropTarget) { f.move.set(0, 0); return; }
     const dx = this.dropTarget.x - f.pos.x, dz = this.dropTarget.z - f.pos.z, d = Math.hypot(dx, dz);
     if (d > 3) f.move.set(dx / d, dz / d); else f.move.set(0, 0);
@@ -307,13 +351,23 @@ export class BotBrain {
     // storm first
     const distNext = Math.hypot(f.pos.x - s.nx, f.pos.z - s.nz);
     const timeToShrink = s.timeLeft;
-    const needRotate = this.inStorm(f.pos.x, f.pos.z, 4) || (distNext > s.nr * 0.8 && (s.shrinking || timeToShrink < distNext / 6 + 12));
+    const mate = this.mate, L = this.followLeader;
+    const leadD = mate ? Math.hypot(L.pos.x - f.pos.x, L.pos.z - f.pos.z) : 0;
+    // squad mates rotate with the player; they only run for the circle themselves when the storm is on them
+    const needRotate = this.inStorm(f.pos.x, f.pos.z, 4) || (!mate && distNext > s.nr * 0.8 && (s.shrinking || timeToShrink < distNext / 6 + 12));
     const tgt = this.target && this.target.alive ? this.target : null;
-    const recentlySeen = tgt && g.time - this.targetSeenAt < 4.5;
+    let recentlySeen = tgt && g.time - this.targetSeenAt < 4.5;
+    // leash: don't chase a fight far away from the player
+    if (mate && recentlySeen && leadD > 48 && tgt.pos.distanceTo(L.pos) > 40) { this.target = null; recentlySeen = false; }
     if (recentlySeen && this.gunCount() > 0 && !(this.inStorm(f.pos.x, f.pos.z) && f.health < 40)) { this.state = 'fight'; return; }
     if (recentlySeen && this.gunCount() === 0) {
       // unarmed: run away from the threat toward loot
       this.state = 'loot';
+    }
+    if (needRotate && mate && L.mode === 'ground' && !this.inStorm(L.pos.x, L.pos.z, 2)) {
+      const sp = this.slotPos(); this.state = 'follow'; this.setGoal(sp.x, sp.z, 'follow');   // the player is safe: run to them
+      if (leadD > 40 && this.nadeCd <= 0) this.useShockwaveTo(L.pos.x, L.pos.z);
+      return;
     }
     if (needRotate) {
       if (this.state !== 'storm' || !this.goal || g.time > this.repathAt) {
@@ -325,7 +379,27 @@ export class BotBrain {
       if (this.inStorm(f.pos.x, f.pos.z) && distNext > 40 && this.nadeCd <= 0 && Math.random() < this.skill) this.useShockwaveTo(s.nx, s.nz);
       return;
     }
-    // reload teammates follow the player
+    // your squad: hold formation on you, loot only what's right next to you
+    if (mate && L.mode === 'ground') {
+      this.thinkT = 0.22;
+      const sp = this.slotPos();
+      const off = Math.hypot(sp.x - f.pos.x, sp.z - f.pos.z);
+      const moving = Math.hypot(L.vel.x, L.vel.z) > 1.5;
+      if (off > (moving ? 2.2 : 3.6) || leadD > 9) {
+        if (leadD > 42 && this.nadeCd <= 0 && Math.random() < 0.5) this.useShockwaveTo(L.pos.x, L.pos.z);   // catch up fast
+        this.state = 'follow';
+        if (!this.goal || this.goal.type !== 'follow' || Math.hypot(this.goal.x - sp.x, this.goal.z - sp.z) > 2.2) { this.goal = null; this.setGoal(sp.x, sp.z, 'follow'); }
+        return;
+      }
+      if (!moving && (this.gunCount() < 3 || this.lowAmmo())) {
+        if (this.goal && (this.goal.type === 'loot' || this.goal.type === 'chest') && this.goal.rec && this.goal.rec.active !== false && !this.goal.rec.opened) { this.state = this.goal.type; return; }
+        const found = this.findLoot(13);
+        if (found && found.rec.pos.distanceTo(L.pos) < 15) { this.state = found.type; this.chestT = 0; this.setGoal(found.rec.pos.x, found.rec.pos.z, found.type, found.rec); return; }
+      }
+      this.state = 'escort'; this.goal = null; this.path = null;
+      return;
+    }
+    // bot squads follow their leader loosely
     if (this.followLeader && this.followLeader.alive && this.followLeader.mode === 'ground') {
       const d = this.followLeader.pos.distanceTo(f.pos);
       if (d > 28 && !recentlySeen) {
@@ -413,6 +487,15 @@ export class BotBrain {
   followPath(dt, sprint = true) {
     const f = this.f, g = this.g;
     if (!this.goal) return false;
+    if (this.goal.type === 'follow' && this.mate) {
+      const sp = this.slotPos(), dx = sp.x - f.pos.x, dz = sp.z - f.pos.z, d = Math.hypot(dx, dz);
+      if (d < 0.8) return false;
+      if (d < 16 && g.col.clear(f.pos.x, f.pos.y + 0.6, f.pos.z, sp.x, f.pos.y + 0.6, sp.z)) {
+        const k = Math.min(1, d / 2.5);
+        f.move.set(dx / d * k, dz / d * k); f.sprint = d > 5 || this.followLeader.sprint; this.checkStuck(dt);
+        return true;
+      }
+    }
     if (!this.path) {
       if (!this.pathPending && g.time > this.repathAt - 5.5) this.requestPath(this.goal.x, this.goal.z);
       // walk straight toward goal while waiting

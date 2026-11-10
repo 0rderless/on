@@ -112,7 +112,14 @@ export class Match {
     this.player = this.fighters[0];
     this.teams = Math.ceil(total / teamSize);
     if (teamSize > 1) {
-      for (const f of this.fighters) if (f.team === 0 && f.bot) { f.bot.followLeader = this.player; this.addNameTag(f); }
+      let slot = 0;
+      for (const f of this.fighters) if (f.team === 0 && f.bot) {
+        const B = f.bot;
+        B.followLeader = this.player; B.slot = slot++; this.addNameTag(f);
+        // your squad are capable players whatever the lobby's skill level
+        B.skill = Math.max(B.skill, 0.66); B.reaction = 0.4; B.turnSpeed = 2.4 + 7.5 * B.skill; B.vision = 62 + 55 * B.skill;
+        B.pers.camper = 0; B.pers.aggression = Math.max(B.pers.aggression, 0.6);
+      }
       // bot squads stick together: everyone follows the first member of their team
       for (let t = 1; t < this.teams; t++) this.assignLeader(t);
     }
@@ -232,7 +239,7 @@ export class Match {
       const ahead = this.bus.pos.clone().addScaledVector(this.bus.dir, 35);
       for (const o of this.fighters) {
         if (o.bot && o.team === f.team && o.mode === 'bus') {
-          o.bot.jumpAt = this.bus.t + 8 + Math.random() * 30;
+          o.bot.jumpAt = this.bus.t + 4 + Math.random() * 14;
           o.bot.dropTarget = this.nav.randomWalkableNear(ahead.x, ahead.z, 14);
         }
       }
@@ -272,6 +279,16 @@ export class Match {
       this.hud.damageNumber(info.point || target.pos, amount, type);
       this.hud.hitmarker(info.head, res.killed);
       Audio.play(info.head ? 'headshot' : res.shieldDmg > 0 ? 'shieldhit' : 'hit', { vol: info.head ? 0.7 : 0.6 });
+    }
+    if (target.char && attacker && attacker !== target) {
+      // flinch away from where the shot came from
+      const dx = attacker.pos.x - target.pos.x, dz = attacker.pos.z - target.pos.z;
+      target.char.flinch(dx * -Math.cos(target.yaw) + dz * Math.sin(target.yaw) > 0 ? -1 : 1);
+    }
+    // squad focus fire: your team turns on whoever you hit, and on whoever hits you
+    if (this.teamSize > 1 && attacker && attacker !== target && (attacker.isPlayer || target.isPlayer)) {
+      const enemy = attacker.isPlayer ? target : attacker;
+      for (const o of this.fighters) if (o.bot && o.alive && o.team === this.player.team && o.mode === 'ground') o.bot.assist(enemy);
     }
     if (target.isPlayer) {
       this.ctrl.shake = Math.max(this.ctrl.shake, 0.35);
@@ -487,17 +504,26 @@ export class Match {
       if (ev.landed) {
         if (prevMode === 'glide' || prevMode === 'skydive') {
           f.char.setGlider(false);
-          this.effects.landingDust(f.pos);
+          this.effects.landingDust(f.pos, true);
+          f.landK = 1;
           if (f.isPlayer) {
             Audio.stopLoop('wind'); Audio.play('land', { vol: 0.8 }); if (!this.startTime) this.startTime = this.time;
             if (f.jetpack && !this.jetHintShown) { this.jetHintShown = true; this.hud.toast('JETPACK READY · HOLD JUMP TO FLY', 'yellow'); }
           }
           if (f.bot) { f.bot.state = 'loot'; f.bot.thinkT = 0; }
           f.selected = f.slotOf(s => s.kind === 'gun') > 0 ? f.slotOf(s => s.kind === 'gun') : 0;
-        } else if (f.isPlayer) Audio.play('land', { vol: 0.5 });
+        } else {
+          if (f.isPlayer) Audio.play('land', { vol: 0.5 });
+          if (f.landK > 0.45) this.effects.landingDust(f.pos, f.landK > 0.9);
+        }
         if (ev.fallDamage > 0) this.combat.damage(f, ev.fallDamage, null, { weapon: 'fall' });
       }
       if (ev.jumped && f.isPlayer) Audio.play('step2', { vol: 0.4 });
+      if (ev.mantle && f.isPlayer) Audio.play('step1', { vol: 0.5, rate: 0.8 });
+      if (f.sliding) {
+        this.effects.slideTrail(f.pos, f.vel.x, f.vel.z);
+        if (f.isPlayer) { f.slideSndT = (f.slideSndT || 0) - dt; if (f.slideSndT <= 0) { f.slideSndT = 0.16; Audio.play('step2', { vol: 0.16, rate: 0.6 }); } }
+      }
       // footsteps (spatial — important for hearing enemies)
       if (f.mode === 'ground' && f.phys.grounded) {
         const sp = Math.hypot(f.vel.x, f.vel.z);
@@ -505,6 +531,7 @@ export class Match {
           f.stepT -= dt * sp;
           if (f.stepT <= 0) {
             f.stepT = 2.6;
+            if (f.sprint && sp > 6.3 && (f.isPlayer || f.pos.distanceToSquared(camPos) < 900)) this.effects.footDust(f.pos);
             Audio.play(Math.random() < 0.5 ? 'step1' : 'step2', { pos: f.isPlayer ? null : f.pos, vol: f.isPlayer ? 0.18 : 0.75, range: 32, near: 2, jitter: 0.15 });
           }
         }
@@ -520,7 +547,7 @@ export class Match {
       if (f.isPlayer) { if (f.thrusting) { Audio.loop('jet', 0.5); } else Audio.stopLoop('jet'); }
       if (f.justHealed) {
         f.justHealed = false;
-        this.effects.burst(f.pos.x, f.pos.y + 1, f.pos.z, 24, 0x5ff4c8, 3, 0.14, 0.8, -2, 0.6);
+        this.effects.healPulse(f.pos);
         if (f.isPlayer) { Audio.play('chest', { vol: 0.6, rate: 1.3 }); this.hud.toast('+ HEALTH RESTORED', 'cyan'); }
       }
       if (f.healing && Math.random() < 0.3) this.effects.emit(f.pos.x + (Math.random() - 0.5) * 0.6, f.pos.y + 0.4 + Math.random(), f.pos.z + (Math.random() - 0.5) * 0.6, 0, 1, 0, 0x5ff4c8, 0.1, 0.5, 0);
@@ -559,9 +586,10 @@ export class Match {
       ch.update(dt, {
         vx: f.vel.x, vz: f.vel.z, yaw: f.yaw, pitch: f.pitch, grounded: f.phys.grounded, crouch: f.crouch,
         sprint: f.sprint, mode: f.mode, reloadFrac: f.reloadT > 0 ? 1 - f.reloadT / f.reloadDur : -1, camDist: d, thrusting: f.thrusting, fuel: f.isPlayer ? f.fuel : undefined,
+        sinceShot: this.time - f.lastShotAt, ads: f.ads, slide: f.sliding, mantle: f.mantle ? f.mantle.t / f.mantle.dur : -1, land: f.landK, vy: f.vel.y, equip: f.equipT,
       });
     }
-    this.effects.update(dt);
+    this.effects.update(dt, this.app.camera);
     this.stormWall.update(dt);
     // listener
     const c = this.app.camera;

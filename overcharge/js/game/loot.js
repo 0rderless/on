@@ -164,6 +164,7 @@ export class Loot {
     c.opened = true; c.openT = 0;
     c.glow.visible = false;
     Audio.play('chest', { pos: c.pos, vol: 0.9, range: 50 });
+    if (this.g.effects.chestBurst) this.g.effects.chestBurst(c.pos);
     const id = rollWeapon();
     const r = Math.random();
     const jetLoot = this.g.opts && this.g.opts.profile && this.g.opts.profile.jetpackStart === false;
