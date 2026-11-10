@@ -15,6 +15,7 @@ import { CAMERA_RIG, rigPose } from './game/player.js';
 import { Controls, applyLayout } from './ui/controls.js';
 import { Hud } from './ui/hud.js';
 import { LobbyScene } from './ui/lobbyScene.js';
+import { Bloom } from './core/post.js';
 import { playEmoteBeat } from './game/emotes.js';
 import { renderIcons, renderMapImage } from './ui/icons.js';
 import { initAuth, initLobby, initLoadout, renderLoadout, refreshModeCard, refreshMe, renderLocker, renderCareer, renderSettings, HudEditor, showResults } from './ui/menus.js';
@@ -136,6 +137,7 @@ class App {
     r.shadowMap.enabled = Q.shadows;
     r.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer = r;
+    this.bloom = new Bloom(r);
     // iOS can drop the WebGL context after the app is backgrounded: offer a clean reload instead of a frozen screen
     r.domElement.addEventListener('webglcontextlost', e => { e.preventDefault(); $('ctxlost').classList.add('show'); if (this.state === 'match') this.paused = true; });
     $('ctx-reload').addEventListener('click', () => { try { Store.saveLocalOnly(); } catch { /* best effort */ } location.reload(); });
@@ -162,10 +164,15 @@ class App {
     if (this.gameScene) {
       this.gameScene.add(e.world.group);
       const A = MAPS[id], s = this.gameScene;
-      s.fog.color.setHex(A.fog); s.fog.density = A.fogDensity * (this.quality === 'low' ? 1.32 : 1);
+      s.fog.color.setHex(A.fog); this.fogBase = A.fogDensity * (this.quality === 'low' ? 1.32 : 1); s.fog.density = this.fogBase;
       s.background.setHex(A.fog);
       this.sky.material.uniforms.uHor.value.fromArray(A.skyHorizon);
       this.sky.material.uniforms.uTop.value.fromArray(A.skyTop);
+      const SK = A.sky || {};
+      this.sky.material.uniforms.uPlanet.value.fromArray(SK.planet || [0.8, 0.7, 1.0]);
+      this.sky.material.uniforms.uPlanetK.value = SK.planetK ?? 1;
+      this.sky.material.uniforms.uStars.value = SK.stars ?? 0.3;
+      this.sky.material.uniforms.uAur.value.fromArray(SK.aurora || [0.3, 0.9, 1.0]);
       this.hemi.color.setHex(A.hemi[0]); this.hemi.groundColor.setHex(A.hemi[1]); this.hemi.intensity = A.hemi[2];
       this.sun.color.setHex(A.sun[0]); this.sun.intensity = A.sun[1];
     }
@@ -182,9 +189,47 @@ class App {
     s.environment = this.env; s.environmentIntensity = 0.35;
     const sky = new THREE.Mesh(new THREE.SphereGeometry(700, 32, 16), new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false,
-      uniforms: { uHor: { value: new THREE.Vector3(0.56, 0.54, 0.84) }, uTop: { value: new THREE.Vector3(0.24, 0.18, 0.55) } },
+      uniforms: {
+        uHor: { value: new THREE.Vector3(0.56, 0.54, 0.84) }, uTop: { value: new THREE.Vector3(0.24, 0.18, 0.55) }, uTime: { value: 0 },
+        uPlanet: { value: new THREE.Vector3(0.8, 0.7, 1.0) }, uPlanetK: { value: 1 }, uStars: { value: 0.3 }, uAur: { value: new THREE.Vector3(0.3, 0.9, 1.0) },
+      },
       vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
-      fragmentShader: 'uniform vec3 uHor; uniform vec3 uTop; varying vec3 vP; void main(){ float h = clamp(vP.y, 0.0, 1.0); gl_FragColor = vec4(mix(uHor, uTop, pow(h, 0.6)), 1.0); }',
+      fragmentShader: `
+        uniform vec3 uHor; uniform vec3 uTop; uniform vec3 uPlanet; uniform vec3 uAur; uniform float uPlanetK; uniform float uStars; uniform float uTime;
+        varying vec3 vP;
+        float h21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        void main(){
+          vec3 d = normalize(vP);
+          float h = clamp(d.y, 0.0, 1.0);
+          vec3 col = mix(uHor, uTop, pow(h, 0.6));
+          // stars
+          vec2 sp = vec2(atan(d.z, d.x) * 60.0, asin(clamp(d.y, -1.0, 1.0)) * 95.0);
+          vec2 cell = floor(sp); float sr = h21(cell);
+          float star = step(0.985, sr) * (1.0 - smoothstep(0.0, 0.42, length(fract(sp) - 0.5)));
+          col += vec3(0.9, 0.92, 1.0) * star * uStars * smoothstep(0.08, 0.4, h) * (0.6 + 0.4 * sin(uTime * 2.5 + sr * 60.0));
+          // aurora curtains above the horizon
+          float wave = sin(d.x * 5.0 + uTime * 0.12 + sin(d.z * 3.5 + uTime * 0.07) * 1.6);
+          float band = smoothstep(0.05, 0.2, h) * (1.0 - smoothstep(0.22, 0.6, h));
+          float rays = 0.6 + 0.4 * sin(atan(d.z, d.x) * 46.0 + sin(h * 30.0 + uTime * 0.3));
+          col += uAur * band * (0.5 + 0.5 * wave) * rays * 0.22;
+          // a ringed planet hanging low in the sky
+          vec3 pd = normalize(vec3(-0.55, 0.38, -0.74));
+          vec3 pr = normalize(cross(vec3(0.0, 1.0, 0.0), pd)); vec3 pu = cross(pd, pr);
+          vec2 q = vec2(dot(d, pr), dot(d, pu)) / 0.105;
+          float front = step(0.0, dot(d, pd));
+          float rr = length(q);
+          float disc = (1.0 - smoothstep(0.985, 1.0, rr)) * front;
+          vec3 nrm = vec3(q, sqrt(max(0.0, 1.0 - rr * rr)));
+          float lit = clamp(0.25 + 0.85 * dot(nrm, normalize(vec3(0.55, 0.55, 0.62))), 0.0, 1.0);
+          float stripes = 0.82 + 0.18 * sin(q.y * 13.0 + sin(q.x * 3.0) * 1.5);
+          col = mix(col, mix(col, uPlanet, 0.8) * (0.35 + lit * 0.95) * stripes, disc * uPlanetK);
+          vec2 rq = vec2(q.x * 0.94 + q.y * 0.34, (q.y * 0.94 - q.x * 0.34) * 3.4);
+          float rl = length(rq);
+          float ring = smoothstep(1.3, 1.36, rl) * (1.0 - smoothstep(2.05, 2.12, rl)) * (0.55 + 0.45 * sin(rl * 46.0)) * front;
+          ring *= 1.0 - disc * step(0.0, rq.y);
+          col += uPlanet * ring * 0.32 * uPlanetK;
+          gl_FragColor = vec4(col, 1.0);
+        }`,
     }));
     sky.renderOrder = -10; sky.frustumCulled = false;
     this.sky = sky; s.add(sky);
@@ -304,6 +349,7 @@ class App {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, Q.pixelRatio));
     this.renderer.shadowMap.enabled = Q.shadows && QUALITY[this.quality].shadows;
     this.drawDist = Q.drawDist;
+    this.bloomOn = S.bloom !== false && S.quality !== 'low';
     this.resize();
     $('fps').style.display = S.showFps ? 'block' : 'none';
     if (this.match) this.match.ctrl.settings = S;
@@ -597,11 +643,18 @@ class App {
       const fx = f.alive ? f.pos.x : this.camera.position.x, fz = f.alive ? f.pos.z : this.camera.position.z;
       this.sun.position.set(fx + 40, 80, fz + 25); this.sun.target.position.set(fx, 0, fz); this.sun.target.updateMatrixWorld();
       this.sky.position.copy(this.camera.position);
+      this.sky.material.uniforms.uTime.value = this.match.time;
+      // the haze thins out with height, so the whole map is clear from the bus and on the way down
+      const hk = Math.max(0.05, Math.min(1, 1 - (this.camera.position.y - 14) / 46));
+      const fog = this.gameScene.fog, want = (this.fogBase || fog.density) * hk;
+      fog.density += (want - fog.density) * Math.min(1, dt * 3);
       this.renderer.render(this.gameScene, this.camera);
+      if (this.bloomOn) this.bloom.render();
     } else if (this.lobbyScene && this.state !== 'loading') {
       this.factory.time.value += dt;
       this.lobbyScene.update(dt);
       this.renderer.render(this.lobbyScene.scene, this.lobbyScene.camera);
+      if (this.bloomOn) this.bloom.render();
     }
   }
 }

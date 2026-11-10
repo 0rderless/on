@@ -42,6 +42,7 @@ export class PlayerController {
     this.busOrbit = 0;
     this.throwHeld = false;
     this.emoteOrbit = 0; this.emotePitch = -0.12; this.emoteCamK = 0;
+    this.recoilBack = 0; this.shotN = 0; this.lastShot = -9; this.fovKick = 0; this.fovMove = 0;
   }
 
   /** Camera aim ray (from the camera through the crosshair). */
@@ -87,6 +88,10 @@ export class PlayerController {
       this.pitch += (assist.pitch - this.pitch) * k * 0.35;
     }
     this.assistTarget = assist ? assist.f : null;
+    if (this.recoilBack > 0) {
+      const r = Math.min(this.recoilBack, dt * (this.recoilBack * 7 + 0.01));
+      this.pitch -= r; this.recoilBack -= r;
+    }
 
     if (!f.alive) { this.updateCamera(dt); return; }
 
@@ -126,7 +131,15 @@ export class PlayerController {
     }
     if (input.jump) { f.wantJump = true; input.jump = false; }
     f.jetHeld = !!input.jumpHeld && f.mode === 'ground';
-    if (input.crouch) { input.crouch = false; if (f.mode === 'ground') f.crouch = !f.crouch; }
+    if (input.crouch) {
+      input.crouch = false;
+      if (f.mode === 'ground') {
+        // crouch out of a sprint = slide; crouch again (or jump) to come out of it
+        if (f.sliding) f.endSlide(false);
+        else if (f.startSlide()) { Audio.play('swing', { vol: 0.35, rate: 0.7 }); this.fovKick = Math.max(this.fovKick, 3); }
+        else f.crouch = !f.crouch;
+      }
+    }
     if (input.slot !== null && input.slot !== undefined) {
       if (f.select(input.slot)) Audio.play('equip', { vol: 0.6 });
       input.slot = null;
@@ -208,9 +221,13 @@ export class PlayerController {
             spreadMul = w.id === 'shotgun' ? 0.65 : w.id === 'sniper' ? 1 : 0.35;
           }
           if (g.combat.fireGun(f, _o, _dir, 0, spreadMul)) {
-            const k = w.recoil * (f.ads ? 0.6 : 1) * (onLock ? 0.3 : 1);
-            this.pitch += k * (0.6 + Math.random() * 0.4);
-            this.yaw += (Math.random() - 0.5) * k * 0.6;
+            // recoil: the view kicks up (and wanders a little), then settles most of the way back by itself
+            const k = w.recoil * (f.ads ? 0.6 : 1) * (onLock ? 0.3 : 1) * (f.crouch ? 0.8 : 1);
+            const kick = k * (0.7 + Math.random() * 0.4);
+            this.shotN = g.time - this.lastShot > 0.4 ? 0 : this.shotN + 1; this.lastShot = g.time;
+            this.pitch += kick; this.recoilBack += kick * 0.7;
+            this.yaw += Math.sin(this.shotN * 1.3) * k * 0.28 + (Math.random() - 0.5) * k * 0.25;
+            this.fovKick = Math.max(this.fovKick, w.id === 'sniper' ? 2.6 : w.id === 'shotgun' ? 2 : 0.7);
             this.shake = Math.max(this.shake, w.id === 'shotgun' || w.id === 'sniper' ? 0.5 : 0.12);
             if (w.id === 'sniper' || w.id === 'shotgun') setTimeout(() => Audio.play('pump', { vol: 0.4 }), 350);
           }
@@ -391,6 +408,12 @@ export class PlayerController {
       else { ({ dist, right, up } = CAMERA_RIG.ads); fov = this.fovBase / w.zoom; }
     } else ({ dist, right, up } = CAMERA_RIG.hip);
     if (ek > 0) { dist += (3.9 - dist) * ek; right *= 1 - ek; up += (-0.25 - up) * ek; }
+    // speed feel: the view opens up a little when sprinting and more in a slide; shots punch it briefly
+    const moveFov = f === g.player && f.alive && f.mode === 'ground' && !ads ? (f.sliding ? 7 : f.sprint && Math.hypot(f.vel.x, f.vel.z) > 6.4 ? 3.2 : 0) : 0;
+    this.fovMove += (moveFov - this.fovMove) * Math.min(1, dt * 5);
+    this.fovKick = Math.max(0, this.fovKick - dt * 14);
+    fov += this.fovMove + (ads ? this.fovKick * 0.4 : this.fovKick);
+    if (f.mode === 'ground' && f.landK > 0) up -= f.landK * 0.2;
     if (!f.alive) { dist = 5; right = 0; }
     // gliders you stand or sit on hang below your feet: aim lower and pull back so the whole thing is in frame
     const gp = f.mode === 'glide' && f.char && f.char.glider && f.char.glider.userData.pose;

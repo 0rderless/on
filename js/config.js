@@ -12,7 +12,7 @@ export const firebaseConfig = {
 // All game data lives under this root so it never collides with other apps on the same database.
 export const DB_ROOT = 'overcharge';
 
-export const GAME_VERSION = '1.9.6';
+export const GAME_VERSION = '2.0.0';
 
 export const MAP_HALF = 160;          // map spans -160..160 on X and Z (metres)
 export const GRAVITY = 24;
@@ -54,16 +54,19 @@ export const MAPS = {
     name: 'Reversal Compound', short: 'Compound',
     fog: 0x8f8ad6, fogDensity: 0.0102, skyHorizon: [0.56, 0.54, 0.84], skyTop: [0.24, 0.18, 0.55],
     hemi: [0xcfc6ff, 0x4a3f7a, 1.75], sun: [0xfff1e0, 1.65], mapBg: 0x8f86c9,
+    sky: { planet: [0.86, 0.74, 1.0], planetK: 1, stars: 0.35, aurora: [0.35, 0.95, 1.0] },
   },
   vulcan: {
     name: 'Vulcan Garrison', short: 'Vulcan',
     fog: 0x283247, fogDensity: 0.0066, skyHorizon: [0.12, 0.15, 0.25], skyTop: [0.015, 0.02, 0.05],
     hemi: [0xb4c4ff, 0x2b303e, 1.65], sun: [0xcfdcff, 1.3], mapBg: 0x141926,
+    sky: { planet: [0.35, 0.6, 1.0], planetK: 1, stars: 1, aurora: [0.2, 0.55, 1.0] },
   },
   warehouse: {
     name: 'Warehouse', short: 'Warehouse',
     fog: 0x9ea6ba, fogDensity: 0.0088, skyHorizon: [0.6, 0.63, 0.72], skyTop: [0.22, 0.25, 0.33],
     hemi: [0xe6ecff, 0x4f566c, 1.7], sun: [0xf2f5ff, 1.35], mapBg: 0x8a91a6,
+    sky: { planet: [0.75, 0.85, 1.0], planetK: 0, stars: 0, aurora: [0.3, 0.75, 1.0] },
   },
 };
 export const DEFAULT_MAP = 'compound';
