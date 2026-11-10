@@ -8,6 +8,8 @@ import { makeBus } from './buses.js';
 import { Effects, StormWall } from './effects.js';
 import { PlayerController } from './player.js';
 import { playEmoteBeat, EMOTES } from './emotes.js';
+
+const OUT_DELAY = 2.3;   // seconds the death animation + beam-out play before a results card appears
 import { makeGun, makeGrenade, WEAPONS, AMMO_TYPES, DEFAULT_LOADOUT } from '../data/items.js';
 import { SKINS, PICKAXES, GLIDERS, normalizeGlider } from '../data/cosmetics.js';
 import { Audio } from '../core/audio.js';
@@ -386,15 +388,19 @@ export class Match {
     // duos/squads: while a teammate is still standing your team is still in it — spectate them
     if (this.teamSize > 1 && this.teamAlive(p.team)) {
       this.ctrl.spectating = this.fighters.find(f => f.alive && f.team === p.team) || null;
-      this.hud.playerEliminated(killer, null, { kills: p.kills, damage: Math.round(p.damageDealt), team: this.team });
+      const stats = { kills: p.kills, damage: Math.round(p.damageDealt), team: this.team };
+      this.later(OUT_DELAY, () => this.hud.playerEliminated(killer, null, stats));
       return;
     }
     const placement = this.teamMode
       ? (p.placement || (this.teamAlive(p.team) ? this.teamsRemaining() : this.teamsRemaining() + 1))
       : (p.placement || this.aliveCount() + 1);
     this.finish(false, placement);
-    this.ctrl.spectating = killer && killer.alive ? killer : this.fighters.find(f => f.alive && (this.teamSize === 1 || f.team === p.team)) || null;
-    this.hud.playerEliminated(killer, placement, this.result);
+    const result = this.result;
+    this.later(OUT_DELAY, () => {
+      this.ctrl.spectating = killer && killer.alive ? killer : this.fighters.find(f => f.alive && (this.teamSize === 1 || f.team === p.team)) || null;
+      this.hud.playerEliminated(killer, placement, result);
+    });
   }
 
   finish(won, placement) {
@@ -417,9 +423,9 @@ export class Match {
       this.over = true;
       if (playerWon) {
         this.finish(true, 1);
-        this.victoryT = 4.5;
-        this.hud.victory(this.result);
-        Audio.play('elim', { vol: 1, rate: 0.8 });
+        this.victoryT = 4.5 + OUT_DELAY;
+        const result = this.result;
+        this.later(OUT_DELAY, () => { this.hud.victory(result); Audio.play('elim', { vol: 1, rate: 0.8 }); });
       } else if (!this.result) {
         this.finish(false, 2);
       }
@@ -448,9 +454,16 @@ export class Match {
   }
 
   // ================================================================ frame
+  /** Run fn after `sec` seconds of match time. */
+  later(sec, fn) { (this.timers || (this.timers = [])).push({ t: this.time + sec, fn }); }
+
   update(dt) {
     dt = Math.min(dt, 0.05);
     this.time += dt;
+    if (this.timers && this.timers.length) {
+      const due = this.timers.filter(x => x.t <= this.time);
+      if (due.length) { this.timers = this.timers.filter(x => x.t > this.time); for (const x of due) x.fn(); }
+    }
     const input = this.app.input.state;
     this.app.factory.time.value = this.time;
     // ---- bus
