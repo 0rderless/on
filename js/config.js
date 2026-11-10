@@ -12,7 +12,7 @@ export const firebaseConfig = {
 // All game data lives under this root so it never collides with other apps on the same database.
 export const DB_ROOT = 'overcharge';
 
-export const GAME_VERSION = '2.0.0';
+export const GAME_VERSION = '2.0.1';
 
 export const MAP_HALF = 160;          // map spans -160..160 on X and Z (metres)
 export const GRAVITY = 24;
